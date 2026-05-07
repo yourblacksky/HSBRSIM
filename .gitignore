@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Training outputs (excluded from public repo)
+checkpoints/
+logs/
+
+# RL training code (excluded from public repo)
+hsrl/env/
+hsrl/train/
+
+# External projects (excluded from public repo)
+fireplace/
+Hearthstone-Deck-Tracker/
+Hearthstone-Deck-Tracker.wiki/
+
+# Collected game data
+data/real_games/
+
+# AI assistant configuration (excluded from public repo)
+AGENTS.md
+CLAUDE.md
+.claude/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.venv/
+venv/

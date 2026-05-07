@@ -1,0 +1,9 @@
+{
+  "Id": "com.hsrl.adviser",
+  "Name": "HrSRL Adviser",
+  "Version": "1.0.0",
+  "Author": "HrSRL",
+  "Description": "AI-powered Battlegrounds action suggestions with real-time model inference.",
+  "CompatibleHdtVersion": "1.49.0",
+  "EntryType": "HrSRLAdviser.AdviserPlugin"
+}

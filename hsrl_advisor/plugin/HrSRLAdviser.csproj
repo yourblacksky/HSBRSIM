@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>8.0</LangVersion>
+    <AssemblyName>HrSRLAdviser</AssemblyName>
+    <RootNamespace>HrSRLAdviser</RootNamespace>
+    <OutputType>Library</OutputType>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <HdtPath Condition="'$(HdtPath)' == ''">$(AppData)\HearthstoneDeckTracker</HdtPath>
+    <HdtAppDir Condition="'$(HdtAppDir)' == ''">$(HdtPath)\app-1.51.15</HdtAppDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="HearthstoneDeckTracker">
+      <HintPath>$(HdtAppDir)\HearthstoneDeckTracker.exe</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="HearthDb">
+      <HintPath>$(HdtAppDir)\HearthDb.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="HearthMirror">
+      <HintPath>$(HdtAppDir)\HearthMirror.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!-- Copy output to HDT Plugins folder after build -->
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <MakeDir Directories="$(HdtPath)\Plugins\HrSRLAdviser" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(HdtPath)\Plugins\HrSRLAdviser" />
+    <Copy SourceFiles="$(ProjectDir)plugin.json" DestinationFolder="$(HdtPath)\Plugins\HrSRLAdviser" />
+  </Target>
+
+</Project>

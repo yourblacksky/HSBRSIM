@@ -1,0 +1,396 @@
+# HSBRSIM — Hearthstone Battlegrounds Simulator
+
+[中文文档](README_CN.md) | [English](README.md)
+
+A clean, extensible Python engine for simulating **Hearthstone Battlegrounds Solo Mode** with mechanistic accuracy. Every keyword, trigger, and combat rule matches the official game description.
+
+> **Scope**: Solo Mode only. Duos mode is out of scope.
+
+## Architecture
+
+### Action-Driven Design
+
+All state changes flow through the Action system:
+
+```
+Action → queue → broadcast events → resolve → trigger follow-ups → check deaths
+```
+
+No hidden state. No magic numbers. Every property is declared upfront in `hsrl/core/enums.py`.
+
+### Core Engine
+
+| Module | Lines | Responsibility |
+|--------|-------|---------------|
+| `hsrl/core/enums.py` | 295 | GameTag (180+), CardType (9), Race, Zone, Step, State |
+| `hsrl/core/entity.py` | 345 | BaseEntity — tags, buffs, script hooks |
+| `hsrl/core/actions.py` | 1,897 | 60+ Action classes — all game mechanics |
+| `hsrl/core/game.py` | 1,424 | Game engine — turn flow, combat, death, damage |
+| `hsrl/core/events.py` | 145 | EventListener + 40+ standard event constants |
+| `hsrl/core/player.py` | 123 | Player — gold, health, board, hand, trinkets |
+| `hsrl/core/card_db.py` | 157 | CardDB singleton + `register_card()` |
+| `hsrl/core/minion.py` | 54 | Minion — combat state, can_attack |
+| `hsrl/core/minion_pool.py` | 188 | Shared minion pool + `remove_all_copies` |
+| `hsrl/core/spell_pool.py` | 101 | Shared spell pool |
+
+## Implemented Mechanics
+
+### Combat Keywords
+
+| Keyword | Description | Status |
+|---------|-------------|--------|
+| Taunt | Forces attacks to target this minion first | ✅ |
+| Divine Shield | Blocks the first instance of damage | ✅ |
+| Poisonous | Destroys any minion damaged by this | ✅ |
+| Venomous | Destroys any minion damaged by this (combat only) | ✅ |
+| Reborn | Resummons with 1 Health on first death | ✅ |
+| Windfury | Can attack twice per combat round | ✅ |
+| Cleave | Also damages adjacent minions | ✅ |
+
+### Card Effects
+
+| Mechanism | Description | Status |
+|-----------|-------------|--------|
+| Battlecry | Triggers when played from hand | ✅ |
+| Deathrattle | Triggers when the minion dies | ✅ |
+| Start of Combat | Triggers at combat start | ✅ |
+| End of Turn | Triggers at end of recruit phase | ✅ |
+| Start of Turn | Triggers at start of recruit phase | ✅ |
+| Avenge | Triggers after N friendly minions die | ✅ |
+| Rally | Triggers when this minion attacks | ✅ |
+| Magnetic | Attaches to a mech on board | ✅ |
+| Spellcraft | One-time spell effect while in hand | ✅ |
+
+### Subsystems
+
+| System | Description | Status |
+|--------|-------------|--------|
+| Golden / Triple | Combine 3 copies → golden + discover | ✅ |
+| Blood Gems | Get / Play / Improve gems | ✅ |
+| Discover | Choose 1 of 3 cards (minion/spell/reward) | ✅ |
+| Transform | Replace a minion with another | ✅ |
+| FodderConsume | Devour a minion to gain stats | ✅ |
+| Global Auras | Persistent board-wide buffs | ✅ |
+| Tavern Buff | Buff minions in the tavern | ✅ |
+| Combat Summon | Summon minions during combat | ✅ |
+| Free Refresh | Gain free tavern refreshes | ✅ |
+| Spell Discount | Reduce next spell's cost | ✅ |
+| Buddy System | Hero-specific companion minions | ✅ |
+| Trinkets | Lesser/Greater trinket selection | ✅ |
+| Anomalies | Game-modifying rules (64/105 implemented) | ✅ |
+| Quests | Quest + reward system (66/76 implemented) | ✅ |
+
+### Card Registration Status
+
+| Category | Count | CORRECT | DEFERRED |
+|----------|-------|---------|----------|
+| Minion Pool | 244 | 218 | 0 |
+| Spell Pool | 71 | 71 | 0 |
+| Token Minions | ~200 | ~200 | 0 |
+| Heroes | 120 | 120 | 0 |
+| Hero Powers | 94 | 94 | 0 |
+| Trinkets | 327 | 311 | 5 (OOS Duos) |
+| Anomalies | 105 | 64 | 41 |
+| Quest Rewards | 76 | 66 | 10 |
+| **Total** | **~1,237** | **~1,144** | **56** |
+
+## Project Structure
+
+```
+HSBRSIM/
+├── hsrl/                              # Main Python package
+│   ├── core/                          # Game engine (5,581 lines)
+│   │   ├── enums.py                   # GameTag, CardType, Race, Zone, Step
+│   │   ├── entity.py                  # BaseEntity — tags, buffs, hooks
+│   │   ├── minion.py                  # Minion — combat state
+│   │   ├── player.py                  # Player — gold, health, board
+│   │   ├── actions.py                 # Action system (60+ Action classes)
+│   │   ├── events.py                  # EventListener + 40+ event constants
+│   │   ├── game.py                    # Game engine — turns, combat, death
+│   │   ├── minion_pool.py             # Shared minion pool
+│   │   ├── spell_pool.py              # Shared spell pool
+│   │   ├── card_db.py                 # CardDB + register_card()
+│   │   ├── quest.py                   # Quest + QuestReward entities
+│   │   ├── anomaly.py                 # Anomaly entity
+│   │   └── trinket.py                 # Trinket entity
+│   ├── cards/                         # Card definitions (20 files)
+│   │   ├── minions/                   # Minion cards (pool, scripts, tokens)
+│   │   ├── heroes/                    # Hero cards (pool, scripts)
+│   │   ├── spells/                    # Spell cards
+│   │   ├── rewards/                   # Quest reward cards
+│   │   ├── trinkets/                  # Trinket cards
+│   │   └── anomalies/                 # Anomaly cards
+│   ├── advisor/                       # HDT plugin backend
+│   │   ├── server.py                  # WebSocket server
+│   │   ├── state_mapper.py            # Game state → feature vector
+│   │   ├── collector.py               # Trajectory recorder (JSONL)
+│   │   ├── overlay_protocol.py        # C# ↔ Python message schema
+│   │   ├── inference.py               # Model inference (requires sb3-contrib)
+│   │   └── cli.py                     # Command-line interface
+│   ├── utils/                         # Utilities (logger, etc.)
+│   └── tests/                         # Test suite (696 tests)
+│       ├── test_core_mechanics.py      # Core mechanics tests
+│       ├── test_token_cards.py        # Token card tests
+│       ├── test_heroes.py             # Hero power tests
+│       ├── test_advisor.py            # Advisor pipeline tests
+│       └── test_logger.py             # Logger tests
+├── hsrl_advisor/                      # HDT plugin (C#)
+│   └── plugin/                        # HDT plugin source
+│       ├── plugin.json                # Plugin manifest
+│       ├── HrSRLAdviser.csproj        # .NET 4.7.2 project
+│       ├── AdviserPlugin.cs           # Plugin entry point
+│       ├── GameStateExtractor.cs      # Game state extraction (~617 lines)
+│       ├── SuggestionOverlay.cs        # WPF overlay panel
+│       └── WebSocketClient.cs         # WebSocket client
+├── data/                              # Card data (JSON)
+│   ├── bg_cards.json                  # Full BG cards (5,189)
+│   ├── bg_pool_minions.json           # Minion pool (270)
+│   ├── bg_pool_spells.json            # Spell pool (71)
+│   ├── bg_heroes.json                 # Hero definitions (119)
+│   ├── bg_hero_powers.json            # Hero powers (164)
+│   ├── bg_trinkets.json               # Trinkets (326)
+│   ├── bg_anomalies.json              # Anomalies (104)
+│   └── bg_quest_rewards.json          # Quest rewards (73)
+├── docs/                              # Reference documentation
+│   ├── BATTLEGROUNDS_RULES.md         # Authoritative rules manual
+│   ├── MECHANICS_REFERENCE.md         # Mechanics implementation reference
+│   ├── CARD_REGISTRATION_GUIDE.md     # Card registration guide
+│   └── wiki_crawls/                   # Cached wiki data
+├── hsdata/                            # CardDefs.xml (git submodule)
+├── pyproject.toml                     # Build configuration
+└── README.md                          # This file
+```
+
+## Quick Start
+
+### Installation
+
+```bash
+pip install -e .
+# or with dev dependencies:
+pip install -e ".[dev]"
+```
+
+### Basic Usage
+
+```python
+from hsrl.core.game import Game
+from hsrl.core.player import Player
+from hsrl.core.card_db import CARDS
+import hsrl.cards.minions  # Register standard examples
+
+# Create a game
+game = Game([])
+game.card_db = CARDS
+
+# Create players
+p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
+p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
+game.players = [p1, p2]
+
+# Summon minions
+m1 = game.create_minion("EXAMPLE_TAUNT")
+m2 = game.create_minion("EXAMPLE_POISONOUS")
+game.summon(p1, m1)
+game.summon(p2, m2)
+
+# Run combat
+game._run_combat(p1, p2)
+print(f"Player 1 HP: {p1.health}, Player 2 HP: {p2.health}")
+```
+
+### Running a Full Game
+
+```python
+from hsrl.core.game import Game
+from hsrl.core.card_db import CARDS
+import hsrl.cards.minions
+import hsrl.cards.spells
+import hsrl.cards.heroes
+
+game = Game([])
+game.card_db = CARDS
+
+# Add 4 players with random heroes
+hero_ids = ["TB_BaconShop_HERO_01", "TB_BaconShop_HERO_02",
+            "TB_BaconShop_HERO_10", "TB_BaconShop_HERO_15"]
+for hid in hero_ids:
+    hero_card = CARDS.get(hid)
+    player = game.add_player(hero_card)
+    game.card_db.draw_opening_hand(player)
+    game.card_db.roll_tavern(player)
+
+# Start the game loop
+game.start_game()
+```
+
+## Test Interface
+
+### Running Tests
+
+```bash
+# Run all tests
+python -m pytest hsrl/tests/ -v
+
+# Run specific test categories
+python -m pytest hsrl/tests/test_core_mechanics.py -v
+python -m pytest hsrl/tests/test_token_cards.py -v
+python -m pytest hsrl/tests/test_heroes.py -v
+
+# Run a specific test
+python -m pytest hsrl/tests/test_core_mechanics.py::TestCombat::test_taunt_attracts_attacks -v
+
+# With coverage
+pip install pytest-cov
+python -m pytest hsrl/tests/ --cov=hsrl --cov-report=html
+```
+
+### Test Statistics
+
+- **696 tests** passed, 1 skipped
+- Categories: core mechanics (352), heroes (145), token cards (77), advisor, logger
+- Coverage target: every mechanism and card script has a corresponding test
+
+### Writing Tests
+
+Tests follow the Arrange-Act-Assert pattern:
+
+```python
+def test_divine_shield_blocks_damage(self):
+    # Arrange
+    game = Game([])
+    p1 = Player(...)
+    p2 = Player(...)
+    m1 = game.create_minion("EXAMPLE_DIVINE_SHIELD")
+    m2 = game.create_minion("EXAMPLE_TAUNT")
+    game.summon(p1, m1)
+    game.summon(p2, m2)
+
+    # Act
+    game._run_combat(p1, p2)
+
+    # Assert
+    assert m1.get_tag(GameTag.DIVINE_SHIELD) == 0  # Shield consumed
+    assert m1.health == m1.get_tag(GameTag.HEALTH)  # No health lost
+```
+
+## Card Registration Pipeline
+
+To add a new card, follow the standard pipeline:
+
+1. **Read the official card text** — understand the exact semantics
+2. **Define a script class** with three-section docstring:
+   ```python
+   class BGS_999_Script:
+       """Natural language: Battlecry: Give a friendly minion +2/+2.
+
+       Formal spec:
+         Battlecry → choose friendly minion → Buff(+2 ATK, +2 HP, permanent)
+
+       Test: BGS_999_GivesBuff
+       """
+       battlecry = BuffFriendly(target=TARGET_SELF, atk=2, health=2)
+   ```
+3. **Register the card** via `register_card()`:
+   ```python
+   register_card(
+       card_id="BGS_999",
+       card_type=CardType.MINION,
+       name="Example Buffer",
+       attack=3, health=3, tier=2, race=Race.NEUTRAL,
+       script_class=BGS_999_Script,
+   )
+   ```
+4. **Write a test** that verifies the exact semantics
+5. **Run tests** until they pass
+
+**Card correctness standard**: Cards are either CORRECT (exact match to official text) or DEFERRED (returns None with documented dependency). Approximate implementations are not permitted.
+
+## HDT Plugin — In-Game Trajectory Monitor
+
+The `hsrl_advisor/plugin/` directory contains a C# plugin for **Hearthstone Deck Tracker** (HDT) that captures Battlegrounds game states in real time. Combined with the Python backend server, it records complete game trajectories as JSONL files for analysis.
+
+### Architecture
+
+```
+[C# HDT Plugin] ──WebSocket──> [Python Server] ──> data/real_games/<date>/<game_id>.jsonl
+     127.0.0.1:9777
+```
+
+### Building the Plugin
+
+**Prerequisites**: .NET Framework 4.7.2 SDK, Hearthstone Deck Tracker installed.
+
+```bash
+# Build from command line
+cd hsrl_advisor/plugin
+dotnet build HrSRLAdviser.csproj
+
+# Or open HrSRLAdviser.csproj in Visual Studio / JetBrains Rider
+```
+
+The `.csproj` PostBuild target automatically copies the built DLL and `plugin.json` to `%AppData%\HearthstoneDeckTracker\Plugins\HrSRLAdviser\`.
+
+### Manual Installation
+
+If the auto-deploy fails, manually copy:
+
+```
+hsrl_advisor/plugin/bin/Debug/net472/HrSRLAdviser.dll  →  %AppData%\HearthstoneDeckTracker\Plugins\HrSRLAdviser\
+hsrl_advisor/plugin/plugin.json                         →  %AppData%\HearthstoneDeckTracker\Plugins\HrSRLAdviser\
+```
+
+### Running the Server
+
+**Collect-only mode** (no AI model required — records trajectories only):
+
+```bash
+python -m hsrl.advisor.cli --collect-only
+```
+
+**Inference mode** (requires `sb3-contrib` and a trained checkpoint):
+
+```bash
+pip install sb3-contrib websockets
+python -m hsrl.advisor.cli --model path/to/checkpoint.zip
+```
+
+### Trajectory Data Format
+
+Each game produces one `.jsonl` file (one JSON object per line):
+
+```jsonl
+{"type": "game_start", "game_id": "abc123", "hero": "TB_BaconShop_HERO_59", "mmr": 7500, "timestamp": "2026-05-07T12:00:00"}
+{"type": "step", "turn": 3, "action_taken": 0, "action_mask": [true, true, false, ...], "state": {...}}
+{"type": "step", "turn": 4, "action_taken": 24, "action_mask": [...], "state": {...}}
+...
+{"type": "game_end", "game_id": "abc123", "placement": 3, "mmr_change": 15, "timestamp": "2026-05-07T12:15:00"}
+```
+
+The `state` object contains the full game state extracted from HDT: player status, tavern offerings, hand cards, board minions, trinkets, and opponent summaries. See `hsrl/advisor/overlay_protocol.py` for the complete schema.
+
+### Plugin Features
+
+- **Real-time state extraction**: Reads HDT's internal entity dictionary to capture the exact game state
+- **Timed updates**: Sends game state to the server every 250ms during the recruit phase
+- **WPF overlay**: Displays the connection status in HDT's overlay canvas
+- **Auto-reconnect**: WebSocket client reconnects with exponential backoff on connection loss
+- **Graceful degradation**: If the Python server is not running, the plugin simply doesn't display suggestions — HDT functions normally
+
+## Data Sources
+
+Card data is sourced from HearthSim's [hsdata](https://github.com/HearthSim/hsdata) (CardDefs.xml) and the [Amalgadon API](https://bgknowhow.com/), cleaned and cached in `data/` as structured JSON files.
+
+**Data version**: Patch 35.2.2.241135 | Season 13 "Cataclysm Calls"
+
+## Design Philosophy
+
+1. **Semantic precision**: Code matches card text exactly. "Get" ≠ "Play", "Summon" ≠ "Add to hand".
+2. **No hidden state**: Every property is declared in `enums.py`. No magic numbers.
+3. **Action-driven**: All state changes go through the Action system with event broadcasting.
+4. **Cards are CORRECT or DEFERRED**: Approximations are bugs, not simplifications.
+5. **Documentation is frozen**: Rules and mechanics are documented in `docs/` — no live wiki dependency.
+
+## License
+
+MIT

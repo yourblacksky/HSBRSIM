@@ -1,0 +1,68 @@
+{
+  "Murloc King": {
+    "page": "Battlegrounds/Murloc King",
+    "found_texts": []
+  },
+  "Nefarious Fire": {
+    "page": "Battlegrounds/Nefarious Fire",
+    "found_texts": []
+  },
+  "Honorable Warband": {
+    "page": "Battlegrounds/Honorable Warband",
+    "found_texts": []
+  },
+  "Imprison": {
+    "page": "Battlegrounds/Imprison",
+    "found_texts": [
+      "HP text: Make a minion in Bob's Tavern Dormant . After 2 turns, get it with +1 Attack. \") Patch 18.4.2.62331 (2020-10-15): Now reads: \" Hero Power Make a minion in Bob's Tavern Dormant . After 2 turns, get it "
+    ]
+  },
+  "Friendly Wager": {
+    "page": "Battlegrounds/Friendly Wager",
+    "found_texts": []
+  },
+  "Tavern Lighting": {
+    "page": "Battlegrounds/Tavern Lighting",
+    "found_texts": []
+  },
+  "Build-An-Undead": {
+    "page": "Battlegrounds/Build-An-Undead",
+    "found_texts": []
+  },
+  "Sign a New Artist": {
+    "page": "Battlegrounds/Sign a New Artist",
+    "found_texts": []
+  },
+  "Blessing of the Nine Frogs": {
+    "page": "Battlegrounds/Blessing of the Nine Frogs",
+    "found_texts": []
+  },
+  "The Galaxy's Lens": {
+    "page": "Battlegrounds/The Galaxy's Lens",
+    "found_texts": []
+  },
+  "Spawning Pool": {
+    "page": "Battlegrounds/Spawning Pool",
+    "found_texts": []
+  },
+  "Evolution Chamber": {
+    "page": "Battlegrounds/Evolution Chamber",
+    "found_texts": []
+  },
+  "Naga Conquest": {
+    "page": "Battlegrounds/Naga Conquest",
+    "found_texts": []
+  },
+  "Runic Empowerment": {
+    "page": "Battlegrounds/Runic Empowerment",
+    "found_texts": []
+  },
+  "Fire the Cannons!": {
+    "page": "Battlegrounds/Fire the Cannons!",
+    "found_texts": []
+  },
+  "Pirate Parrrrty!": {
+    "page": "Battlegrounds/Pirate Parrrrty!",
+    "found_texts": []
+  }
+}
