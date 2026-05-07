@@ -1720,48 +1720,105 @@ class Game:
             self._auto_player_turn(p)
             self.resolve_queue()
 
+    @staticmethod
+    def _board_score(board: list) -> int:
+        """Total stats score: sum of (atk + health)."""
+        return sum(m.atk + m.health for m in board)
+
     def _auto_player_turn(self, player: Player) -> None:
-        """Auto-play one player's recruit phase using a simple heuristic."""
-        max_attempts = 20
+        """Greedy Q-score heuristic: for every affordable minion, evaluate the
+        board after buying + playing it. Pick the action that gives the highest
+        total board stats. When board is full, consider selling the weakest
+        minion to make room if it yields a net stat gain and gold >= 3."""
+        from hsrl.core.actions import SpendGold, UpgradeTavern
+
+        max_attempts = 30
         attempts = 0
+
         while player.gold > 0 and attempts < max_attempts:
             attempts += 1
-            # Priority 1: Buy best affordable minion
+
+            board = player.get_board_minions()
+            current_score = self._board_score(board)
+
+            # ── If board full, sell weakest if it frees gold for a buy ──
+            if len(board) >= 7 and player.gold >= 1:
+                weakest = min(board, key=lambda m: m.atk + m.health)
+                projected_gold = player.gold + 1
+                if projected_gold >= 3:
+                    self.sell_minion(player, weakest)
+                    board = player.get_board_minions()
+                    current_score = self._board_score(board)
+                    if player.gold <= 0:
+                        break
+                    continue  # Re-evaluate after selling
+
+            # ── Evaluate every affordable tavern minion ──
             affordable = [m for m in player.tavern
-                          if not m.dead and m.get_tag(GameTag.COST, 3) <= player.gold]
-            if affordable and len(player.hand) < MAX_HAND_SIZE:
-                best = max(affordable, key=lambda m: m.atk + m.health)
-                self.buy_minion(player, best)
-                # Play minion from hand immediately after buying
+                          if not m.dead and m.get_tag(GameTag.COST, 3) <= player.gold
+                          and len(player.hand) < MAX_HAND_SIZE]
+
+            best_score = current_score
+            best_action = None  # (action_type, buy_target, replace_target)
+
+            if affordable:
+                for candidate in affordable:
+                    cand_stats = candidate.atk + candidate.health
+
+                    if len(board) < 7:
+                        # Simple add to board
+                        score = current_score + cand_stats
+                        if score > best_score:
+                            best_score = score
+                            best_action = ("buy_play", candidate, None)
+                    else:
+                        # Board full — try replacing the weakest
+                        # (we only get here if selling above didn't help)
+                        weakest = min(board, key=lambda m: m.atk + m.health)
+                        weakest_stats = weakest.atk + weakest.health
+                        net_change = cand_stats - weakest_stats
+                        if net_change > 0:
+                            score = current_score + net_change
+                            if score > best_score:
+                                best_score = score
+                                best_action = ("sell_buy_play", candidate, weakest)
+
+            if best_action:
+                action_type, buy_target, replace_target = best_action
+                if action_type == "sell_buy_play":
+                    self.sell_minion(player, replace_target)
+                    # Re-check gold after sell
+                    if player.gold < buy_target.get_tag(GameTag.COST, 3):
+                        continue
+                self.buy_minion(player, buy_target)
+                # Play the minion we just bought
                 minion_hand = [m for m in player.hand
                                if m.get_tag(GameTag.CARDTYPE) == CardType.MINION]
-                if minion_hand and len(player.board) < 7:
-                    self.play_minion(player, minion_hand[0])
+                if minion_hand and len(player.get_board_minions()) < 7:
+                    self.play_minion(player, minion_hand[-1])
                 continue
 
-            # Priority 2: Upgrade tavern
+            # ── Fallback: upgrade tavern ──
             upgrade_cost = player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
             if player.gold >= upgrade_cost and player.tavern_tier < 6:
-                from hsrl.core.actions import UpgradeTavern
                 self.queue_action(UpgradeTavern(player))
                 self.resolve_queue()
                 continue
 
-            # Priority 3: Refresh
+            # ── Fallback: refresh ──
             if player.gold >= 1:
                 self.refresh_tavern(player)
-                from hsrl.core.actions import SpendGold
                 self.queue_action(SpendGold(player, 1))
                 self.resolve_queue()
                 continue
 
-            break  # Nothing more to do
+            break
 
-        # Play any remaining minions from hand
+        # ── Play any remaining minions from hand ──
         minion_hand = [m for m in player.hand
                        if m.get_tag(GameTag.CARDTYPE) == CardType.MINION]
         for m in minion_hand:
-            if len(player.board) < 7:
+            if len(player.get_board_minions()) < 7:
                 self.play_minion(player, m)
 
     def run_full_game(self, max_turns: int = 50) -> Optional[Player]:
