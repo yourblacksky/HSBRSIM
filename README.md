@@ -171,57 +171,83 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
-### Basic Usage
+### Basic Usage — 1v1 Combat Sandbox
 
 ```python
 from hsrl.core.game import Game
 from hsrl.core.player import Player
 from hsrl.core.card_db import CARDS
-import hsrl.cards.minions  # Register standard examples
+import hsrl.cards.minions  # register standard example cards
 
-# Create a game
+# Create a sandbox game with 2 players
 game = Game([])
 game.card_db = CARDS
 
-# Create players
 p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
 p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
 game.players = [p1, p2]
 
-# Summon minions
+# Summon minions onto each player's board
 m1 = game.create_minion("EXAMPLE_TAUNT")
 m2 = game.create_minion("EXAMPLE_POISONOUS")
 game.summon(p1, m1)
 game.summon(p2, m2)
 
-# Run combat
+# Run a single combat between them
 game._run_combat(p1, p2)
-print(f"Player 1 HP: {p1.health}, Player 2 HP: {p2.health}")
+print(f"P1 HP: {p1.health}, P2 HP: {p2.health}")
 ```
 
-### Running a Full Game
+### Running a Full 8-Player Game
+
+Battlegrounds is fundamentally an 8-player game. The engine provides a built-in heuristic agent and a one-line API to simulate a complete match:
 
 ```python
-from hsrl.core.game import Game
-from hsrl.core.card_db import CARDS
+# Imports trigger all card registrations (heroes, minions, spells, trinkets, etc.)
+import hsrl.cards.heroes
 import hsrl.cards.minions
 import hsrl.cards.spells
-import hsrl.cards.heroes
 
-game = Game([])
-game.card_db = CARDS
+from hsrl.core.game import Game
+from hsrl.core.enums import GameTag
 
-# Add 4 players with random heroes
-hero_ids = ["TB_BaconShop_HERO_01", "TB_BaconShop_HERO_02",
-            "TB_BaconShop_HERO_10", "TB_BaconShop_HERO_15"]
-for hid in hero_ids:
-    hero_card = CARDS.get(hid)
-    player = game.add_player(hero_card)
-    game.card_db.draw_opening_hand(player)
-    game.card_db.roll_tavern(player)
+# 8-player game: one-line run with built-in heuristic agents
+# Each agent uses a greedy strategy: buy best stats → play → upgrade → refresh
+game = Game.run_game(
+    hero_ids=[
+        "BG20_HERO_100",  # Rokara
+        "BG20_HERO_101",  # Xyrella
+        "BG20_HERO_103",  # Death Speaker Blackthorn
+        "EXAMPLE_HERO",
+        "EXAMPLE_HERO_FREEZE",
+        "EXAMPLE_HERO_COPY",
+        "EXAMPLE_HERO_SPELL",
+        "EXAMPLE_HERO_AURA",
+    ],
+    max_turns=50,
+)
 
-# Start the game loop
-game.start_game()
+# Print results
+print(f"Game complete in {game.turn} turns")
+for i, p in enumerate(game.players):
+    name = p.get_tag(GameTag.NAME, f"Player {i}")
+    status = "WINNER" if p.health > 0 else "defeated"
+    board = p.get_board_minions()
+    print(f"  {name}: HP={p.health} Tier={p.tavern_tier} "
+          f"Board={len(board)} [{status}]")
+```
+
+For step-by-step control, use `Game.create_game()` + `game.run_turn()`:
+
+```python
+# Manual turn-by-turn control
+game = Game.create_game(hero_ids, card_db=None, apply_anomaly=False)
+
+while game.state == game.state.RUNNING:
+    game.run_turn()  # one full turn: recruit → combat → damage
+    print(f"Turn {game.turn} done")
+
+winner = [p for p in game.players if p.health > 0][0]
 ```
 
 ## Test Interface

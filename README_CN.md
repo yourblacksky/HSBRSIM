@@ -172,7 +172,7 @@ pip install -e .
 pip install -e ".[dev]"
 ```
 
-### 基础用法
+### 基础用法 — 1v1 战斗沙盒
 
 ```python
 from hsrl.core.game import Game
@@ -180,16 +180,15 @@ from hsrl.core.player import Player
 from hsrl.core.card_db import CARDS
 import hsrl.cards.minions  # 注册标准示例卡牌
 
-# 创建游戏
+# 创建 2 人沙盒游戏
 game = Game([])
 game.card_db = CARDS
 
-# 创建玩家
 p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
 p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
 game.players = [p1, p2]
 
-# 召唤随从
+# 将随从召唤到各自棋盘上
 m1 = game.create_minion("EXAMPLE_TAUNT")
 m2 = game.create_minion("EXAMPLE_POISONOUS")
 game.summon(p1, m1)
@@ -200,29 +199,56 @@ game._run_combat(p1, p2)
 print(f"玩家1 血量: {p1.health}, 玩家2 血量: {p2.health}")
 ```
 
-### 运行完整对局
+### 运行完整八人对局
+
+酒馆战棋本质上是八人游戏。引擎内置了启发式 AI 代理，提供一行 API 即可模拟完整对局：
 
 ```python
-from hsrl.core.game import Game
-from hsrl.core.card_db import CARDS
+# 导入即触发卡牌注册（英雄、随从、法术、饰品等）
+import hsrl.cards.heroes
 import hsrl.cards.minions
 import hsrl.cards.spells
-import hsrl.cards.heroes
 
-game = Game([])
-game.card_db = CARDS
+from hsrl.core.game import Game
+from hsrl.core.enums import GameTag
 
-# 添加 4 名玩家（随机英雄）
-hero_ids = ["TB_BaconShop_HERO_01", "TB_BaconShop_HERO_02",
-            "TB_BaconShop_HERO_10", "TB_BaconShop_HERO_15"]
-for hid in hero_ids:
-    hero_card = CARDS.get(hid)
-    player = game.add_player(hero_card)
-    game.card_db.draw_opening_hand(player)
-    game.card_db.roll_tavern(player)
+# 八人对局：一行运行，内置启发式 AI
+# 每个 AI 使用贪心策略：买属性最好的随从 → 打出 → 升级 → 刷新
+game = Game.run_game(
+    hero_ids=[
+        "BG20_HERO_100",  # 洛卡拉
+        "BG20_HERO_101",  # 泽瑞拉
+        "BG20_HERO_103",  # 死亡语者布莱克松
+        "EXAMPLE_HERO",
+        "EXAMPLE_HERO_FREEZE",
+        "EXAMPLE_HERO_COPY",
+        "EXAMPLE_HERO_SPELL",
+        "EXAMPLE_HERO_AURA",
+    ],
+    max_turns=50,
+)
 
-# 开始游戏循环
-game.start_game()
+# 输出结果
+print(f"游戏结束，共 {game.turn} 回合")
+for i, p in enumerate(game.players):
+    name = p.get_tag(GameTag.NAME, f"玩家 {i}")
+    status = "冠军" if p.health > 0 else "已淘汰"
+    board = p.get_board_minions()
+    print(f"  {name}: HP={p.health} 酒馆等级={p.tavern_tier} "
+          f"棋盘={len(board)} [{status}]")
+```
+
+如需逐步控制，可使用 `Game.create_game()` + `game.run_turn()`：
+
+```python
+# 逐回合手动控制
+game = Game.create_game(hero_ids, card_db=None, apply_anomaly=False)
+
+while game.state == game.state.RUNNING:
+    game.run_turn()  # 一整个回合：招募 → 战斗 → 伤害
+    print(f"第 {game.turn} 回合完成")
+
+winner = [p for p in game.players if p.health > 0][0]
 ```
 
 ## 测试接口
