@@ -845,44 +845,197 @@ class Game:
 
         self.broadcast("ANOMALY_APPLIED", anomaly_id)
 
+    # ── Trinket offering ─────────────────────────────────────────────────────
+
+    # Cached tribe → trinket-id list. Built lazily from card_db when needed.
+    _trinket_tribe_index: Optional[Dict[str, List[str]]] = None
+
+    @classmethod
+    def _get_trinket_tribe_index(cls, card_db) -> Dict[str, List[str]]:
+        """Build (or return cached) index: tribe_name → [trinket_id, ...].
+
+        Tribe detection uses card name, card text, and script source references.
+        Returns a dict with tribe keys plus a ``None`` key for neutral trinkets.
+        """
+        if cls._trinket_tribe_index is not None:
+            return cls._trinket_tribe_index
+
+        import re
+        import inspect
+
+        _RACE_KEYWORDS = {
+            "BEAST":      r"\b(?:beast|wolf|raptor|bear|savannah|monkey|beetle|rat|hyena|spider|serpent|saurolisk|dragonhawk|carrion)\b",
+            "MECH":       r"\b(?:mech|automaton|bot|tron|drill|cog|scrap|magnet|ironforge|annoy|micro|replicating|electrode)\b",
+            "MURLOC":     r"\b(?:murloc|fin|mrrgl|primalfin|coldlight|murkeye)\b",
+            "DEMON":      r"\b(?:demon|wrath|fel|void|soul|imp|dread|infernal|abyssal|doom|jaraxxus)\b",
+            "DRAGON":     r"\b(?:dragon|whelp|draconic|ember|twilight|onyxia|kalecgos|ysera|nozdormu|azure|malygos|aspect)\b",
+            "PIRATE":     r"\b(?:pirate|booty|cannon|ship|southsea|skycap|swashbuckler|buccaneer|hozen|plunder|admiral|bilgewater)\b",
+            "ELEMENTAL":  r"\b(?:elemental|fire|water|frost|earth|magma|storm|elementium|igneous)\b",
+            "QUILBOAR":   r"\b(?:quilboar|blood.gem|bristleback|gem|bristlemane|razorfen|boar|quill)\b",
+            "NAGA":       r"\b(?:naga|spellcraft|spell|coilfang|azshara|tidal|lurker|scales)\b",
+            "UNDEAD":     r"\b(?:undead|deathrattle|skeleton|ghoul|lich|banshee|cadaver|grave|mummy|necromancer)\b",
+        }
+        _RACE_NAMES = set(Race.__members__) - {"NONE", "INVALID", "ALL"}
+
+        tribe_map: Dict[str, List[str]] = {t: [] for t in _RACE_KEYWORDS}
+        neutral: List[str] = []
+
+        for cid, data in card_db._cards.items():
+            if data.cardtype != CardType.TRINKET or cid.startswith("EXAMPLE"):
+                continue
+
+            name = (data.name or "").lower()
+            text = (data.text or "").lower()
+            combined = name + " " + text
+
+            # Try card text first
+            matched = None
+            for tribe, pattern in _RACE_KEYWORDS.items():
+                if re.search(pattern, combined):
+                    matched = tribe
+                    break
+
+            # Fall back to script source scanning
+            if matched is None and data.scripts is not None:
+                try:
+                    src = inspect.getsource(data.scripts)
+                    src_upper = src.upper()
+                    for race_name in _RACE_NAMES:
+                        if race_name in src_upper:
+                            matched = race_name
+                            break
+                except (TypeError, OSError):
+                    pass
+
+            if matched:
+                tribe_map[matched].append(cid)
+            else:
+                neutral.append(cid)
+
+        tribe_map[None] = neutral  # type: ignore[index]
+        cls._trinket_tribe_index = tribe_map
+        return tribe_map
+
+    @staticmethod
+    def _detect_dominant_tribe(player: Player) -> Optional[str]:
+        """Return the most common race name on the player's board.
+        Ties are broken by total stats (atk+hp). Returns None for empty board.
+        """
+        from collections import Counter
+        board = player.get_board_minions()
+        if not board:
+            return None
+        race_counts: Dict[str, List[Minion]] = {}
+        for m in board:
+            r = m.race
+            rname = r.name if hasattr(r, "name") else str(r)
+            if rname in ("NONE", "INVALID", "ALL"):
+                continue
+            race_counts.setdefault(rname, []).append(m)
+        if not race_counts:
+            return None
+        # Pick the race with the most minions; tie-break by total stats
+        def _key(item):
+            rname, minions = item
+            return (len(minions), sum(m.atk + m.health for m in minions))
+        return max(race_counts.items(), key=_key)[0]
+
+    def _get_trinket_cost(self, card_id: str) -> int:
+        """Return the gold cost of a trinket, or 99 if unknown."""
+        data = self.card_db.get(card_id)
+        return data.tags.get(GameTag.COST, 3) if data else 99
+
+    def _score_trinket_for_player(self, card_id: str, player: Player) -> float:
+        """Score a trinket for a player. Higher = better fit."""
+        cost = self._get_trinket_cost(card_id)
+        if cost >= 99:
+            return -100.0
+        dominant = self._detect_dominant_tribe(player)
+        index = self._get_trinket_tribe_index(self.card_db)
+
+        score = 0.0
+
+        # Tribe match
+        if dominant and card_id in index.get(dominant, []):  # type: ignore[operator]
+            score += 15.0
+        elif any(card_id in index.get(t, []) for t in index if t is not None):  # type: ignore[operator]
+            # Matches some tribe but not the dominant one
+            score -= 5.0
+        # else: neutral → no penalty, no bonus
+
+        # Cost efficiency (cheaper = more gold for minions)
+        if cost == 0:
+            score += 10.0
+        elif cost <= 2:
+            score += 5.0
+        elif cost >= 5:
+            score -= 5.0
+
+        # Prefer trinkets the player can actually afford
+        if player.gold < cost:
+            score -= 20.0
+
+        return score
+
     def _offer_trinkets(self, player: Player) -> None:
-        """Offer trinkets to a player on Turn 6 (Lesser) and Turn 9 (Greater).
+        """Offer trinkets on Turn 6 (Lesser/TRINKET_1) and Turn 9 (Greater/TRINKET_2).
 
-        Trinkets are passive items that occupy one of two slots:
-          - TRINKET_1 (Lesser, Turn 6)
-          - TRINKET_2 (Greater, Turn 9)
-
-        Offering rules:
-          - Detect dominant tribe(s) on board to bias trinket selection
-          - Offer 1-3 trinkets; player auto-picks one in RL mode
-          - At least one trinket has cost <= 2
+        Selection is biased toward the player's dominant board tribe.  At least
+        one offered trinket costs ≤ 2 gold.  The best trinket is auto-selected
+        using a simple tribe + cost scoring function.
         """
         from hsrl.core.trinket import Trinket
 
         trinket_slot = GameTag.TRINKET_1 if self.turn == 6 else GameTag.TRINKET_2
-        # Skip if slot already filled or trinkets already offered
-        if player.has_tag(trinket_slot):
-            return
-        if player.has_tag(GameTag.TRINKET_OFFERED):
+        if player.has_tag(trinket_slot) or player.has_tag(GameTag.TRINKET_OFFERED):
             return
         player.set_tag(GameTag.TRINKET_OFFERED, True)
 
-        # Collect available trinkets from card_db
-        available_ids = [
-            cid for cid, data in self.card_db._cards.items()
-            if data.cardtype == CardType.TRINKET
-        ]
-        if not available_ids:
+        # ── Build candidate pools ──
+        index = self._get_trinket_tribe_index(self.card_db)
+        neutral_pool: List[str] = list(index.get(None, []))  # type: ignore[arg-type]
+        dominant = self._detect_dominant_tribe(player)
+        tribe_pool: List[str] = list(index.get(dominant, [])) if dominant else []  # type: ignore[arg-type]
+
+        # ── Assemble offers: bias toward dominant tribe ──
+        offered: List[str] = []
+        if tribe_pool:
+            # Pick 2 from tribe pool (or all if pool is small)
+            n_tribe = min(2, len(tribe_pool))
+            offered.extend(random.sample(tribe_pool, n_tribe))
+
+        # Fill remaining slots from neutral pool
+        needed = 3 - len(offered)
+        if needed > 0 and neutral_pool:
+            offered.extend(random.sample(neutral_pool, min(needed, len(neutral_pool))))
+
+        # If we still don't have enough, pad from any pool
+        needed = 3 - len(offered)
+        if needed > 0 and tribe_pool:
+            remaining_tribe = [t for t in tribe_pool if t not in offered]
+            if remaining_tribe:
+                offered.extend(random.sample(remaining_tribe, min(needed, len(remaining_tribe))))
+
+        if not offered:
             return
 
-        # Pick 2-3 random trinkets (simplified RL selection)
-        import random
-        count = min(3, len(available_ids))
-        offered = random.sample(available_ids, count)
+        # ── Ensure at least one cheap option (cost ≤ 2) ──
+        has_cheap = any(self._get_trinket_cost(cid) <= 2 for cid in offered)
+        if not has_cheap:
+            cheap_candidates = [
+                cid for cid in (tribe_pool + neutral_pool)
+                if cid not in offered and self._get_trinket_cost(cid) <= 2
+            ]
+            if cheap_candidates:
+                # Replace the most expensive offered trinket
+                offered.sort(key=lambda cid: self._get_trinket_cost(cid))
+                offered[0] = random.choice(cheap_candidates)
 
-        # Auto-select the first trinket (simplified)
-        chosen_id = offered[0]
+        # ── Score and select the best trinket ──
+        chosen_id = max(offered, key=lambda cid: self._score_trinket_for_player(cid, player))
         trinket_data = self.card_db.get(chosen_id)
+        if trinket_data is None:
+            return
         trinket = Trinket(trinket_data, game=self)
         trinket.controller = player
         cost = trinket.cost
@@ -892,12 +1045,9 @@ class Game:
         player.trinkets.append(trinket)
         player.set_tag(trinket_slot, True)
 
-        # Register trinket event listeners if it has a script
+        # Register on_summon listener if present
         if trinket_data.scripts:
-            if hasattr(trinket_data.scripts, 'start_of_combat'):
-                pass  # Handled via _trigger_start_of_combat
-            # Register on_buy/avenge/etc. listeners as needed
-            fn = getattr(trinket_data.scripts, 'on_summon', None)
+            fn = getattr(trinket_data.scripts, "on_summon", None)
             if fn and callable(fn):
                 fn(trinket, self)
 
@@ -1721,9 +1871,17 @@ class Game:
             self.resolve_queue()
 
     @staticmethod
-    def _board_score(board: list) -> int:
-        """Total stats score: sum of (atk + health)."""
-        return sum(m.atk + m.health for m in board)
+    def _board_score(board: list, player: Optional[Player] = None) -> int:
+        """Total stats score: sum of (atk + health), plus trinket/aura bonuses."""
+        base = sum(m.atk + m.health for m in board)
+        if player is None:
+            return base
+        # Add aura bonuses from hero powers and trinkets
+        bonus = 0
+        for m in board:
+            a, h = player.get_global_aura_bonus(m)
+            bonus += a + h
+        return base + bonus
 
     def _auto_player_turn(self, player: Player) -> None:
         """Greedy Q-score heuristic: for every affordable minion, evaluate the
@@ -1735,20 +1893,24 @@ class Game:
         max_attempts = 30
         attempts = 0
 
+        def _minion_score(m):
+            a, h = player.get_global_aura_bonus(m)
+            return m.atk + m.health + a + h
+
         while player.gold > 0 and attempts < max_attempts:
             attempts += 1
 
             board = player.get_board_minions()
-            current_score = self._board_score(board)
+            current_score = self._board_score(board, player)
 
             # ── If board full, sell weakest if it frees gold for a buy ──
             if len(board) >= 7 and player.gold >= 1:
-                weakest = min(board, key=lambda m: m.atk + m.health)
+                weakest = min(board, key=_minion_score)
                 projected_gold = player.gold + 1
                 if projected_gold >= 3:
                     self.sell_minion(player, weakest)
                     board = player.get_board_minions()
-                    current_score = self._board_score(board)
+                    current_score = self._board_score(board, player)
                     if player.gold <= 0:
                         break
                     continue  # Re-evaluate after selling
@@ -1763,20 +1925,19 @@ class Game:
 
             if affordable:
                 for candidate in affordable:
-                    cand_stats = candidate.atk + candidate.health
+                    ca, ch = player.get_global_aura_bonus(candidate)
+                    cand_score = candidate.atk + candidate.health + ca + ch
 
                     if len(board) < 7:
-                        # Simple add to board
-                        score = current_score + cand_stats
+                        score = current_score + cand_score
                         if score > best_score:
                             best_score = score
                             best_action = ("buy_play", candidate, None)
                     else:
-                        # Board full — try replacing the weakest
-                        # (we only get here if selling above didn't help)
-                        weakest = min(board, key=lambda m: m.atk + m.health)
-                        weakest_stats = weakest.atk + weakest.health
-                        net_change = cand_stats - weakest_stats
+                        weakest = min(board, key=_minion_score)
+                        wa, wh = player.get_global_aura_bonus(weakest)
+                        weakest_score = weakest.atk + weakest.health + wa + wh
+                        net_change = cand_score - weakest_score
                         if net_change > 0:
                             score = current_score + net_change
                             if score > best_score:
