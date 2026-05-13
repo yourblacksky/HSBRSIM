@@ -104,11 +104,13 @@ class BaseEntity:
         if self.controller is not None and hasattr(self.controller, "get_global_aura_bonus"):
             aura_atk, _ = self.controller.get_global_aura_bonus(self)
             base += aura_atk
-        # Health-based minions can override via data scripts
-        if self.data.scripts and hasattr(self.data.scripts, "atk"):
-            result = self.data.scripts.atk(self)
-            if result is not None:
-                return max(0, result)
+        # Script-defined atk override (e.g. health-based minions)
+        if self.data.scripts is not None:
+            atk_fn = getattr(self.data.scripts, "atk", None)
+            if callable(atk_fn):
+                result = atk_fn(self)
+                if result is not None:
+                    return max(0, result)
         return max(0, base)
 
     @atk.setter

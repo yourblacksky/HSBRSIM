@@ -977,17 +977,24 @@ register_card(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ExampleSCSpellScript:
-    """on_play: Give a random friendly minion +2/+2 until next turn."""
+    """on_play: Give a friendly minion +2/+2 (player-chosen during recruit, random in combat)."""
     @staticmethod
     def on_play(source, game):
-        import random
-        controller = source.controller
-        board = controller.get_board_minions() if controller else []
-        living = [m for m in board if not m.dead]
-        if not living:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            controller = source.controller
+            board = controller.get_board_minions() if controller else []
+            return [m for m in board if not m.dead]
+
+        if not filter_fn():
             return None
-        target = random.choice(living)
-        return Buff(target, atk=2, health=2)
+
+        def action_factory(target):
+            return Buff(target, atk=2, health=2)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Spellcraft Spell — +2/+2")
 
 register_card(
     card_id="EXAMPLE_SC_SPELL",
@@ -1007,17 +1014,24 @@ register_card(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class GlowingCrownScript:
-    """on_play: Give a random friendly minion Divine Shield (temporary)."""
+    """on_play: Give a friendly minion Divine Shield (player-chosen during recruit, random in combat)."""
     @staticmethod
     def on_play(source, game):
-        import random
-        controller = source.controller
-        board = controller.get_board_minions() if controller else []
-        living = [m for m in board if not m.dead]
-        if not living:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            controller = source.controller
+            board = controller.get_board_minions() if controller else []
+            return [m for m in board if not m.dead]
+
+        if not filter_fn():
             return None
-        target = random.choice(living)
-        return GainKeyword(target, GameTag.DIVINE_SHIELD)
+
+        def action_factory(target):
+            return GainKeyword(target, GameTag.DIVINE_SHIELD)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Glowing Crown — give Divine Shield")
 
 register_card(
     card_id="BG23_008t", name="Glowing Crown",
@@ -1088,20 +1102,27 @@ register_card(
 )
 
 class AnglersLureScript:
-    """on_play: Give a random friendly minion +2/+2 and Taunt."""
+    """on_play: Give a friendly minion +2/+2 and Taunt (player-chosen during recruit, random in combat)."""
     @staticmethod
     def on_play(source, game):
-        import random
-        controller = source.controller
-        board = controller.get_board_minions() if controller else []
-        living = [m for m in board if not m.dead]
-        if not living:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            controller = source.controller
+            board = controller.get_board_minions() if controller else []
+            return [m for m in board if not m.dead]
+
+        if not filter_fn():
             return None
-        target = random.choice(living)
-        return [
-            Buff(target, atk=2, health=2),
-            GainKeyword(target, GameTag.TAUNT),
-        ]
+
+        def action_factory(target):
+            return [
+                Buff(target, atk=2, health=2),
+                GainKeyword(target, GameTag.TAUNT),
+            ]
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Angler's Lure — +2/+2 and Taunt")
 
 register_card(
     card_id="BG23_004t", name="Angler's Lure",
@@ -1112,20 +1133,27 @@ register_card(
 )
 
 class UnderseaMountScript:
-    """on_play: Give a random friendly minion +2/+2. If Naga, also Windfury."""
+    """on_play: Give a friendly minion +2/+2. If Naga, also Windfury (player-chosen during recruit, random in combat)."""
     @staticmethod
     def on_play(source, game):
-        import random
-        controller = source.controller
-        board = controller.get_board_minions() if controller else []
-        living = [m for m in board if not m.dead]
-        if not living:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            controller = source.controller
+            board = controller.get_board_minions() if controller else []
+            return [m for m in board if not m.dead]
+
+        if not filter_fn():
             return None
-        target = random.choice(living)
-        actions = [Buff(target, atk=2, health=2)]
-        if target.race == Race.NAGA:
-            actions.append(GainKeyword(target, GameTag.WINDFURY))
-        return actions
+
+        def action_factory(target):
+            actions = [Buff(target, atk=2, health=2)]
+            if target.race == Race.NAGA:
+                actions.append(GainKeyword(target, GameTag.WINDFURY))
+            return actions
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Undersea Mount — +2/+2 (Windfury if Naga)")
 
 register_card(
     card_id="BG23_007t", name="Undersea Mount",
@@ -1136,18 +1164,25 @@ register_card(
 )
 
 class SickRiffsScript:
-    """on_play: Give a random friendly minion stats equal to your Tier."""
+    """on_play: Give a friendly minion stats equal to your Tier (player-chosen during recruit, random in combat)."""
     @staticmethod
     def on_play(source, game):
-        import random
-        controller = source.controller
-        board = controller.get_board_minions() if controller else []
-        living = [m for m in board if not m.dead]
-        if not living:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            controller = source.controller
+            board = controller.get_board_minions() if controller else []
+            return [m for m in board if not m.dead]
+
+        if not filter_fn():
             return None
-        target = random.choice(living)
-        tier = controller.tavern_tier
-        return Buff(target, atk=tier, health=tier)
+
+        def action_factory(target):
+            tier = source.controller.tavern_tier
+            return Buff(target, atk=tier, health=tier)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Sick Riffs — stats equal to Tier")
 
 register_card(
     card_id="BG26_501t", name="Sick Riffs",
@@ -1227,19 +1262,26 @@ register_card(
 )
 
 class ExampleBuffSpellScript:
-    """on_play: Give a friendly minion +2/+2 (reads tavern spell modifiers)."""
+    """on_play: Give a friendly minion +2/+2 (player-chosen during recruit, reads tavern spell modifiers)."""
     @staticmethod
     def on_play(source, game):
-        import random
-        controller = source.controller
-        board = controller.get_board_minions()
-        living = [m for m in board if not m.dead]
-        if not living:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            controller = source.controller
+            board = controller.get_board_minions()
+            return [m for m in board if not m.dead]
+
+        if not filter_fn():
             return None
-        target = random.choice(living)
-        atk_bonus = controller.get_tag(GameTag.TAVERN_SPELL_ATK_BONUS, 0)
-        health_bonus = controller.get_tag(GameTag.TAVERN_SPELL_HEALTH_BONUS, 0)
-        return Buff(target, atk=2 + atk_bonus, health=2 + health_bonus)
+
+        def action_factory(target):
+            atk_bonus = source.controller.get_tag(GameTag.TAVERN_SPELL_ATK_BONUS, 0)
+            health_bonus = source.controller.get_tag(GameTag.TAVERN_SPELL_HEALTH_BONUS, 0)
+            return Buff(target, atk=2 + atk_bonus, health=2 + health_bonus)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Buff Spell — +2/+2 with modifiers")
 
 register_card(
     card_id="EXAMPLE_BUFF_SPELL",

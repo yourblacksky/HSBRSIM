@@ -127,5 +127,61 @@ class Player(BaseEntity):
                 health_bonus += aura.health
         return atk_bonus, health_bonus
 
+    @property
+    def board_hash(self) -> int:
+        """Order-independent hash of board state for REARRANGE gating.
+
+        Captures: minion count, atk/health, and combat keywords.
+        Changes after any buff, death, summon, or purchase — but NOT after
+        a pure position swap.
+        """
+        living = [m for m in self.board if not m.dead]
+        parts = []
+        for m in living:
+            keywords = (
+                int(m.has_tag(GameTag.TAUNT)),
+                int(m.has_tag(GameTag.DIVINE_SHIELD)),
+                int(m.has_tag(GameTag.POISONOUS)),
+                int(m.has_tag(GameTag.VENOMOUS)),
+                int(m.has_tag(GameTag.REBORN)),
+                int(m.has_tag(GameTag.WINDFURY)),
+                int(m.has_tag(GameTag.CLEAVE)),
+                int(m.has_tag(GameTag.GOLDEN)),
+            )
+            parts.append((m.atk, m.health, keywords))
+        return hash(frozenset(parts))
+
     def __repr__(self) -> str:
         return f"<Player {self.get_tag(GameTag.NAME, 'Unknown')} HP={self.health} Gold={self.gold}>"
+
+
+def random_heroes(count: int = 8, exclude: list[str] | None = None,
+                  card_db=None) -> list[str]:
+    """Pick random hero card IDs from the card database.
+
+    Args:
+        count: Number of heroes to return.
+        exclude: Hero IDs to exclude from selection.
+        card_db: CardDB instance (uses global CARDS if None).
+    """
+    import random
+    from hsrl.core.card_db import CARDS
+    from hsrl.core.enums import CardType
+
+    db = card_db or CARDS
+    exclude_set = set(exclude or [])
+    hero_ids = [
+        cid for cid, data in db._cards.items()
+        if getattr(data, 'cardtype', None) is not None
+        and data.cardtype == CardType.HERO
+        and not cid.startswith("EXAMPLE")
+        and cid not in exclude_set
+    ]
+    if len(hero_ids) < count:
+        hero_ids = [
+            cid for cid, data in db._cards.items()
+            if getattr(data, 'cardtype', None) is not None
+            and data.cardtype == CardType.HERO
+            and cid not in exclude_set
+        ]
+    return random.sample(hero_ids, min(count, len(hero_ids)))

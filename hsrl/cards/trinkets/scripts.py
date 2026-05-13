@@ -1058,6 +1058,44 @@ class EoTBuffRandomMurlocScript:
         return Buff(random.choice(murlocs), atk=cls.ATK, health=cls.HEALTH)
 
 
+class MugOfTheSireScript:
+    """Whenever you would summon a minion that doesn't fit in your warband,
+    give your minions +5 Attack."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_OVERFLOW, EventListener
+
+        class _OverflowBuffAction(Action):
+            def __init__(self, player):
+                super().__init__()
+                self.player = player
+
+            def do(self, source_ent, game_ref, target=None):
+                board = [m for m in self.player.board if not m.dead]
+                for m in board:
+                    game_ref.queue_action(Buff(m, atk=5, health=0))
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_OVERFLOW,
+            action=_OverflowBuffAction(source.controller),
+        ))
+
+
+class ToxicStingerScript:
+    """End of Turn: Give a random friendly Murloc +8/+8 and Venomous."""
+
+    @classmethod
+    def end_of_turn(cls, source: BaseEntity, game: Game) -> Optional[Action]:
+        murlocs = [m for m in source.controller.board
+                    if not m.dead and m.race == Race.MURLOC]
+        if not murlocs:
+            return None
+        target = random.choice(murlocs)
+        return [Buff(target, atk=8, health=8),
+                GainKeyword(target, GameTag.VENOMOUS)]
+
+
 class EoTGetWindfallScript:
     """End of Turn: Get a Windfall Tornado."""
     TOKEN_ID = "BG31_817"
@@ -4823,6 +4861,13 @@ class OnSpellCastOnMinionBuffScript:
     @staticmethod
     def on_summon(source, game):
         from hsrl.core.events import SPELL_CAST_ON_MINION, EventListener
+        # Capture the class-level ATK/HEALTH for the listener
+        _atk = OnSpellCastOnMinionBuffScript.ATK
+        _health = OnSpellCastOnMinionBuffScript.HEALTH
+        # If source has its own script class, use those values instead
+        if hasattr(source, 'data') and source.data and source.data.scripts:
+            _atk = getattr(source.data.scripts, 'ATK', _atk)
+            _health = getattr(source.data.scripts, 'HEALTH', _health)
 
         class _BuffAction(Action):
             def __init__(self, trinket):
@@ -4832,7 +4877,61 @@ class OnSpellCastOnMinionBuffScript:
             def do(self, source_ent, game_ref, target=None):
                 if target is None or target.dead:
                     return
-                game_ref.queue_action(Buff(target, atk=2, health=1))
+                game_ref.queue_action(Buff(target, atk=_atk, health=_health))
+
+        game.register_listener(source, EventListener(
+            event_name=SPELL_CAST_ON_MINION,
+            action=_BuffAction(source),
+        ))
+
+
+class LorewalkerScrollLesserScript:
+    """Whenever you cast a spell on a minion, give it +2/+2."""
+    ATK = 2
+    HEALTH = 2
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import SPELL_CAST_ON_MINION, EventListener
+        _atk = 2
+        _health = 2
+
+        class _BuffAction(Action):
+            def __init__(self, trinket):
+                super().__init__()
+                self.trinket = trinket
+
+            def do(self, source_ent, game_ref, target=None):
+                if target is None or target.dead:
+                    return
+                game_ref.queue_action(Buff(target, atk=_atk, health=_health))
+
+        game.register_listener(source, EventListener(
+            event_name=SPELL_CAST_ON_MINION,
+            action=_BuffAction(source),
+        ))
+
+
+class LorewalkerScrollGreaterScript:
+    """Whenever you cast a spell on a minion, give it +8/+8."""
+    ATK = 8
+    HEALTH = 8
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import SPELL_CAST_ON_MINION, EventListener
+        _atk = 8
+        _health = 8
+
+        class _BuffAction(Action):
+            def __init__(self, trinket):
+                super().__init__()
+                self.trinket = trinket
+
+            def do(self, source_ent, game_ref, target=None):
+                if target is None or target.dead:
+                    return
+                game_ref.queue_action(Buff(target, atk=_atk, health=_health))
 
         game.register_listener(source, EventListener(
             event_name=SPELL_CAST_ON_MINION,
@@ -5827,7 +5926,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "EXAMPLE_TRINKET": ExampleTrinketScript,
 
     # ── SoC: Buff All ──
-    "BG30_MagicItem_438t": SoCBuffAll1x1Script,        # Mug of the Sire
+    "BG30_MagicItem_438t": MugOfTheSireScript,          # Mug of the Sire: overflow minion → +5 Atk to all
     "BG30_MagicItem_970": SoCBuffAll2x2Script,         # Valorous Medallion (Lesser)
     "BG30_MagicItem_970t": SoCBuffAll6x6Script,        # Valorous Medallion (Greater)
     "BG30_MagicItem_706": ReflectivePendantScript,     # Reflective Pendant: +1 Atk all
@@ -5936,7 +6035,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
 
     # ── EoT: Variants ──
     "BG35_MagicItem_753": EoTBuffLeftmostScript,          # Murky Sticker: buff leftmost
-    "BG32_MagicItem_111": EoTBuffRandomMurlocScript,      # Toxic Stinger: buff random Murloc
+    "BG32_MagicItem_111": ToxicStingerScript,              # Toxic Stinger: +8/+8 and Venomous to random Murloc
     "BG32_MagicItem_832": EoTGetWindfallScript,           # Windfall Portrait (Lesser): get Windfall Tornado
     "BG32_MagicItem_832t": EoTGetWindfallScript,          # Windfall Portrait (Greater)
     "BG35_MagicItem_752": EoTTriggerBattlecriesScript,    # Young Murk-Eye Sticker: trigger all BCs
@@ -6077,8 +6176,8 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_410t2": AvengeImproveBG1x1Script,
     "BG30_MagicItem_418": GetBrannAndRandomBCScript,  # DEFERRED
     "BG30_MagicItem_419": EoTGetRandomMinionPerTribeScript,
-    "BG30_MagicItem_422": OnSpellCastOnMinionBuffScript,  # Lorewalker Scroll (Lesser): cast spell on minion → +2/+1
-    "BG30_MagicItem_422t": OnSpellCastOnMinionBuffScript, # Lorewalker Scroll (Greater): cast spell on minion → +2/+1
+    "BG30_MagicItem_422": LorewalkerScrollLesserScript,  # Lorewalker Scroll (Lesser): cast spell on minion → +2/+2
+    "BG30_MagicItem_422t": LorewalkerScrollGreaterScript, # Lorewalker Scroll (Greater): cast spell on minion → +8/+8
     "BG30_MagicItem_423": InnkeepersSteinScript,  # Innkeeper's Stein: refresh always offers extra higher-tier minion
     "BG30_MagicItem_427": OnFriendlyDamageBuffRandomScript,  # DEFERRED
     "BG30_MagicItem_427t": OnFriendlyDamageBuffRandom4Script,  # DEFERRED

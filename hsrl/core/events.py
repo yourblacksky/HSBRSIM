@@ -146,3 +146,4 @@ SPELL_CAST_ON_MINION = "SPELL_CAST_ON_MINION"  # when a spell targets a specific
 FIRST_MINION_KILLED_IN_COMBAT = "FIRST_MINION_KILLED_IN_COMBAT"  # first friendly minion killed
 FIRST_MINION_SUMMONED_IN_COMBAT = "FIRST_MINION_SUMMONED_IN_COMBAT"  # first friendly summoned
 LAST_FRIENDLY_DEATH = "LAST_FRIENDLY_DEATH"  # last friendly minion dies
+MINION_OVERFLOW = "MINION_OVERFLOW"  # summon failed due to full board

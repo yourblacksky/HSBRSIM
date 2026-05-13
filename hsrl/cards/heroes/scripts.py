@@ -17,6 +17,7 @@ from hsrl.core.actions import (
     BuffTavern,
     DealDamageToHero,
     DealDamageToRandomEnemy,
+    Destroy,
     DiscoverMinion,
     GainDeathrattle,
     GainGold,
@@ -25,7 +26,9 @@ from hsrl.core.actions import (
     GiveKeyword,
     Hit,
     PlayBloodGems,
+    TargetedAction,
 )
+from hsrl.core.actions import TransferStats  # imported lazily in some places
 from hsrl.core.enums import GameTag, Race, Zone
 
 
@@ -232,19 +235,22 @@ class ISpyScript:
 class SharpenBladesScript:
     """Hero Power (1): Give a minion +1/+1 for each minion you've bought this turn.
 
-    Note: Currently uses default +1/+1 since MINIONS_BOUGHT_THIS_TURN tracking
-    is not yet implemented. Full scaling will be added when purchase tracking is available.
+    Note: Currently uses +1/+1 per MINIONS_BOUGHT_THIS_TURN tracking.
+    Target is player-chosen during recruit, random in combat.
     """
 
     @staticmethod
     def hero_power(source, game):
-        board = source.get_board_minions()
-        if not board:
-            return None
-        target = random.choice(board)
-        # Phase II: use actual GOLD_SPENT_THIS_TURN / 3 instead of 1
         bought = max(1, source.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0) // 3)
-        return Buff(target, atk=bought, health=bought)
+
+        def filter_fn():
+            return source.get_board_minions()
+
+        def action_factory(target):
+            return Buff(target, atk=bought, health=bought)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label=f"Sharpen Blades — +{bought}/+{bought}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -291,6 +297,18 @@ class TemporalTavernScript:
     @staticmethod
     def hero_power(source, game):
         game.refresh_tavern(source)
+        # Add a minion from a higher tier
+        higher_tier = min(source.tavern_tier + 1, 6)
+        if game.minion_pool is not None:
+            drawn = game.minion_pool.draw(higher_tier, count=1,
+                                          min_tier=higher_tier,
+                                          race_filter=game.active_tribes)
+            for card_id in drawn:
+                minion = game.create_minion(card_id)
+                if minion is not None:
+                    minion.controller = source
+                    minion.zone = Zone.TAVERN
+                    source.tavern.append(minion)
         return None
 
 
@@ -506,12 +524,15 @@ class RuneOfDamnationScript:
     """Hero Power (1): Give a friendly Undead +1/+1.
     Give another friendly minion of a different type +1 Attack.
 
+    Two-stage selection when Undead exists: player first selects Undead target,
+    then selects a non-Undead target for the +1 Atk buff.
+
     Formal spec:
       - Cost: 1 gold
-      - Find first Undead minion, buff +1/+1
-      - Find minion of different type, buff +1/+0
-      - If only Undead minions exist, skip the second buff
-      - If no Undead exists, buff any minion +1/+1
+      - Stage 1: Player selects an Undead minion → Buff +1/+1
+      - Stage 2: Player selects a non-Undead minion → Buff +1/+0
+      - If no non-Undead exists, skip stage 2
+      - If no Undead exists, select any minion for +1/+1 only
       - Return None if board is empty
 
     Test: board with 1 Undead + 1 Beast, use hero power → Undead +1/+1, Beast +1/+0.
@@ -526,19 +547,43 @@ class RuneOfDamnationScript:
         undead = [m for m in board if m.race in (Race.UNDEAD, Race.ALL)]
         non_undead = [m for m in board if m.race not in (Race.UNDEAD, Race.ALL)]
 
-        actions = []
         if undead:
-            target = random.choice(undead)
-            actions.append(Buff(target, atk=1, health=1))
-            if non_undead:
-                target2 = random.choice(non_undead)
-                actions.append(Buff(target2, atk=1, health=0))
-        elif non_undead:
-            # No Undead → buff any non-Undead minion +1/+1
-            target = random.choice(non_undead)
-            actions.append(Buff(target, atk=1, health=1))
+            def undead_filter():
+                return [m for m in source.get_board_minions()
+                        if m.race in (Race.UNDEAD, Race.ALL)]
 
-        return actions if actions else None
+            def undead_factory(undead_target):
+                others = [m for m in source.get_board_minions()
+                          if m is not undead_target
+                          and m.race not in (Race.UNDEAD, Race.ALL)]
+                if not others:
+                    return Buff(undead_target, atk=1, health=1)
+
+                def other_filter():
+                    return [m for m in source.get_board_minions()
+                            if m is not undead_target
+                            and m.race not in (Race.UNDEAD, Race.ALL)]
+
+                def other_factory(other_target):
+                    return [Buff(undead_target, atk=1, health=1),
+                            Buff(other_target, atk=1, health=0)]
+
+                return TargetedAction(other_filter, other_factory,
+                                      label="Rune of Damnation — choose non-Undead")
+
+            return TargetedAction(undead_filter, undead_factory,
+                                  label="Rune of Damnation — choose Undead")
+        elif non_undead:
+            def any_filter():
+                return source.get_board_minions()
+
+            def any_factory(target):
+                return Buff(target, atk=1, health=1)
+
+            return TargetedAction(any_filter, any_factory,
+                                  label="Rune of Damnation — +1/+1 to any minion")
+
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -562,17 +607,22 @@ class WisdomOfAncientsScript:
     @staticmethod
     def hero_power(source, game):
         from hsrl.core.actions import get_adjacent_minions
-        board = source.get_board_minions()
-        if not board:
-            return None
-        target = random.choice(board)
-        left, right = get_adjacent_minions(board, target)
-        actions = [Buff(target, atk=1, health=1)]
-        if left:
-            actions.append(Buff(left, atk=1, health=1))
-        if right:
-            actions.append(Buff(right, atk=1, health=1))
-        return actions
+
+        def filter_fn():
+            return source.get_board_minions()
+
+        def action_factory(target):
+            board = source.get_board_minions()
+            left, right = get_adjacent_minions(board, target)
+            actions = [Buff(target, atk=1, health=1)]
+            if left:
+                actions.append(Buff(left, atk=1, health=1))
+            if right:
+                actions.append(Buff(right, atk=1, health=1))
+            return actions
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Wisdom of Ancients — +1/+1 to target + adjacent")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -583,11 +633,14 @@ class ReclaimedSoulsScript:
     """Hero Power (2): Remove a friendly minion. Give its stats
     to another friendly minion.
 
+    Two-stage selection: player first selects the donor, then selects
+    the receiver from the remaining minions.
+
     Formal spec:
       - Cost: 2 gold
-      - Pick random friendly minion as source (donor)
-      - Pick different random friendly minion as target (receiver)
-      - TransferStats: destroy source, buff target by donor's ATK + MAX_HEALTH
+      - Stage 1: Player selects donor minion
+      - Stage 2: Player selects receiver from remaining minions
+      - TransferStats: destroy donor, buff receiver by donor's ATK + MAX_HEALTH
       - Return None if board has fewer than 2 minions
 
     Test: 2 minions (2/3 and 3/2), use hero power → one absorbs the other.
@@ -595,16 +648,29 @@ class ReclaimedSoulsScript:
 
     @staticmethod
     def hero_power(source, game):
-        from hsrl.core.actions import TransferStats
         board = source.get_board_minions()
         if len(board) < 2:
             return None
-        donor = random.choice(board)
-        candidates = [m for m in board if m is not donor]
-        if not candidates:
-            return None
-        receiver = random.choice(candidates)
-        return TransferStats(donor, receiver)
+
+        def donor_filter():
+            return source.get_board_minions()
+
+        def donor_factory(donor):
+            def receiver_filter():
+                return [m for m in source.get_board_minions()
+                        if m is not donor and not m.dead]
+
+            if not receiver_filter():
+                return None
+
+            def receiver_factory(receiver):
+                return TransferStats(donor, receiver)
+
+            return TargetedAction(receiver_filter, receiver_factory,
+                                  label="Reclaimed Souls — choose receiver")
+
+        return TargetedAction(donor_filter, donor_factory,
+                              label="Reclaimed Souls — choose donor")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -815,25 +881,23 @@ class GalakrondsGreedScript:
     """Hero Power (1): Choose a minion in Bob's Tavern.
     Replace it with a random minion of a higher Tier.
 
-    Formal spec:
-      - Cost: 1 gold
-      - Pick random CARDTYPE=MINION in source.tavern
-      - UpgradeTavernMinionTier to replace with higher tier minion
-      - Return None if no minions in tavern
-
-    Test: tavern has a tier 1 minion → replaced with tier 2+ minion.
+    Target is player-chosen during recruit, random in combat.
     """
 
     @staticmethod
     def hero_power(source, game):
-        import random
         from hsrl.core.actions import UpgradeTavernMinionTier
-        tavern_minions = [m for m in source.tavern
-                          if m.get_tag(GameTag.CARDTYPE, 0) == 1]
-        if not tavern_minions:
-            return None
-        target = random.choice(tavern_minions)
-        return UpgradeTavernMinionTier(target, source)
+
+        def filter_fn():
+            return [m for m in source.tavern
+                    if m.get_tag(GameTag.CARDTYPE, 0) == 1]
+
+        def action_factory(target):
+            return UpgradeTavernMinionTier(target, source, freeze_new=True)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Galakrond's Greed — upgrade tavern minion",
+                              target_domain="tavern")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -890,25 +954,23 @@ class StayFrostyScript:
     """Hero Power (0): Freeze a minion in Bob's Tavern.
     Frozen minions get +2/+1 each turn.
 
-    Formal spec:
-      - Cost: 0 gold
-      - Pick random CARDTYPE=MINION in source.tavern
-      - FreezeTavernMinion on it
-      - Return None if no minions in tavern
-
-    Test: freeze tavern minion → persists across refresh with +2/+1.
+    Target is player-chosen during recruit, random in combat.
     """
 
     @staticmethod
     def hero_power(source, game):
-        import random
         from hsrl.core.actions import FreezeTavernMinion
-        tavern_minions = [m for m in source.tavern
-                          if m.get_tag(GameTag.CARDTYPE, 0) == 1]
-        if not tavern_minions:
-            return None
-        target = random.choice(tavern_minions)
-        return FreezeTavernMinion(target)
+
+        def filter_fn():
+            return [m for m in source.tavern
+                    if m.get_tag(GameTag.CARDTYPE, 0) == 1]
+
+        def action_factory(target):
+            return FreezeTavernMinion(target)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Stay Frosty — freeze tavern minion",
+                              target_domain="tavern")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1500,12 +1562,18 @@ class RagePotionScript:
 
     @staticmethod
     def hero_power(source, game):
-        import random
-        from hsrl.core.actions import Buff
         board = source.get_board_minions()
         if not board:
             return None
-        return Buff(random.choice(board), atk=3, health=0, temporary=True)
+
+        def filter_fn():
+            return source.get_board_minions()
+
+        def action_factory(target):
+            return Buff(target, atk=3, health=0, temporary=True)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Rage Potion — +3 temporary Attack")
 
 
 class DieInsectsScript:
@@ -1513,12 +1581,18 @@ class DieInsectsScript:
 
     @staticmethod
     def hero_power(source, game):
-        import random
-        from hsrl.core.actions import Buff
         board = source.get_board_minions()
         if not board:
             return None
-        return Buff(random.choice(board), atk=8, health=0, temporary=True)
+
+        def filter_fn():
+            return source.get_board_minions()
+
+        def action_factory(target):
+            return Buff(target, atk=8, health=0, temporary=True)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Die Insects — +8 temporary Attack")
 
 
 class RebornRitesScript:
@@ -1526,37 +1600,51 @@ class RebornRitesScript:
 
     @staticmethod
     def hero_power(source, game):
-        import random
-        from hsrl.core.actions import GainKeyword
-        from hsrl.core.enums import GameTag
-        board = source.get_board_minions()
-        eligible = [m for m in board if not m.has_tag(GameTag.REBORN)]
+        eligible = [m for m in source.get_board_minions()
+                    if not m.has_tag(GameTag.REBORN)]
         if not eligible:
             return None
-        return GainKeyword(random.choice(eligible), GameTag.REBORN)
+
+        def filter_fn():
+            return [m for m in source.get_board_minions()
+                    if not m.has_tag(GameTag.REBORN)]
+
+        def action_factory(target):
+            return GainKeyword(target, GameTag.REBORN)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Reborn Rites — Grant Reborn")
 
 
 def _make_king_script(race, tribe_name):
     """Factory: create a King of [Tribe] hero power script class.
 
     Hero Power (2): Give a friendly {tribe_name} +2/+2.
+    Target is player-chosen during recruit, random in combat.
     """
+
+    _race = race
 
     class KingScript:
         """Hero Power (2): Give a friendly {tribe_name} +2/+2."""
 
         @staticmethod
         def hero_power(source, game):
-            import random
-            from hsrl.core.actions import Buff
-            from hsrl.core.enums import Race as _Race
-            board = source.get_board_minions()
-            targets = [m for m in board if m.race in (_race, _Race.ALL)]
+            targets = [m for m in source.get_board_minions()
+                       if m.race in (_race, Race.ALL)]
             if not targets:
                 return None
-            return Buff(random.choice(targets), atk=2, health=2)
 
-    _race = race
+            def filter_fn():
+                return [m for m in source.get_board_minions()
+                        if m.race in (_race, Race.ALL)]
+
+            def action_factory(target):
+                return Buff(target, atk=2, health=2)
+
+            return TargetedAction(filter_fn, action_factory,
+                                  label=f"King of {tribe_name} — +2/+2")
+
     KingScript.__doc__ = f"Hero Power (2): Give a friendly {tribe_name} +2/+2."
     KingScript.__name__ = f"KingOf{tribe_name}Script"
     return KingScript
@@ -1769,13 +1857,16 @@ class RunicEmpowermentScript:
 
     @staticmethod
     def hero_power(source, game):
-        board = source.get_board_minions()
-        if not board:
-            return None
-        import random as _random
-        target = _random.choice(board)
         bonus = source.get_tag(GameTag.RUNIC_BUFF_BONUS, 1)
-        return Buff(target, atk=bonus, health=bonus)
+
+        def filter_fn():
+            return source.get_board_minions()
+
+        def action_factory(target):
+            return Buff(target, atk=bonus, health=bonus)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label=f"Runic Empowerment — +{bonus}/+{bonus}")
 
     @staticmethod
     def on_summon(source, game):
@@ -1875,8 +1966,12 @@ class DeadeyeScript:
     """Passive: SoC deal 99 damage to target enemy (chosen by sub-power).
 
     Each sub-power (Aim Left/Right/High/Low) is registered separately.
-    This is the parent power; sub-powers (t1-t4) each have their SoC listener
-    that selects the enemy by position/stat.
+    The card_id suffix determines the aim mode:
+      - _t1: Aim Left (leftmost enemy)
+      - _t2: Aim Low (lowest-health enemy)
+      - _t3: Aim High (highest-health enemy)
+      - _t4: Aim Right (rightmost enemy)
+    The parent power (no suffix) picks randomly at registration.
 
     Formal spec:
       - Passive (cost=0)
@@ -1884,9 +1979,14 @@ class DeadeyeScript:
       - Aim Low (t2): SoC → Hit(lowest-health enemy, 99)
       - Aim High (t3): SoC → Hit(highest-health enemy, 99)
       - Aim Right (t4): SoC → Hit(rightmost enemy, 99)
-
-    The parent power randomly selects a sub-mode at registration time.
     """
+
+    _MODE_MAP = {
+        "t1": "left",
+        "t2": "low",
+        "t3": "high",
+        "t4": "right",
+    }
 
     @staticmethod
     def _make_aim_action(aim_mode):
@@ -1919,8 +2019,16 @@ class DeadeyeScript:
     def on_summon(source, game):
         from hsrl.core.events import START_OF_COMBAT, EventListener
         import random as _random
-        # Randomly pick an aim mode (in real game, hero picks via sub-power)
-        mode = _random.choice(["left", "right", "low", "high"])
+        # Determine aim mode from hero power card_id suffix
+        power_id = source.get_tag(GameTag.HERO_POWER, '')
+        mode = "left"  # fallback
+        for suffix, aim in DeadeyeScript._MODE_MAP.items():
+            if power_id.endswith(suffix):
+                mode = aim
+                break
+        else:
+            if not any(power_id.endswith(s) for s in DeadeyeScript._MODE_MAP):
+                mode = _random.choice(["left", "right", "low", "high"])
         AimAction = DeadeyeScript._make_aim_action(mode)
         game.register_listener(source, EventListener(
             event_name=START_OF_COMBAT,
@@ -1932,15 +2040,21 @@ class EmbraceTheElementsScript:
     """Passive: Choose an Element. SoC: Call upon that element.
 
     Sub-powers (t1-t4): Earth, Fire, Water, Lightning.
-    - Earth: Give 4 random friendly minions "Deathrattle: Summon a 1/1 Elemental"
-    - Fire: Double leftmost minion's Attack
-    - Water: Give rightmost minion Divine Shield and Taunt
-    - Lightning: Deal 1 damage to 5 random enemies
+    - t1 (Earth): Give 4 random friendly minions "Deathrattle: Summon a 1/1 Elemental"
+    - t2 (Fire): Double leftmost minion's Attack
+    - t3 (Water): Give rightmost minion Divine Shield and Taunt
+    - t4 (Lightning): Deal 1 damage to 5 random enemies
 
-    The parent power randomly selects an invocation at registration time.
+    The card_id suffix determines the element. Parent power (no suffix) picks randomly.
     """
 
     TOKEN_ID = "BG22_HERO_001p_t1et"
+    _ELEMENT_MAP = {
+        "t1": "earth",
+        "t2": "fire",
+        "t3": "water",
+        "t4": "lightning",
+    }
 
     @staticmethod
     def _make_earth_dr():
@@ -1994,7 +2108,16 @@ class EmbraceTheElementsScript:
     def on_summon(source, game):
         from hsrl.core.events import START_OF_COMBAT, EventListener
         import random as _random
-        element = _random.choice(["earth", "fire", "water", "lightning"])
+        # Determine element from hero power card_id suffix
+        power_id = source.get_tag(GameTag.HERO_POWER, '')
+        element = "earth"  # fallback
+        for suffix, elem in EmbraceTheElementsScript._ELEMENT_MAP.items():
+            if power_id.endswith(suffix):
+                element = elem
+                break
+        else:
+            if not any(power_id.endswith(s) for s in EmbraceTheElementsScript._ELEMENT_MAP):
+                element = _random.choice(["earth", "fire", "water", "lightning"])
         InvAction = EmbraceTheElementsScript._make_invocation(element)
         game.register_listener(source, EventListener(
             event_name=START_OF_COMBAT,
@@ -2299,13 +2422,19 @@ class WarpGateScript:
         from hsrl.core.card_db import CARDS
         import random as _random
 
-        # Find Protoss minion card IDs (BG31_HERO_ prefixed cards or similar)
-        protoss_ids = [cid for cid in CARDS._cards
-                       if not cid.startswith("EXAMPLE")
-                       and not cid.startswith("TOKEN")
+        # Protoss minion card IDs (Warp Gate pool)
+        _PROTOSS_BASE_IDS = [
+            "BG31_HERO_802pt",   # Colossus
+            "BG31_HERO_802pt1",  # Carrier
+            "BG31_HERO_802pt4",  # Immortal
+            "BG31_HERO_802pt5",  # Void Ray
+            "BG31_HERO_802pt7",  # Mothership
+        ]
+        protoss_ids = [cid for cid in _PROTOSS_BASE_IDS
+                       if cid in CARDS._cards
                        and CARDS._cards[cid].cardtype == 0]  # CardType.MINION
         if not protoss_ids:
-            protoss_ids = ["EXAMPLE_VANILLA"]  # fallback
+            protoss_ids = ["BG31_HERO_802pt"]  # fallback: Colossus
 
         # Pick 2 random, then pick 1
         candidates = _random.sample(protoss_ids, min(2, len(protoss_ids)))
@@ -2452,11 +2581,16 @@ class MajorHymnScript:
 
     @staticmethod
     def hero_power(source, game):
-        board = source.get_board_minions()
-        if not board:
-            return None
-        target = random.choice(board)
-        return Buff(target, atk=source.tavern_tier, health=0)
+        tier = source.tavern_tier
+
+        def filter_fn():
+            return source.get_board_minions()
+
+        def action_factory(target):
+            return Buff(target, atk=tier, health=0)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label=f"Major Hymn — +{tier} Attack")
 
 
 class MinorHymnScript:
@@ -2472,11 +2606,16 @@ class MinorHymnScript:
 
     @staticmethod
     def hero_power(source, game):
-        board = source.get_board_minions()
-        if not board:
-            return None
-        target = random.choice(board)
-        return Buff(target, atk=0, health=source.tavern_tier)
+        tier = source.tavern_tier
+
+        def filter_fn():
+            return source.get_board_minions()
+
+        def action_factory(target):
+            return Buff(target, atk=0, health=tier)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label=f"Minor Hymn — +{tier} Health")
 
 
 class IronforgeScript:

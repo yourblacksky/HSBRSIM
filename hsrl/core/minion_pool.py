@@ -168,12 +168,21 @@ class MinionPool:
         return data.tech_level
 
     def _matches_race(self, card_id: str, race_filter) -> bool:
-        """Check if a card matches a race filter."""
+        """Check if a card matches a race filter.
+
+        race_filter can be a single Race value, a set of Race values, or None.
+        Race.ALL (Amalgam-type) always matches. Race.NONE (tribeless) only
+        matches when race_filter is None (no filter applied).
+        """
         data = self.card_db.get(card_id)
         if data is None:
             return False
         if data.race == Race.ALL:
             return True
+        if race_filter is None:
+            return True
+        if isinstance(race_filter, (set, frozenset, list, tuple)):
+            return data.race in race_filter
         return data.race == race_filter
 
     @staticmethod

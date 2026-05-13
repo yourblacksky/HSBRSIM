@@ -869,10 +869,12 @@ class UpgradeTavernMinionTier(Action):
     Used by Galakrond's Greed: freeze a minion, then replace with higher tier.
     """
 
-    def __init__(self, minion: "BaseEntity", player: "Player"):
+    def __init__(self, minion: "BaseEntity", player: "Player",
+                 freeze_new: bool = False):
         super().__init__()
         self.minion = minion
         self.player = player
+        self.freeze_new = freeze_new
 
     def do(self, source: "BaseEntity", game: "Game", target: Optional["BaseEntity"] = None) -> None:
         current_tier = self.minion.get_tag(GameTag.TECH_LEVEL, 1)
@@ -899,6 +901,8 @@ class UpgradeTavernMinionTier(Action):
         new_minion = game.create_minion(chosen_id)
         new_minion.controller = self.player
         new_minion.zone = Zone.TAVERN
+        if self.freeze_new:
+            new_minion.set_tag(GameTag.FROZEN, True)
         self.player.tavern.append(new_minion)
         game.broadcast("TAVERN_MINION_REPLACED", self.player, chosen_id)
 
@@ -1511,6 +1515,118 @@ class ReturnCombatSummons(Action):
                 m.set_tag(GameTag.COMBAT_SUMMON, False)
                 m.zone = Zone.HAND
                 p.hand.append(m)
+
+
+# ── Targeted Action (Deferred Target Selection) ───────────────────────────
+
+class TargetedAction(Action):
+    """An action that needs a target selected before it can execute.
+
+    During RECRUIT phase, the engine pauses the action queue and stores this
+    as pending in game._pending_targeted_queue. The player (or RL agent) must call
+    game.resolve_pending_target(index) to select a target.
+
+    During COMBAT phase, a random valid target is auto-selected.
+
+    filter_fn: () -> list of valid target entities (evaluated lazily)
+    action_factory: (target) -> Optional[Action] — action to queue, or None
+    label: human-readable description for debugging
+    """
+
+    def __init__(self, filter_fn, action_factory, label: str = "",
+                 target_domain: str = "board"):
+        super().__init__()
+        self.filter_fn = filter_fn
+        self.action_factory = action_factory
+        self.label = label
+        self.target_domain = target_domain  # "board" or "tavern"
+        self._target = None
+
+    @property
+    def target(self):
+        return self._target
+
+    @target.setter
+    def target(self, value):
+        self._target = value
+
+    def do(self, source: BaseEntity, game: Game, target=None) -> None:
+        if self._target is None:
+            candidates = self.filter_fn()
+            if not candidates:
+                return
+            if game.in_combat:
+                import random
+                self._target = random.choice(candidates)
+            else:
+                # RECRUIT phase — pause for player selection
+                game._pending_targeted_queue.append(self)
+                return
+        # Broadcast SPELL_CAST_ON_MINION for trinket listeners
+        from hsrl.core.enums import CardType
+        from hsrl.core.events import SPELL_CAST_ON_MINION
+        source_ct = source.get_tag(GameTag.CARDTYPE, CardType.INVALID) if source else CardType.INVALID
+        target_ct = self._target.get_tag(GameTag.CARDTYPE, CardType.INVALID) if self._target else CardType.INVALID
+        if source_ct == CardType.SPELL and target_ct == CardType.MINION:
+            game.broadcast(SPELL_CAST_ON_MINION, source, self._target)
+
+        result = self.action_factory(self._target)
+        if result is not None:
+            if isinstance(result, (list, tuple)):
+                for a in result:
+                    game.queue_action(a, source=source)
+            else:
+                game.queue_action(result, source=source)
+
+    @property
+    def candidates(self) -> list:
+        """Current valid targets (for building action mask / UI)."""
+        return self.filter_fn()
+
+
+# ── Spell Casting on Minions ────────────────────────────────────────────
+
+class CastSpellOnTarget(Action):
+    """Cast a tavern spell directly on a target minion, bypassing
+    hand/tavern mechanics. Used by Start of Combat anomaly effects."""
+
+    def __init__(self, player, spell_id: str, target_minion):
+        super().__init__()
+        self.player = player
+        self.spell_id = spell_id
+        self.target_minion = target_minion
+
+    def do(self, source, game, target=None):
+        spell = game.create_spell(self.spell_id)
+        if spell is None:
+            return
+        spell.controller = self.player
+        on_play = spell.on_play
+        if on_play and hasattr(on_play, '_target'):
+            on_play._target = self.target_minion
+            game.queue_action(on_play, source=spell)
+        # Broadcast for trinket listeners
+        from hsrl.core.events import SPELL_CAST_ON_MINION
+        game.broadcast(SPELL_CAST_ON_MINION, spell, self.target_minion)
+
+
+class CastSpellOnAll(Action):
+    """Cast a tavern spell on all qualifying minions (optionally race-filtered).
+    Used by Start of Combat anomaly effects."""
+
+    def __init__(self, player, spell_id: str, race_filter=None):
+        super().__init__()
+        self.player = player
+        self.spell_id = spell_id
+        self.race_filter = race_filter
+
+    def do(self, source, game, target=None):
+        board = [m for m in self.player.board if not m.dead]
+        targets = board
+        if self.race_filter is not None:
+            targets = [m for m in targets if m.race == self.race_filter]
+        for m in targets:
+            game.queue_action(CastSpellOnTarget(self.player, self.spell_id, m))
 
 
 # ── Choose One ──────────────────────────────────────────────────────────

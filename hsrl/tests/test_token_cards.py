@@ -64,6 +64,7 @@ class BaseTokenTest(unittest.TestCase):
     def setUp(self):
         self.game = Game([])
         self.game.card_db = CARDS
+        self.game.in_combat = True  # Auto-resolve TargetedActions (no player to select)
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
         self.player.health = 40
@@ -942,7 +943,11 @@ class TestUltravioletAscendant(BaseTokenTest):
 
         # Trigger Start of Combat
         soc = uv.start_of_combat
-        self.game.queue_action(soc, source=uv)
+        if isinstance(soc, (list, tuple)):
+            for action in soc:
+                self.game.queue_action(action, source=uv)
+        else:
+            self.game.queue_action(soc, source=uv)
         self.game.resolve_queue()
 
         # mult = 1 + 2 = 3, buff = +3/+6
@@ -975,6 +980,9 @@ class TestLovesickBalladist(BaseTokenTest):
     Improved by each Gold you spent this turn!"""
 
     def test_battlecry_reads_gold_spent_this_turn(self):
+        # Set in_combat so TargetedAction auto-resolves (no player to select)
+        self.game.in_combat = True
+
         m = self._make_minion("BG26_814")
         self.game.summon(self.player, m)
 
@@ -1350,6 +1358,9 @@ class TestRovingSailor(BaseTokenTest):
     def test_battlecry_reads_spell_count(self):
         """Battlecry reads TAVERN_SPELLS_CAST_THIS_TURN for scaling."""
         from hsrl.core.actions import CastTavernSpell
+
+        # Set in_combat so TargetedAction auto-resolves (no player to select)
+        self.game.in_combat = True
 
         # Cast 3 tavern spells
         self.game.queue_action(CastTavernSpell(self.player))
@@ -2078,6 +2089,7 @@ class TestTavernSpellModifier(unittest.TestCase):
     def setUp(self):
         self.game = Game([])
         self.game.card_db = CARDS
+        self.game.in_combat = True  # Auto-resolve TargetedActions
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
         self.game.players = [self.player]

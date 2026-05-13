@@ -55,6 +55,9 @@ class Game:
         self.minion_pool = None  # Lazy init via init_pool()
         self.spell_pool = None   # Lazy init via init_pool()
         self.active_anomaly = None  # Optional Anomaly entity (game-wide modifier)
+        self.active_tribes: Optional[set] = None  # Set of playable tribes (None = all, unset)
+        self._combat_pairs: List[Tuple[Player, Player]] = []  # (player, opponent) per combat
+        self._pending_targeted_queue: list = []  # TargetedActions awaiting target selection
 
         for p in self.players:
             p.game = self
@@ -112,25 +115,28 @@ class Game:
         guiding = player.get_tag(GameTag.GUIDING_CANDLE_REFRESHES, 0)
         if guiding > 0:
             player.set_tag(GameTag.GUIDING_CANDLE_REFRESHES, guiding - 1)
-            drawn = self.minion_pool.draw(6, count=count)
+            drawn = self.minion_pool.draw(6, count=count, race_filter=self.active_tribes)
         elif anomaly_allowed_tiers:
             # Anomaly tier filter: only draw minions of allowed tiers
             allowed = set(anomaly_allowed_tiers)
             max_tier = min(max(allowed), player.tavern_tier)
-            drawn = self.minion_pool.draw(max_tier, count=count * 3)
+            drawn = self.minion_pool.draw(max_tier, count=count * 3, race_filter=self.active_tribes)
             # Filter to only allowed tiers
-            drawn = [m for m in drawn if m.data.tech_level in allowed][:count]
+            drawn = [cid for cid in drawn
+                     if self.card_db.get(cid) is not None
+                     and self.card_db.get(cid).tech_level in allowed][:count]
         elif hasattr(player, '_tavern_min_tier') and player._tavern_min_tier > 1:
             # Player-level tier filter (e.g. Bob-blehead trinket: no tier 1-2)
             min_t = player._tavern_min_tier
-            drawn = self.minion_pool.draw(tavern_tier, count=count, min_tier=min_t)
+            drawn = self.minion_pool.draw(tavern_tier, count=count, min_tier=min_t, race_filter=self.active_tribes)
         elif (self.active_anomaly is not None
                 and not isinstance(self.active_anomaly, bool)
                 and getattr(self.active_anomaly, '_only_current_tier', False)):
             drawn = self.minion_pool.draw(player.tavern_tier, count=count,
-                                          min_tier=player.tavern_tier)
+                                          min_tier=player.tavern_tier,
+                                          race_filter=self.active_tribes)
         else:
-            drawn = self.minion_pool.draw(tavern_tier, count=count)
+            drawn = self.minion_pool.draw(tavern_tier, count=count, race_filter=self.active_tribes)
         player.tavern.clear()
         # Add frozen minions first (they persist across auto-refresh only)
         for m in frozen_minions:
@@ -372,11 +378,9 @@ class Game:
                 ct = c.get('card_type', 4)
                 from hsrl.core.enums import CardType
                 cardtype = CardType(ct) if ct in [1,4,5,42] else CardType.MINION
-                race_val = c.get('card_race', 0) or 0
-                try:
-                    race = Race(race_val)
-                except (ValueError, NameError):
-                    race = Race.INVALID
+                from hsrl.core.enums import DBF_RACE_TO_ENUM
+                race_val = c.get('card_race')
+                race = DBF_RACE_TO_ENUM.get(race_val, Race.NONE)
                 register_card(
                     card_id=card_id, name=name, text='',
                     cardtype=cardtype, race=race, tech_level=c.get('tech_level', 1) or 1,
@@ -513,6 +517,7 @@ class Game:
         """Put a minion onto a player's board."""
         if len(player.board) >= 7:
             # Board is full; minion is not summoned (standard BG rule)
+            self.broadcast(MINION_OVERFLOW, minion, player)
             return
         minion.controller = player
         minion.zone = Zone.PLAY
@@ -559,6 +564,7 @@ class Game:
             return
 
         if len(player.board) >= 7:
+            self.broadcast(MINION_OVERFLOW, minion, player)
             return
 
         # Remove from hand
@@ -768,18 +774,86 @@ class Game:
         self._resolve_queue(_wave + 1, _total_actions)
 
     def _resolve_queue(self, _wave: int = 0, _total_actions: int = 0) -> None:
-        """Process queued actions. _wave tracks death processing depth."""
+        """Process queued actions. _wave tracks death processing depth.
+
+        Stops mid-queue if a TargetedAction pauses awaiting target selection.
+        """
         while self._action_queue:
             if _total_actions >= self._MAX_ACTIONS_PER_RESOLVE:
                 return
             action, source, target = self._action_queue.pop(0)
             action.trigger(source, self, target)
             _total_actions += 1
+            # TargetedAction may pause the queue (recruit-phase target selection)
+            if self._pending_targeted_queue:
+                return
             self._check_deaths(_wave, _total_actions)
 
     def resolve_queue(self) -> None:
         """Public entry point — process all queued actions."""
         self._resolve_queue(0)
+
+    def has_pending_target(self) -> bool:
+        """Check if a TargetedAction is awaiting target selection."""
+        return len(self._pending_targeted_queue) > 0
+
+    def get_pending_target_domain(self) -> str:
+        """Return the target domain ('board' or 'tavern') for the pending action."""
+        if not self._pending_targeted_queue:
+            return "board"
+        return getattr(self._pending_targeted_queue[0], 'target_domain', 'board')
+
+    def get_pending_target_candidates(self) -> list:
+        """Return the list of valid target entities for the pending targeted action."""
+        if not self._pending_targeted_queue:
+            return []
+        return self._pending_targeted_queue[0].candidates
+
+    def resolve_pending_target(self, target_index: int) -> bool:
+        """Select a target for the front-of-queue TargetedAction.
+        Returns True if more targets remain (sequential multi-target support).
+
+        target_index: index into the candidates list (0-based).
+        """
+        if not self._pending_targeted_queue:
+            return False
+        action = self._pending_targeted_queue.pop(0)
+        candidates = action.candidates
+        if 0 <= target_index < len(candidates):
+            action.target = candidates[target_index]
+        elif candidates:
+            import random
+            action.target = random.choice(candidates)
+        else:
+            return len(self._pending_targeted_queue) > 0
+        # Re-queue the TargetedAction — it will now execute with target set
+        self.queue_action(action)
+        self.resolve_queue()
+        return len(self._pending_targeted_queue) > 0
+
+    def auto_resolve_pending_target(self) -> None:
+        """Auto-resolve the pending TargetedAction with a random valid target.
+
+        Used by heuristic auto-play which has no target preference.
+        If there are no valid targets, the pending action is discarded.
+        Works for sequential multi-target: drains the entire queue.
+        """
+        if not self._pending_targeted_queue:
+            return
+        import random
+        action = self._pending_targeted_queue.pop(0)
+        candidates = action.candidates
+        if candidates:
+            action.target = random.choice(candidates)
+            self.queue_action(action)
+            self.resolve_queue()
+        while self._pending_targeted_queue:
+            a = self._pending_targeted_queue.pop(0)
+            c = a.candidates
+            if c:
+                a.target = random.choice(c)
+                self.queue_action(a)
+                self.resolve_queue()
 
     def start_game(self) -> None:
         self.state = State.RUNNING
@@ -792,6 +866,8 @@ class Game:
                     fn(p, self)
         # Apply anomaly before starting recruit phase
         self._apply_anomaly()
+        # Select active tribes (5 of 10, unless anomaly overrides)
+        self._select_active_tribes()
         # Assign buddies if buddy anomaly is active
         anomaly = self.active_anomaly
         buddies_enabled = (
@@ -844,6 +920,25 @@ class Game:
                     self.resolve_queue()
 
         self.broadcast("ANOMALY_APPLIED", anomaly_id)
+
+
+    def _select_active_tribes(self) -> None:
+        """Randomly select 5 of 10 playable tribes."""
+        from hsrl.core.enums import Race
+        anomaly = self.active_anomaly
+        if anomaly is not None and not isinstance(anomaly, bool):
+            t = getattr(anomaly, "_single_tribe", None)
+            if t is not None:
+                self.active_tribes = {t}
+                return
+            tf = getattr(anomaly, "_tribe_filters", None)
+            if tf is not None:
+                self.active_tribes = set(tf)
+                return
+        playable = [Race.BEAST, Race.DEMON, Race.DRAGON, Race.ELEMENTAL,
+                     Race.MECH, Race.MURLOC, Race.NAGA, Race.PIRATE,
+                     Race.QUILBOAR, Race.UNDEAD]
+        self.active_tribes = set(random.sample(playable, 5))
 
     # ── Trinket offering ─────────────────────────────────────────────────────
 
@@ -1233,12 +1328,15 @@ class Game:
         # Pair up players for combat (simplified: random pairs)
         alive_players = [p for p in self.players if p.is_alive]
         random.shuffle(alive_players)
+        self._combat_pairs = []
 
         # Simple pairing: if odd number, one player faces a ghost (not implemented)
         for i in range(0, len(alive_players), 2):
             p1 = alive_players[i]
             p2 = alive_players[i + 1] if i + 1 < len(alive_players) else None
             if p2:
+                self._combat_pairs.append((p1, p2))
+                self._combat_pairs.append((p2, p1))
                 self._run_combat(p1, p2)
 
         self._end_combat_phase()
@@ -1263,6 +1361,10 @@ class Game:
     def _run_combat(self, player_a: Player, player_b: Player) -> None:
         """Run a single combat between two players."""
         self.in_combat = True
+
+        # Reset anomaly SoC guard so effects fire once per combat
+        if self.active_anomaly is not None and not isinstance(self.active_anomaly, bool):
+            self.active_anomaly._soc_triggered = False
 
         # Save original boards and graveyards — combat runs on snapshots
         original_board_a = list(player_a.board)
@@ -1567,9 +1669,11 @@ class Game:
         if (self.active_anomaly is not None
                 and not isinstance(self.active_anomaly, bool)
                 and self.active_anomaly.data
-                and self.active_anomaly.data.scripts):
+                and self.active_anomaly.data.scripts
+                and not getattr(self.active_anomaly, '_soc_triggered', False)):
             soc = getattr(self.active_anomaly.data.scripts, 'start_of_combat', None)
             if soc and callable(soc):
+                self.active_anomaly._soc_triggered = True
                 result = soc(self.active_anomaly, self)
                 if result:
                     if isinstance(result, (list, tuple)):
@@ -1631,10 +1735,8 @@ class Game:
             winner, loser = p2, p1
             survivors = living2
         else:
-            # Draw — both boards empty or both have survivors
-            # Tiebreaker: defender takes 1 damage (last attacker wins)
-            if self._last_defender is not None:
-                self._deal_player_damage(self._last_defender, 1)
+            # Draw — both boards empty (simultaneous wipe)
+            # Neither hero takes damage
             return
 
         if loser is None:
@@ -1689,6 +1791,7 @@ class Game:
             player.health -= damage
         if player.health <= 0:
             player.set_tag(GameTag.PLAYSTATE, PlayState.LOST)
+            player._death_turn = self.turn
             self.broadcast(PLAYER_DEFEATED, player)
 
     def _end_combat_phase(self) -> None:
@@ -1862,13 +1965,21 @@ class Game:
         1. Spend gold on the best available minion in tavern
         2. Use hero power if affordable
         3. Upgrade tavern if affordable and beneficial
+
+        Auto-resolves any pending TargetedAction with random selection,
+        since heuristic players don't have target preferences.
         """
+        import random
+
         for p in self.players:
             if not p.is_alive:
                 continue
             self.active_player = p
             self._auto_player_turn(p)
             self.resolve_queue()
+            # Auto-resolve any pending targeted actions randomly
+            while self._pending_targeted_queue:
+                self.auto_resolve_pending_target()
 
     @staticmethod
     def _board_score(board: list, player: Optional[Player] = None) -> int:
@@ -2008,13 +2119,16 @@ class Game:
         return alive[0] if len(alive) == 1 else None
 
     @staticmethod
-    def create_game(hero_ids: List[str], card_db=None, apply_anomaly: bool = True) -> "Game":
+    def create_game(hero_ids: List[str], card_db=None, apply_anomaly: bool = True,
+                    hero_power_overrides: Dict[int, str] = None) -> "Game":
         """Factory: create a Game with players from hero card IDs.
 
         Args:
             hero_ids: List of hero card IDs (e.g. ['BG20_HERO_100', ...])
             card_db: CardDB instance (uses global CARDS if None)
             apply_anomaly: Whether to apply a random anomaly
+            hero_power_overrides: Optional dict mapping player index to
+                hero power card_id override (for start-of-game choice)
 
         Returns:
             Initialized Game ready to start.
@@ -2032,6 +2146,12 @@ class Game:
         game.players = players
         for p in players:
             p.game = game
+
+        # Apply hero power overrides before start_game (start-of-game choice)
+        if hero_power_overrides:
+            for idx, power_id in hero_power_overrides.items():
+                if 0 <= idx < len(players):
+                    players[idx].set_tag(GameTag.HERO_POWER, power_id)
 
         if not apply_anomaly:
             game.active_anomaly = True  # Block anomaly application

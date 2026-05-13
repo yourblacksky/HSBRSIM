@@ -8,7 +8,7 @@ Each script class must be CORRECT (exact semantic match) or DEFERRED (return Non
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 from hsrl.core.enums import GameTag, Race
-from hsrl.core.actions import Action, GainGold, AddToHand
+from hsrl.core.actions import Action, GainGold, AddToHand, DiscoverMinion, DiscoverSpell
 
 if TYPE_CHECKING:
     from hsrl.core.game import Game
@@ -691,7 +691,7 @@ class SoTGetEvolvingScrollScript:
         actions = []
         for p in game.players:
             if p.is_alive:
-                actions.append(DiscoverSpell(p, min_tier=tier, max_tier=tier))
+                actions.append(DiscoverSpell(p, max_tier=tier))
         source._evolving_tier = min(tier + 1, 6)
         return actions if actions else None
 
@@ -2085,6 +2085,58 @@ class TwistExtraRandomTurnScript:
         game.schedule_turn_action(extra_turn, _extra_twist)
 
 
+class SharingIsCaringScript:
+    """
+    Natural language: Start of Combat: Cast a random Tavern spell on ALL your
+    minions. (Applies to all players.)
+
+    Formal spec:
+      1. start_of_combat: pick a random tavern spell → CastSpellOnAll(all minions)
+    Test: each combat, every alive player has the same random spell cast on
+      all their minions.
+    """
+
+    @staticmethod
+    def start_of_combat(source, game):
+        if game.spell_pool is None:
+            return None
+        spell_id = game.spell_pool.get_random()
+        if spell_id is None:
+            return None
+        from hsrl.core.actions import CastSpellOnAll
+        actions = []
+        for p in game.players:
+            if p.is_alive and p.get_board_minions():
+                actions.append(CastSpellOnAll(p, spell_id))
+        return actions if actions else None
+
+
+class BroodOfNozdormuScript:
+    """
+    Natural language: Start of Combat: Cast a random Tavern spell on ALL your
+    Dragons. (Applies to all players.)
+
+    Formal spec:
+      1. start_of_combat: pick a random tavern spell
+         → CastSpellOnAll(player, spell_id, race_filter=Race.DRAGON)
+    Test: each combat, all players' Dragons get the same random spell cast on them.
+    """
+
+    @staticmethod
+    def start_of_combat(source, game):
+        if game.spell_pool is None:
+            return None
+        spell_id = game.spell_pool.get_random()
+        if spell_id is None:
+            return None
+        from hsrl.core.actions import CastSpellOnAll
+        actions = []
+        for p in game.players:
+            if p.is_alive and p.get_board_minions():
+                actions.append(CastSpellOnAll(p, spell_id, race_filter=Race.DRAGON))
+        return actions if actions else None
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # DEFERRED — engine support not yet available
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2115,7 +2167,7 @@ ANOMALY_SCRIPT_REGISTRY: dict = {
     "BG27_Anomaly_501": TemperanceScript,
     "BG27_Anomaly_504": SecretsOfNorgannonScript,
     "BG27_Anomaly_721": UncompensatedUpsetScript,
-    "BG27_Anomaly_302": StartWithPiggyBanksScript,
+    "BG27_Anomaly_302": BroodOfNozdormuScript,
     "BG31_Anomaly_127": Get3Tier2MinionsScript,
 
     # ── CORRECT: Stats ──
@@ -2133,7 +2185,7 @@ ANOMALY_SCRIPT_REGISTRY: dict = {
     "BG27_Anomaly_104t10": OopsAllPiratesScript,
 
     # ── CORRECT: Golden / Triple ──
-    "BG27_Anomaly_301": TwoCopiesGoldenScript,
+    "BG27_Anomaly_301": SharingIsCaringScript,
 
     # ── CORRECT: Doublers ──
     "BG27_Anomaly_802": BCAndDRDoubleScript,

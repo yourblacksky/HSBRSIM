@@ -1149,7 +1149,7 @@ class TestBattlecryCards(unittest.TestCase):
         murloc1 = self.game.create_minion("EXAMPLE_BATTLECRY")
         self.game.summon(self.player, murloc1)
         self._trigger_battlecry(mama1)
-        self.assertEqual(self.player.get_tag(GameTag.MRRGLTON_COUNT, 0), 1)
+        self.assertEqual(self.player.get_tag(GameTag.MAMA_MRRGLTON_COUNT, 0), 1)
         self.assertEqual(murloc1.atk, 3)  # 2 + 1
 
         # Play second Mama: buffs by 2
@@ -1158,7 +1158,7 @@ class TestBattlecryCards(unittest.TestCase):
         murloc2 = self.game.create_minion("EXAMPLE_BATTLECRY")
         self.game.summon(self.player, murloc2)
         self._trigger_battlecry(mama2)
-        self.assertEqual(self.player.get_tag(GameTag.MRRGLTON_COUNT, 0), 2)
+        self.assertEqual(self.player.get_tag(GameTag.MAMA_MRRGLTON_COUNT, 0), 2)
         self.assertEqual(murloc2.atk, 4)  # 2 + 2
         self.assertEqual(murloc1.atk, 5)  # 3 + 2 (second buff also hits first)
 
@@ -2912,6 +2912,9 @@ class TestSpellcraft(unittest.TestCase):
 
     def test_spellcraft_spell_on_play_buffs_minion(self):
         """Playing a Spellcraft spell triggers its on_play effect (buff)."""
+        # Set in_combat so TargetedAction auto-resolves (no player to select)
+        self.game.in_combat = True
+
         m = self.game.create_minion("EXAMPLE_SPELLCRAFT_MINION")
         self.game.summon(self.p1, m)
         self.game._generate_spellcraft_spells()
@@ -3053,6 +3056,9 @@ class TestImprove(unittest.TestCase):
 
     def test_lovesick_balladist_reads_gold_spent_this_turn(self):
         """Lovesick Balladist battlecry buff scales with GOLD_SPENT_THIS_TURN."""
+        # Set in_combat so TargetedAction auto-resolves (no player to select)
+        self.game.in_combat = True
+
         m = self.game.create_minion("BG26_814")
         self.game.summon(self.p1, m)
 
@@ -3825,7 +3831,14 @@ class TestCaptainSanders(unittest.TestCase):
         captain = self.game.create_minion("BG25_034")
         self.game.summon(self.p1, captain)
 
-        self.script.battlecry(captain, self.game)
+        result = self.script.battlecry(captain, self.game)
+        # TargetedAction: must be queued and resolved via engine.
+        # Set in_combat so the target is auto-selected (test has no agent).
+        self.assertIsNotNone(result)
+        self.game.queue_action(result, source=captain)
+        self.game.in_combat = True
+        self.game.resolve_queue()
+        self.game.in_combat = False
 
         self.assertTrue(target.is_golden)
         self.assertEqual(target.get_tag(GameTag.BASE_ATK), original_atk * 2)
@@ -3836,7 +3849,7 @@ class TestCaptainSanders(unittest.TestCase):
         captain = self.game.create_minion("BG25_034")
         self.game.summon(self.p1, captain)
 
-        # No other friendly minions — should do nothing
+        # No other friendly minions — filter_fn returns empty → None
         result = self.script.battlecry(captain, self.game)
         self.assertIsNone(result)
         self.assertFalse(captain.is_golden)
@@ -3914,7 +3927,8 @@ class TestDisguisedGraverobber(unittest.TestCase):
 
     def test_destroy_undead_get_copy(self):
         """Destroy friendly Undead, get a plain copy in hand."""
-        from hsrl.core.actions import Destroy, AddToHand
+        # Set in_combat so TargetedAction auto-resolves (no player to select)
+        self.game.in_combat = True
 
         # Create an Undead minion on board
         undead = self.game.create_minion("EXAMPLE_VANILLA")
@@ -3924,16 +3938,11 @@ class TestDisguisedGraverobber(unittest.TestCase):
         graverobber = self.game.create_minion("BG28_303")
         self.game.summon(self.p1, graverobber)
 
-        actions = self.script.battlecry(graverobber, self.game)
+        action = self.script.battlecry(graverobber, self.game)
+        self.assertIsNotNone(action)
 
-        self.assertIsNotNone(actions)
-        self.assertEqual(len(actions), 2)
-        self.assertIsInstance(actions[0], Destroy)
-        self.assertIsInstance(actions[1], AddToHand)
-
-        # Execute the actions
-        for a in actions:
-            self.game.queue_action(a, source=graverobber)
+        # TargetedAction auto-resolves during combat — queue and resolve
+        self.game.queue_action(action, source=graverobber)
         self.game.resolve_queue()
 
         # Undead should be dead
@@ -5155,6 +5164,9 @@ class TestSpellEffects(unittest.TestCase):
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1, self.p2]
+        # Set in_combat so TargetedActions auto-resolve randomly
+        # (individual tests can override for recruit-phase targeting tests)
+        self.game.in_combat = True
 
     # ── EXAMPLE_TAVERN_SPELL_EFFECT ──
 

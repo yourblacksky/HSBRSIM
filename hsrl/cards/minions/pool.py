@@ -11,23 +11,7 @@ import json
 from pathlib import Path
 
 from hsrl.core.card_db import register_card
-from hsrl.core.enums import CardType, GameTag, Race, Rarity
-
-# ── Race mapping (DBF race ID → Race enum) ────────────────────────────
-_DBF_RACE_TO_ENUM = {
-    None: Race.NONE,
-    11: Race.UNDEAD,
-    14: Race.MURLOC,
-    15: Race.DEMON,
-    17: Race.MECH,
-    18: Race.ELEMENTAL,
-    20: Race.BEAST,
-    23: Race.PIRATE,
-    24: Race.DRAGON,
-    26: Race.ALL,
-    43: Race.QUILBOAR,
-    92: Race.NAGA,
-}
+from hsrl.core.enums import CardType, DBF_RACE_TO_ENUM, GameTag, Race, Rarity
 
 # ── Keyword mapping (JSON field name → GameTag) ──────────────────────
 _KEYWORD_MAP = {
@@ -89,7 +73,7 @@ def register_all_pool_minions():
 def _register_one_minion(m: dict, text: str):
     """Register a single pool minion from its JSON data."""
     card_id = m["id"]
-    race = _DBF_RACE_TO_ENUM.get(m.get("card_race"), Race.NONE)
+    race = DBF_RACE_TO_ENUM.get(m.get("card_race"), Race.NONE)
 
     tags = {
         GameTag.BASE_ATK: m.get("atk", 0),

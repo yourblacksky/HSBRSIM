@@ -293,6 +293,7 @@ class TestNewHeroPowerScripts(unittest.TestCase):
         self.game = Game([])
         self.game.card_db = CARDS
         self.game.players = []
+        self.game.in_combat = True
 
     def _make_player_with_board(self, hero_id, gold=10):
         player = Player(CARDS.get(hero_id), game=self.game)
@@ -424,6 +425,7 @@ class TestPhaseIINewHeroPowers(unittest.TestCase):
         self.game = Game([])
         self.game.card_db = CARDS
         self.game.players = []
+        self.game.in_combat = True
 
     def _make_player_with_board(self, hero_id, gold=10):
         player = Player(CARDS.get(hero_id), game=self.game)
@@ -598,6 +600,7 @@ class TestPhaseIIINewHeroPowers(unittest.TestCase):
         self.game = Game([])
         self.game.card_db = CARDS
         self.game.players = []
+        self.game.in_combat = True
 
     def _make_player(self, hero_id, gold=10):
         player = Player(CARDS.get(hero_id), game=self.game)
@@ -1855,6 +1858,7 @@ class TestRagePotion(unittest.TestCase):
     def setUp(self):
         self.game = Game([])
         self.game.card_db = CARDS
+        self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
         self.game.players = [self.player]
@@ -1887,6 +1891,7 @@ class TestDieInsects(unittest.TestCase):
     def setUp(self):
         self.game = Game([])
         self.game.card_db = CARDS
+        self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
         self.game.players = [self.player]
@@ -1916,6 +1921,7 @@ class TestRebornRites(unittest.TestCase):
     def setUp(self):
         self.game = Game([])
         self.game.card_db = CARDS
+        self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
         self.game.players = [self.player]
@@ -1955,6 +1961,7 @@ class TestKingOfBeasts(unittest.TestCase):
     def setUp(self):
         self.game = Game([])
         self.game.card_db = CARDS
+        self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
         self.game.players = [self.player]
@@ -2281,6 +2288,7 @@ class TestPhase12RunicEmpowerment(unittest.TestCase):
     def setUp(self):
         self.game = Game([])
         self.game.card_db = CARDS
+        self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
         self.player.health = 40

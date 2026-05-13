@@ -268,24 +268,36 @@ class CaptainSandersScript:
     Natural language: Battlecry: Make a friendly minion from Tier 6 or below Golden.
 
     Formal spec:
-      - Select random friendly board minion (not self, tier ≤ 6, not already golden)
-      - Set GOLDEN=True, BASE_ATK *= 2, BASE_HEALTH *= 2
+      - Player chooses a friendly board minion (not self, tier ≤ 6, not golden)
+        during recruit phase; random during combat.
+      - Sets GOLDEN=True, BASE_ATK *= 2, BASE_HEALTH *= 2
+
+    Test: Captain Sanders targets a friendly non-golden minion (tier 1-6),
+          making it golden and doubling its stats during recruit phase.
     """
 
     @staticmethod
     def battlecry(source, game):
-        candidates = [
-            m for m in source.controller.get_board_minions()
-            if m is not source and m.tech_level <= 6 and not m.is_golden
-        ]
-        if not candidates:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            return [
+                m for m in source.controller.get_board_minions()
+                if m is not source and m.tech_level <= 6 and not m.is_golden
+            ]
+
+        if not filter_fn():
+            return None  # No valid targets — skip entirely
+
+        def action_factory(target):
+            target.set_tag(GameTag.GOLDEN, True)
+            target.set_tag(GameTag.BASE_ATK, target.get_tag(GameTag.BASE_ATK, 0) * 2)
+            target.set_tag(GameTag.BASE_HEALTH, target.get_tag(GameTag.BASE_HEALTH, 0) * 2)
+            target.set_tag(GameTag.HEALTH, target.max_health)
             return None
-        target = random.choice(candidates)
-        target.set_tag(GameTag.GOLDEN, True)
-        target.set_tag(GameTag.BASE_ATK, target.get_tag(GameTag.BASE_ATK, 0) * 2)
-        target.set_tag(GameTag.BASE_HEALTH, target.get_tag(GameTag.BASE_HEALTH, 0) * 2)
-        target.set_tag(GameTag.HEALTH, target.max_health)
-        return None
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Make a friendly minion Golden")
 
 
 # ── BGS_030: King Bagurgle ────────────────────────────────────────────
@@ -311,17 +323,17 @@ class MamaMrrgltonScript:
     (Improved by each Mrrglton you played this game!)
 
     Formal spec:
-      1. Increment source.controller's MRRGLTON_COUNT tag by 1
+      1. Increment source.controller's MAMA_MRRGLTON_COUNT tag by 1
       2. Buff all other friendly Murlocs (board + hand) by +count Attack
       3. "Improved by each Mrrglton" means the buff scales with total
-         Mrrgltons played (including this one)
+         Mama Mrrgltons played (including this one)
     """
 
     @staticmethod
     def battlecry(source, game):
         player = source.controller
-        count = player.get_tag(GameTag.MRRGLTON_COUNT, 0) + 1
-        player.set_tag(GameTag.MRRGLTON_COUNT, count)
+        count = player.get_tag(GameTag.MAMA_MRRGLTON_COUNT, 0) + 1
+        player.set_tag(GameTag.MAMA_MRRGLTON_COUNT, count)
         actions = []
         for m in player.get_board_minions():
             if m is not source and m.race in (Race.MURLOC, Race.ALL):
@@ -339,17 +351,17 @@ class PapaMrrgltonScript:
     (Improved by each Mrrglton you played this game!)
 
     Formal spec:
-      1. Increment source.controller's MRRGLTON_COUNT tag by 1
+      1. Increment source.controller's PAPA_MRRGLTON_COUNT tag by 1
       2. Buff all other friendly Murlocs (board + hand) by +count Health
       3. "Improved by each Mrrglton" means the buff scales with total
-         Mrrgltons played (including this one)
+         Papa Mrrgltons played (including this one)
     """
 
     @staticmethod
     def battlecry(source, game):
         player = source.controller
-        count = player.get_tag(GameTag.MRRGLTON_COUNT, 0) + 1
-        player.set_tag(GameTag.MRRGLTON_COUNT, count)
+        count = player.get_tag(GameTag.PAPA_MRRGLTON_COUNT, 0) + 1
+        player.set_tag(GameTag.PAPA_MRRGLTON_COUNT, count)
         actions = []
         for m in player.get_board_minions():
             if m is not source and m.race in (Race.MURLOC, Race.ALL):
@@ -2010,17 +2022,17 @@ class DeathlyStrikerScript:
 # ── BG31_810: Ultraviolet Ascendant ──────────────────────────────────────
 class UltravioletAscendantScript:
     """
-    Natural language: Start of Combat: Give a friendly minion +1/+2.
+    Natural language: Start of Combat: Give your other Elementals +1/+2.
     Improves after you play an Elemental!
 
     Formal spec:
       - on_summon: register ELEMENTAL_PLAYED listener → IncrementImproveCounter(self)
-      - start_of_combat: buff a random friendly minion (not self) by
+      - start_of_combat: buff ALL other friendly Elementals by
         +(1+counter)/+(2+2*counter)
       - Counter persists on the card for the entire game
 
     Test: summon UV Ascendant, play 2 Elementals, verify counter=2,
-    start of combat buff is +3/+6
+    start of combat buff is +3/+6 to all other Elementals
     """
 
     @staticmethod
@@ -2041,15 +2053,14 @@ class UltravioletAscendantScript:
         from hsrl.core.enums import GameTag, Race as GameRace
         counter = source.get_tag(GameTag.IMPROVE_COUNTER, 0)
         board = source.controller.board
-        # Buff other friendly Elementals
+        # Buff ALL other friendly Elementals
         candidates = [m for m in board
-                      if not m.dead and m != source and m.race == GameRace.ELEMENTAL]
+                      if not m.dead and m != source
+                      and m.race in (GameRace.ELEMENTAL, Race.ALL)]
         if not candidates:
             return None
-        import random
-        target = random.choice(candidates)
         mult = 1 + counter
-        return Buff(target, atk=1 * mult, health=2 * mult)
+        return [Buff(m, atk=1 * mult, health=2 * mult) for m in candidates]
 
 
 # ── BG26_814: Lovesick Balladist ─────────────────────────────────────────
@@ -2061,6 +2072,8 @@ class LovesickBalladistScript:
     Formal spec:
       - battlecry: read player's GOLD_SPENT_THIS_TURN, buff a friendly Pirate
         by gold_spent * (+1/+2)
+      - During recruit: player chooses the target Pirate
+      - During combat: target is random
       - Per-turn: GOLD_SPENT_THIS_TURN resets at start of each recruit phase
 
     Test: spend 5 gold buying other minions, play Lovesick Balladist,
@@ -2069,18 +2082,23 @@ class LovesickBalladistScript:
 
     @staticmethod
     def battlecry(source, game):
-        from hsrl.core.actions import Buff
+        from hsrl.core.actions import Buff, TargetedAction
         from hsrl.core.enums import GameTag, Race as GameRace
         gold_spent = source.controller.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0)
-        board = source.controller.board
-        candidates = [m for m in board
-                      if not m.dead and m != source and m.race == GameRace.PIRATE]
-        if not candidates:
+
+        def filter_fn():
+            board = source.controller.board
+            return [m for m in board
+                    if not m.dead and m != source and m.race == GameRace.PIRATE]
+
+        if not filter_fn():
             return None
-        import random
-        target = random.choice(candidates)
-        mult = gold_spent
-        return Buff(target, atk=1 * mult, health=2 * mult)
+
+        def action_factory(target):
+            return Buff(target, atk=1 * gold_spent, health=2 * gold_spent)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Give a Pirate +{0}/+{1}".format(gold_spent, gold_spent * 2))
 
 
 # ── BG28_303: Disguised Graverobber ─────────────────────────────────────
@@ -2090,23 +2108,32 @@ class DisguisedGraverobberScript:
     a plain copy of it.
 
     Formal spec:
-      - Select a random friendly Undead minion (excluding self)
-      - Destroy it, then create a fresh plain copy (same card_id)
+      - During recruit: player chooses the target Undead
+      - During combat: random target
+      - Destroy the target, then create a fresh plain copy (same card_id)
         via AddToHand
     """
 
     @staticmethod
     def battlecry(source, game):
-        undead = [
-            m
-            for m in source.controller.get_board_minions()
-            if m is not source and not m.dead and m.race in (Race.UNDEAD, Race.ALL)
-        ]
-        if not undead:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            return [
+                m
+                for m in source.controller.get_board_minions()
+                if m is not source and not m.dead and m.race in (Race.UNDEAD, Race.ALL)
+            ]
+
+        if not filter_fn():
             return None
-        target = random.choice(undead)
-        card_id = target.get_tag(GameTag.CARD_ID)
-        return [Destroy(target), AddToHand(source.controller, card_id)]
+
+        def action_factory(target):
+            card_id = target.get_tag(GameTag.CARD_ID)
+            return [Destroy(target), AddToHand(source.controller, card_id)]
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Destroy a friendly Undead")
 
 
 # ── BG35_150: Laboratory Assistant ──────────────────────────────────────
@@ -2391,14 +2418,11 @@ class FireForgedEvokerScript:
         from hsrl.core.enums import GameTag, Race as GameRace
         counter = source.get_tag(GameTag.IMPROVE_COUNTER, 0)
         board = source.controller.board
-        candidates = [m for m in board
-                      if not m.dead and m != source and m.race == GameRace.DRAGON]
-        if not candidates:
-            return None
-        import random
-        target = random.choice(candidates)
         mult = 1 + counter
-        return Buff(target, atk=1 * mult, health=2 * mult)
+        actions = [Buff(m, atk=1 * mult, health=2 * mult)
+                   for m in board
+                   if not m.dead and m.race == GameRace.DRAGON]
+        return actions if actions else None
 
 
 # ── BG35_702: Roving Sailor ──────────────────────────────────────────────
@@ -2409,9 +2433,10 @@ class RovingSailorScript:
 
     Formal spec:
       1. battlecry: read player's TAVERN_SPELLS_CAST_THIS_TURN
-      2. Pick random friendly minion (excluding self)
-      3. Buff target by spell_count * (+1/+2)
-      4. If no candidates or spell_count==0, return None
+      2. During recruit: player chooses the target minion (excluding self)
+      3. During combat: random target
+      4. Buff target by spell_count * (+1/+2)
+      5. If no candidates or spell_count==0, return None
 
     Test: cast 3 tavern spells via CastTavernSpell, play Roving Sailor,
     verify friendly minion gets +3/+6.
@@ -2419,18 +2444,23 @@ class RovingSailorScript:
 
     @staticmethod
     def battlecry(source, game):
-        from hsrl.core.actions import Buff
+        from hsrl.core.actions import Buff, TargetedAction
         from hsrl.core.enums import GameTag
         spell_count = source.controller.get_tag(
             GameTag.TAVERN_SPELLS_CAST_THIS_TURN, 0)
-        board = source.controller.board
-        candidates = [m for m in board
-                      if not m.dead and m != source]
-        if not candidates or spell_count == 0:
+
+        def filter_fn():
+            board = source.controller.board
+            return [m for m in board if not m.dead and m != source]
+
+        if not filter_fn() or spell_count == 0:
             return None
-        import random
-        target = random.choice(candidates)
-        return Buff(target, atk=1 * spell_count, health=2 * spell_count)
+
+        def action_factory(target):
+            return Buff(target, atk=1 * spell_count, health=2 * spell_count)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label=f"Give +{spell_count}/+{spell_count * 2}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2738,9 +2768,10 @@ class SkeletalStraferScript:
 
     @staticmethod
     def end_of_turn(source, game):
+        scale = source.get_tag(GameTag.PLAGUERUNNER_SCALE, 1)
         actions = []
         for m in source.controller.get_board_minions():
-            actions.append(Buff(m, atk=1, health=1))
+            actions.append(Buff(m, atk=scale, health=scale))
         return actions if actions else None
 
     @staticmethod
@@ -2766,11 +2797,17 @@ class BrazenBuccaneerScript:
 class EarthsongShamanScript:
     """At the end of your turn, play a Blood Gem on all minions. Repeat per keyword."""
 
-    @staticmethod
-    def end_of_turn(source, game):
+    _KEYWORD_TAGS = [GameTag.TAUNT, GameTag.DIVINE_SHIELD, GameTag.POISONOUS,
+                     GameTag.VENOMOUS, GameTag.REBORN, GameTag.WINDFURY, GameTag.CLEAVE]
+
+    @classmethod
+    def end_of_turn(cls, source, game):
+        keyword_count = sum(1 for kt in cls._KEYWORD_TAGS
+                            if source.has_tag(kt))
+        repeat = keyword_count + 1  # base 1 + 1 per keyword
         actions = []
         for m in source.controller.get_board_minions():
-            actions.append(PlayBloodGems(m, count=1))
+            actions.append(PlayBloodGems(m, count=repeat))
         return actions if actions else None
 
 
@@ -2939,16 +2976,30 @@ class RuthlessQueensguardScript:
     """Battlecry, Deathrattle, and Rally: Cast Queen's Command."""
 
     @staticmethod
+    def _queens_command(source, game):
+        board = [m for m in source.controller.board if not m.dead]
+        if not board:
+            return None
+        types = set()
+        for m in board:
+            r = m.race
+            if r not in (Race.INVALID, Race.ALL, Race.NONE):
+                types.add(r)
+        type_count = max(len(types), 1)
+        target = random.choice(board)
+        return Buff(target, atk=2 * type_count, health=2 * type_count)
+
+    @staticmethod
     def battlecry(source, game):
-        return GetRandomMinion(source.controller)
+        return RuthlessQueensguardScript._queens_command(source, game)
 
     @staticmethod
     def deathrattle(source, game):
-        return GetRandomMinion(source.controller)
+        return RuthlessQueensguardScript._queens_command(source, game)
 
     @staticmethod
     def rally(source, game):
-        return GetRandomMinion(source.controller)
+        return RuthlessQueensguardScript._queens_command(source, game)
 
 
 # ── Rally ────────────────────────────────────────────────────────────────────
@@ -2958,8 +3009,13 @@ class SeafloorRecruiterScript:
 
     @staticmethod
     def rally(source, game):
-        from hsrl.core.actions import DiscoverMinion
-        return DiscoverMinion(source.controller)
+        board = [m for m in source.controller.board if not m.dead]
+        for i, m in enumerate(board):
+            if m is source and i + 1 < len(board):
+                right = board[i + 1]
+                tier = source.controller.tavern_tier
+                return Buff(right, atk=tier, health=tier)
+        return None
 
 
 class ShipJumperScript:
@@ -2967,11 +3023,15 @@ class ShipJumperScript:
 
     @staticmethod
     def rally(source, game):
-        from hsrl.core.actions import Summon
-        token = game.create_minion("BGS_028")
+        from hsrl.core.actions import Summon, Attack
+        token = game.create_minion("BGS_061t")
         if token is None:
             return None
-        return Summon(source.controller, token)
+        actions = [Summon(source.controller, token)]
+        target = getattr(game, '_last_attack_target', None)
+        if target and not target.dead:
+            actions.append(Attack(token, target))
+        return actions
 
 
 # ── "Wherever this is" Trackers ──────────────────────────────────────────────
@@ -3055,24 +3115,111 @@ class ElementalOfSurpriseScript:
 
 
 class WrathWeaverScript:
-    """After you play a Demon, deal 1 damage to your hero and gain +2/+2."""
+    """
+    Natural language: After you play a Demon, deal 1 damage to your hero
+    and gain +2/+2.
 
-    # DEFERRED: Needs MINION_BOUGHT race-filtered event listener
-    pass
+    Formal spec:
+      1. on_summon: register MINION_PLAYED listener with condition
+         (played minion is a Demon, same controller, source alive on board)
+      2. listener action: DealDamageToHero(controller, 1) + Buff(source, +2/+2)
+    Test: play a Demon → Wrath Weaver takes 1 to hero and gets +2/+2.
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import EventListener
+        from hsrl.core.actions import DealDamageToHero, Buff
+
+        class _Trigger(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if source.dead or source.zone != Zone.PLAY:
+                    return
+                game_ref.queue_action(DealDamageToHero(source.controller, 1))
+                game_ref.queue_action(Buff(source, atk=2, health=2))
+
+        listener = EventListener(
+            event_name="MINION_PLAYED",
+            action=_Trigger(),
+            condition=lambda m, p: (
+                p == source.controller
+                and m.race == Race.DEMON
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class ProphetOfTheBoarScript:
-    """Taunt. After you play a Quilboar, get a Blood Gem."""
+    """
+    Natural language: Taunt. After you play a Quilboar, get a Blood Gem.
 
-    # DEFERRED: Needs MINION_BOUGHT race-filtered event listener
-    pass
+    Formal spec:
+      1. on_summon: register MINION_PLAYED listener with condition
+         (played minion is a Quilboar, same controller, source alive on board)
+      2. listener action: GetBloodGem(controller)
+    Test: play a Quilboar → add a Blood Gem to hand.
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import EventListener
+
+        class _Trigger(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if source.dead or source.zone != Zone.PLAY:
+                    return
+                game_ref.queue_action(GetBloodGem(source.controller))
+
+        listener = EventListener(
+            event_name="MINION_PLAYED",
+            action=_Trigger(),
+            condition=lambda m, p: (
+                p == source.controller
+                and m.race == Race.QUILBOAR
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class MrglinBurglarScript:
-    """After you play a Murloc, give a friendly minion and hand minion +X/+X."""
+    """
+    Natural language: After you play a Murloc, give a friendly minion +2/+2
+    and give a minion in your hand +2/+2.
 
-    # DEFERRED: Needs MINION_BOUGHT race-filtered event listener
-    pass
+    Formal spec:
+      1. on_summon: register MINION_PLAYED listener with condition
+         (played minion is a Murloc, same controller, source alive on board)
+      2. listener action: Buff(random friendly, +2/+2) + Buff(random hand, +2/+2)
+    Test: play a Murloc → one board and one hand minion get +2/+2.
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import EventListener
+
+        class _Trigger(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if source.dead or source.zone != Zone.PLAY:
+                    return
+                board = [m for m in source.controller.board if not m.dead]
+                if board:
+                    game_ref.queue_action(Buff(random.choice(board), atk=2, health=2))
+                hand = [m for m in source.controller.hand if not m.dead]
+                if hand:
+                    game_ref.queue_action(Buff(random.choice(hand), atk=2, health=2))
+
+        listener = EventListener(
+            event_name="MINION_PLAYED",
+            action=_Trigger(),
+            condition=lambda m, p: (
+                p == source.controller
+                and m.race == Race.MURLOC
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class ConsummateConquerorScript:
@@ -3099,10 +3246,40 @@ class LurkingLeviathanScript:
 
 
 class RabidPantherScript:
-    """After you play a Beast, give your Beasts +1/+1 and deal 1 damage."""
+    """
+    Natural language: After you play a Beast, give your Beasts +1/+1 and
+    deal 1 damage to your hero.
 
-    # DEFERRED: Needs MINION_BOUGHT race-filtered event listener
-    pass
+    Formal spec:
+      1. on_summon: register MINION_PLAYED listener with condition
+         (played minion is a Beast, same controller, source alive on board)
+      2. listener action: Buff(all friendly Beasts, +1/+1) + DealDamageToHero(controller, 1)
+    Test: play a Beast → all friendly Beasts get +1/+1, hero takes 1 damage.
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import EventListener
+
+        class _Trigger(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if source.dead or source.zone != Zone.PLAY:
+                    return
+                for m in source.controller.board:
+                    if not m.dead and m.race in (Race.BEAST, Race.ALL):
+                        game_ref.queue_action(Buff(m, atk=1, health=1))
+                game_ref.queue_action(DealDamageToHero(source.controller, 1))
+
+        listener = EventListener(
+            event_name="MINION_PLAYED",
+            action=_Trigger(),
+            condition=lambda m, p: (
+                p == source.controller
+                and m.race == Race.BEAST
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class BalindaStonehearthScript:
@@ -3999,28 +4176,38 @@ class SprightlyScarabScript:
     """Choose One - Give a Beast +1/+1 and Reborn; or +2 Attack and Windfury.
 
     Formal spec:
-      - Battlecry: ChooseOne with 2 options targeting a random friendly Beast
+      - Battlecry: ChooseOne with 2 options targeting a friendly Beast
+      - During recruit: player chooses the target Beast, then picks option
+      - During combat: both target and option are random
       - Option A: Buff(+1/+1) + GainKeyword(REBORN)
       - Option B: Buff(+2atk) + GainKeyword(WINDFURY)
     """
 
     @staticmethod
     def battlecry(source, game):
-        board = source.controller.get_board_minions()
-        beasts = [m for m in board if not m.dead and m.race == Race.BEAST]
-        if not beasts:
+        from hsrl.core.actions import TargetedAction
+
+        def filter_fn():
+            board = source.controller.get_board_minions()
+            return [m for m in board if not m.dead and m.race == Race.BEAST]
+
+        if not filter_fn():
             return None
-        target = random.choice(beasts)
-        return ChooseOne([
-            ("Give +1/+1 and Reborn", [
-                Buff(target, atk=1, health=1),
-                GainKeyword(target, GameTag.REBORN),
-            ]),
-            ("Give +2 Attack and Windfury", [
-                Buff(target, atk=2, health=0),
-                GainKeyword(target, GameTag.WINDFURY),
-            ]),
-        ])
+
+        def action_factory(target):
+            return ChooseOne([
+                ("Give +1/+1 and Reborn", [
+                    Buff(target, atk=1, health=1),
+                    GainKeyword(target, GameTag.REBORN),
+                ]),
+                ("Give +2 Attack and Windfury", [
+                    Buff(target, atk=2, health=0),
+                    GainKeyword(target, GameTag.WINDFURY),
+                ]),
+            ])
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Sprightly Scarab — choose target Beast")
 
 
 class FearlessFoodieScript:

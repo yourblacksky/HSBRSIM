@@ -113,7 +113,9 @@ class GameTag(IntEnum):
     WINDFURY_ATTACKS = 84           # Number of attacks made this combat
     KILLER = 85                     # Entity id of the minion that killed this one
     SAVED_MINION_ID = 86            # Card id stored for later reference (Stitched Salvager)
-    MRRGLTON_COUNT = 87             # Times a Mrrglton has been played this game
+    MRRGLTON_COUNT = 87             # Times a Mrrglton has been played this game (deprecated)
+    MAMA_MRRGLTON_COUNT = 88       # Times Mama Mrrglton has been played this game
+    PAPA_MRRGLTON_COUNT = 89       # Times Papa Mrrglton has been played this game
 
     # ── Game State ──
     TURN = 90                       # Current turn number (1, 2, 3...)
@@ -224,6 +226,25 @@ class Race(IntEnum):
     UNDEAD = 10
     ALL = 11            # "All" type minions
     NONE = 12           # No tribe
+
+
+# Mapping from Hearthstone DBF (CardDefs.xml) race IDs to our Race enum.
+# DBF uses different numeric codes than our enum — this map MUST be used
+# whenever reading card_race values from data files.
+DBF_RACE_TO_ENUM = {
+    None: Race.NONE,
+    11: Race.UNDEAD,
+    14: Race.MURLOC,
+    15: Race.DEMON,
+    17: Race.MECH,
+    18: Race.ELEMENTAL,
+    20: Race.BEAST,
+    23: Race.PIRATE,
+    24: Race.DRAGON,
+    26: Race.ALL,
+    43: Race.QUILBOAR,
+    92: Race.NAGA,
+}
 
 
 class Zone(IntEnum):

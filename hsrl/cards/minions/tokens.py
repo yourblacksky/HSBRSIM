@@ -12,6 +12,90 @@ from hsrl.core.card_db import register_card
 from hsrl.core.enums import CardType, GameTag, Race, Rarity
 
 
+class _SlimyShieldScript:
+    """Give a minion +1/+1 and Taunt."""
+
+    @staticmethod
+    def on_play(source, game):
+        from hsrl.core.actions import Buff, GainKeyword, TargetedAction
+
+        def filter_fn():
+            return [m for m in source.controller.board if not m.dead]
+
+        def action_factory(target):
+            return [Buff(target, atk=1, health=1),
+                    GainKeyword(target, GameTag.TAUNT)]
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Slimy Shield — +1/+1 + Taunt")
+
+
+class _ForestBountyScript:
+    """Give a friendly minion +1/+1 for each friendly minion type."""
+
+    @staticmethod
+    def on_play(source, game):
+        from hsrl.core.actions import Buff, TargetedAction
+
+        board = [m for m in source.controller.board if not m.dead]
+        unique_types = set()
+        for m in board:
+            r = m.race
+            if r and r not in (Race.INVALID, Race.NONE, Race.ALL):
+                unique_types.add(r)
+        bonus = len(unique_types)
+
+        def filter_fn():
+            return [m for m in source.controller.board if not m.dead]
+
+        def action_factory(target):
+            return Buff(target, atk=bonus, health=bonus)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label=f"Forest's Bounty — +{bonus}/+{bonus}")
+
+
+class _SparePartScript:
+    """Give a minion +5/+5 and a random bonus effect."""
+
+    @staticmethod
+    def on_play(source, game):
+        import random
+        from hsrl.core.actions import Buff, GainKeyword, TargetedAction
+
+        def filter_fn():
+            return [m for m in source.controller.board if not m.dead]
+
+        def action_factory(target):
+            actions = [Buff(target, atk=5, health=5)]
+            # Random bonus: Taunt, DS, Windfury, or Reborn
+            bonus = random.choice([GameTag.TAUNT, GameTag.DIVINE_SHIELD,
+                                   GameTag.WINDFURY, GameTag.REBORN])
+            actions.append(GainKeyword(target, bonus))
+            return actions
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Spare Part — +5/+5 + random keyword")
+
+
+class _WindfuryDSScript:
+    """Give a friendly minion Windfury and Divine Shield."""
+
+    @staticmethod
+    def on_play(source, game):
+        from hsrl.core.actions import GainKeyword, TargetedAction
+
+        def filter_fn():
+            return [m for m in source.controller.board if not m.dead]
+
+        def action_factory(target):
+            return [GainKeyword(target, GameTag.WINDFURY),
+                    GainKeyword(target, GameTag.DIVINE_SHIELD)]
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Windfury + Divine Shield")
+
+
 def register_all_tokens():
     """Register all token minions and spells into the global CARDS registry."""
 
@@ -241,6 +325,7 @@ def register_all_tokens():
         race=Race.INVALID,
         tech_level=1,
         tags={},
+        script_class=_SlimyShieldScript,
     )
 
     # ── Pointy Arrow — from BG32_170 Metallic Hunter ───────────────────
@@ -426,6 +511,7 @@ def register_all_tokens():
         race=Race.INVALID,
         tech_level=4,
         tags={},
+        script_class=_ForestBountyScript,
     )
 
     # ── Satellite — Magnetic token for Moonsteel Juggernaut ────────────
@@ -666,6 +752,7 @@ def register_all_tokens():
         race=Race.INVALID,
         tech_level=1,
         tags={},
+        script_class=_SparePartScript,
     )
 
     # ── Temp Golden Spell (Spellcraft token: BG24_Reward_719) ──────────
@@ -716,7 +803,55 @@ def register_all_tokens():
         race=Race.INVALID,
         tech_level=1,
         tags={GameTag.SPELLCRAFT_SPELL: True},
-        script_class=None,
+        script_class=_WindfuryDSScript,
+    )
+
+    # ── Protoss minions (Warp Gate hero power - Artanis) ────────────────
+    register_card(
+        card_id="BG31_HERO_802pt",
+        name="Colossus",
+        text="",
+        cardtype=CardType.MINION,
+        race=Race.INVALID,
+        tech_level=5,
+        tags={GameTag.BASE_ATK: 6, GameTag.BASE_HEALTH: 12},
+    )
+    register_card(
+        card_id="BG31_HERO_802pt1",
+        name="Carrier",
+        text="Avenge (1): Get an Interceptor.",
+        cardtype=CardType.MINION,
+        race=Race.INVALID,
+        tech_level=5,
+        tags={GameTag.BASE_ATK: 4, GameTag.BASE_HEALTH: 12},
+    )
+    register_card(
+        card_id="BG31_HERO_802pt4",
+        name="Immortal",
+        text="",
+        cardtype=CardType.MINION,
+        race=Race.INVALID,
+        tech_level=5,
+        tags={GameTag.BASE_ATK: 8, GameTag.BASE_HEALTH: 8},
+    )
+    register_card(
+        card_id="BG31_HERO_802pt5",
+        name="Void Ray",
+        text="Divine Shield",
+        cardtype=CardType.MINION,
+        race=Race.INVALID,
+        tech_level=5,
+        tags={GameTag.BASE_ATK: 7, GameTag.BASE_HEALTH: 1,
+              GameTag.DIVINE_SHIELD: True},
+    )
+    register_card(
+        card_id="BG31_HERO_802pt7",
+        name="Mothership",
+        text="Avenge (1): Get a random Protoss minion.",
+        cardtype=CardType.MINION,
+        race=Race.INVALID,
+        tech_level=5,
+        tags={GameTag.BASE_ATK: 6, GameTag.BASE_HEALTH: 8},
     )
 
 
@@ -740,7 +875,8 @@ def _register_all_buddies():
         hp = c.get('health', 3) or 3
         race_val = c.get('card_race', 0)
         try:
-            race = Race(race_val) if race_val else Race.INVALID
+            from hsrl.core.enums import DBF_RACE_TO_ENUM
+            race = DBF_RACE_TO_ENUM.get(race_val, Race.NONE)
         except ValueError:
             race = Race.INVALID
 
@@ -776,7 +912,8 @@ def _register_all_buddies():
         hp = c.get('health', 6) or 6
         race_val = c.get('card_race', 0)
         try:
-            race = Race(race_val) if race_val else Race.INVALID
+            from hsrl.core.enums import DBF_RACE_TO_ENUM
+            race = DBF_RACE_TO_ENUM.get(race_val, Race.NONE)
         except ValueError:
             race = Race.INVALID
 
@@ -806,34 +943,47 @@ _register_all_buddies()
 
 
 class LanternLightScript:
-    """Spell: Give a minion stats equal to your Tavern Tier."""
+    """Spell: Give a minion stats equal to your Tavern Tier (player-chosen during recruit, random in combat)."""
 
     @staticmethod
     def on_play(source, game):
-        board = source.controller.get_board_minions()
-        living = [m for m in board if not m.dead]
-        if not living:
+        from hsrl.core.actions import Buff, TargetedAction
+
+        def filter_fn():
+            board = source.controller.get_board_minions()
+            return [m for m in board if not m.dead]
+
+        if not filter_fn():
             return None
-        target = living[0]  # pick first available minion
-        from hsrl.core.actions import Buff
-        tier = source.controller.tavern_tier
-        return Buff(target, atk=tier, health=tier)
+
+        def action_factory(target):
+            tier = source.controller.tavern_tier
+            return Buff(target, atk=tier, health=tier)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Lantern Light — stats equal to Tier")
 
 
 class CrabMountScript:
-    """Spell: Give a friendly minion 'Deathrattle: Summon a 3/2 Crab' until next turn."""
+    """Spell: Give a friendly minion 'Deathrattle: Summon a 3/2 Crab' until next turn (player-chosen during recruit, random in combat)."""
 
     @staticmethod
     def on_play(source, game):
-        from hsrl.core.actions import GainSpecificDeathrattle
+        from hsrl.core.actions import GainSpecificDeathrattle, TargetedAction
         from hsrl.core.enums import GameTag
-        targets = [m for m in source.controller.get_board_minions() if not m.dead]
-        if not targets:
+
+        def filter_fn():
+            return [m for m in source.controller.get_board_minions() if not m.dead]
+
+        if not filter_fn():
             return None
-        import random
-        target_m = random.choice(targets)
-        target_m.set_tag(GameTag.TEMPORARY_DEATHRATTLE, True)
-        return GainSpecificDeathrattle(target_m, "BG27_004t2")
+
+        def action_factory(target):
+            target.set_tag(GameTag.TEMPORARY_DEATHRATTLE, True)
+            return GainSpecificDeathrattle(target, "BG27_004t2")
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Crab Mount — Deathrattle: Summon a 3/2 Crab")
 
 
 class SirensSongScript:
