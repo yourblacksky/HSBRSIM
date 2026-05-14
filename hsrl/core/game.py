@@ -17,7 +17,20 @@ from __future__ import annotations
 
 import copy
 import random
+from collections import namedtuple
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+
+# ── Combat Memory ──────────────────────────────────────────────────────────
+# Per-opponent record of last combat encounter. Persists across turns so
+# the POMDP value network can use HDT-observable "last known board" info.
+
+CombatRecord = namedtuple("CombatRecord", [
+    "board",         # List[Minion] — snapshot of opponent's board
+    "turn",          # int — game turn when combat occurred
+    "damage_dealt",  # int — damage dealt TO this opponent
+    "damage_taken",  # int — damage taken FROM this opponent
+    "result",        # float — 1.0=win, 0.0=loss, 0.5=draw
+])
 
 from hsrl.core.enums import CardType, GameTag, PlayState, Race, State, Step, Zone
 from hsrl.core.entity import CardData
@@ -58,6 +71,16 @@ class Game:
         self.active_tribes: Optional[set] = None  # Set of playable tribes (None = all, unset)
         self._combat_pairs: List[Tuple[Player, Player]] = []  # (player, opponent) per combat
         self._pending_targeted_queue: list = []  # TargetedActions awaiting target selection
+
+        # Combat memory: per-player per-opponent last-seen board snapshots.
+        # combat_memory[player_id][opponent_id] = CombatRecord
+        self.combat_memory: Dict[int, Dict[int, CombatRecord]] = {}
+
+        # Per-player triple tracking: triples_by_tier[player_id] = {tier: count}
+        self._triples_by_tier: Dict[int, Dict[int, int]] = {}
+
+        # Per-player tavern upgrade timing: upgrade_turns[player_id] = {tier: turn}
+        self._tavern_upgrade_turns: Dict[int, Dict[int, int]] = {}
 
         for p in self.players:
             p.game = self
@@ -685,6 +708,8 @@ class Game:
         player.hand.append(golden)
 
         self.broadcast(TRIPLE_COMBINED, player, golden, copies)
+        # Track triple for POMDP features
+        self.track_triple(player, tier)
 
     def _grant_triple_reward(self, player: Player, golden) -> None:
         """Grant a Triple Reward Discover when a golden minion is played.
@@ -1455,6 +1480,9 @@ class Game:
         player_a.last_opponent_board = [m for m in board_b if not m.dead]
         player_b.last_opponent_board = [m for m in board_a if not m.dead]
 
+        # ── Save combat memory for POMDP value network ──
+        self._save_combat_record(player_a, player_b, board_a, board_b)
+
         self.in_combat = False
 
     def _persist_combat_stats(self, player, combat_board, original_board):
@@ -1493,6 +1521,93 @@ class Game:
                             original.set_tag(kw, True)
             except (ValueError, IndexError):
                 continue
+
+    # ── Combat Memory Tracking ──────────────────────────────────────────
+
+    def _save_combat_record(self, player_a: Player, player_b: Player,
+                            board_a: List[Minion], board_b: List[Minion]) -> None:
+        """Record per-player per-opponent combat outcome for POMDP features."""
+        living_a = [m for m in board_a if not m.dead]
+        living_b = [m for m in board_b if not m.dead]
+
+        stats_a = sum(m.atk + m.health for m in living_a)
+        stats_b = sum(m.atk + m.health for m in living_b)
+
+        if not living_a and not living_b:
+            result_a = result_b = 0.5
+        elif living_a and not living_b:
+            result_a, result_b = 1.0, 0.0
+        elif living_b and not living_a:
+            result_a, result_b = 0.0, 1.0
+        elif stats_a > stats_b:
+            result_a, result_b = 1.0, 0.0
+        elif stats_b > stats_a:
+            result_a, result_b = 0.0, 1.0
+        else:
+            result_a = result_b = 0.5
+
+        # Damage formula (matches _resolve_combat_damage):
+        # winner.tavern_tier + sum(survivor tiers), capped
+        def _combat_damage(winner, survivors):
+            if not survivors:
+                return 0
+            dmg = winner.tavern_tier
+            for m in survivors:
+                dmg += m.tech_level
+            cap = self._get_damage_cap()
+            if cap is not None:
+                dmg = min(dmg, cap)
+            return dmg
+
+        dmg_a = _combat_damage(player_a, living_a) if living_a and not living_b else (
+            _combat_damage(player_a, living_a) if (living_a and living_b and stats_a > stats_b) else 0)
+        dmg_b = _combat_damage(player_b, living_b) if living_b and not living_a else (
+            _combat_damage(player_b, living_b) if (living_b and living_a and stats_b > stats_a) else 0)
+
+        # Player A's record against B
+        if player_a.entity_id not in self.combat_memory:
+            self.combat_memory[player_a.entity_id] = {}
+        self.combat_memory[player_a.entity_id][player_b.entity_id] = CombatRecord(
+            board=[m for m in living_b],
+            turn=self.turn,
+            damage_dealt=dmg_a,
+            damage_taken=dmg_b,
+            result=result_a,
+        )
+
+        # Player B's record against A
+        if player_b.entity_id not in self.combat_memory:
+            self.combat_memory[player_b.entity_id] = {}
+        self.combat_memory[player_b.entity_id][player_a.entity_id] = CombatRecord(
+            board=[m for m in living_a],
+            turn=self.turn,
+            damage_dealt=dmg_b,
+            damage_taken=dmg_a,
+            result=result_b,
+        )
+
+    def track_triple(self, player: Player, tier: int) -> None:
+        """Record a triple discovery at the given tavern tier."""
+        pid = player.entity_id
+        if pid not in self._triples_by_tier:
+            self._triples_by_tier[pid] = {}
+        self._triples_by_tier[pid][tier] = self._triples_by_tier[pid].get(tier, 0) + 1
+
+    def get_triples_by_tier(self, player: Player) -> Dict[int, int]:
+        """Get triples discovered per tier for a player."""
+        return self._triples_by_tier.get(player.entity_id, {})
+
+    def track_tavern_upgrade(self, player: Player, new_tier: int) -> None:
+        """Record when a player upgrades to each tavern tier."""
+        pid = player.entity_id
+        if pid not in self._tavern_upgrade_turns:
+            self._tavern_upgrade_turns[pid] = {}
+        if new_tier not in self._tavern_upgrade_turns[pid]:
+            self._tavern_upgrade_turns[pid][new_tier] = self.turn
+
+    def get_tavern_upgrade_turns(self, player: Player) -> Dict[int, int]:
+        """Get {tier: turn} for a player's tavern upgrades."""
+        return self._tavern_upgrade_turns.get(player.entity_id, {})
 
     def _get_next_attacker(self, board: List[Minion]) -> Optional[Minion]:
         """Get the leftmost living minion that can attack."""

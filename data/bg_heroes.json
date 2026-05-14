@@ -7,7 +7,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG20_HERO_101",
@@ -17,7 +18,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG20_HERO_102",
@@ -27,7 +29,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG20_HERO_103",
@@ -37,7 +40,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG20_HERO_201",
@@ -47,7 +51,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG20_HERO_202",
@@ -57,7 +62,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG20_HERO_242",
@@ -67,7 +73,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG20_HERO_280",
@@ -77,7 +84,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG20_HERO_282",
@@ -87,7 +95,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "BG20_HERO_283",
@@ -97,7 +106,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "BG20_HERO_301",
@@ -107,7 +117,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG21_HERO_000",
@@ -117,7 +128,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG21_HERO_010",
@@ -127,7 +139,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG21_HERO_020",
@@ -137,7 +150,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG21_HERO_030",
@@ -147,7 +161,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG22_HERO_000",
@@ -157,7 +172,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "BG22_HERO_001",
@@ -167,7 +183,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG22_HERO_002",
@@ -177,7 +194,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG22_HERO_003",
@@ -187,7 +205,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG22_HERO_004",
@@ -197,7 +216,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG22_HERO_007",
@@ -207,7 +227,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG22_HERO_200",
@@ -217,7 +238,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "BG22_HERO_201",
@@ -227,7 +249,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "BG22_HERO_305",
@@ -237,7 +260,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG23_HERO_201",
@@ -247,7 +271,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "BG23_HERO_303",
@@ -257,7 +282,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "BG23_HERO_304",
@@ -267,7 +293,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "BG23_HERO_305",
@@ -277,7 +304,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "BG23_HERO_306",
@@ -287,7 +315,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "BG24_HERO_100",
@@ -297,7 +326,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "BG24_HERO_204",
@@ -307,7 +337,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG25_HERO_100",
@@ -317,7 +348,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "BG25_HERO_103",
@@ -327,7 +359,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG25_HERO_105",
@@ -337,7 +370,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG26_HERO_101",
@@ -347,7 +381,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "BG26_HERO_102",
@@ -357,7 +392,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG26_HERO_104",
@@ -367,7 +403,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG27_HERO_801",
@@ -377,7 +414,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG28_HERO_400",
@@ -387,7 +425,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG28_HERO_800",
@@ -397,7 +436,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 8
   },
   {
     "id": "BG28_HERO_801",
@@ -407,7 +447,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "BG30_HERO_304",
@@ -417,7 +458,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG31_HERO_003",
@@ -427,7 +469,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG31_HERO_005",
@@ -437,7 +480,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG31_HERO_006",
@@ -447,7 +491,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG31_HERO_801",
@@ -457,7 +502,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG31_HERO_802",
@@ -467,7 +513,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG31_HERO_811",
@@ -477,7 +524,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG32_HERO_001",
@@ -487,7 +535,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG32_HERO_002",
@@ -497,7 +546,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG33_HERO_001",
@@ -507,7 +557,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG34_HERO_000",
@@ -517,7 +568,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG34_HERO_001",
@@ -527,7 +579,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG34_HERO_002",
@@ -537,7 +590,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG34_HERO_004",
@@ -547,7 +601,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BG35_HERO_001",
@@ -557,7 +612,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BGDUO_HERO_100",
@@ -567,7 +623,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BGDUO_HERO_101",
@@ -577,7 +634,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BGDUO_HERO_104",
@@ -587,7 +645,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BGDUO_HERO_222",
@@ -597,7 +656,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "BGDUO_HERO_223",
@@ -607,7 +667,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_01",
@@ -617,7 +678,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_02",
@@ -627,7 +689,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_08",
@@ -637,7 +700,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_10",
@@ -647,7 +711,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_11",
@@ -657,7 +722,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "TB_BaconShop_HERO_12",
@@ -667,7 +733,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "TB_BaconShop_HERO_14",
@@ -677,7 +744,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "TB_BaconShop_HERO_15",
@@ -687,7 +755,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 8
   },
   {
     "id": "TB_BaconShop_HERO_16",
@@ -697,7 +766,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "TB_BaconShop_HERO_17",
@@ -707,7 +777,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "TB_BaconShop_HERO_18",
@@ -717,7 +788,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_21",
@@ -727,7 +799,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "TB_BaconShop_HERO_22",
@@ -737,7 +810,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_23",
@@ -747,7 +821,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_25",
@@ -757,7 +832,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_27",
@@ -767,7 +843,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "TB_BaconShop_HERO_28",
@@ -777,7 +854,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_29",
@@ -787,7 +865,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_33",
@@ -797,7 +876,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "TB_BaconShop_HERO_34",
@@ -807,7 +887,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "TB_BaconShop_HERO_35",
@@ -817,7 +898,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "TB_BaconShop_HERO_36",
@@ -827,7 +909,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_37",
@@ -837,7 +920,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_38",
@@ -847,7 +931,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 18
   },
   {
     "id": "TB_BaconShop_HERO_39",
@@ -857,7 +942,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "TB_BaconShop_HERO_40",
@@ -867,7 +953,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "TB_BaconShop_HERO_41",
@@ -877,7 +964,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "TB_BaconShop_HERO_42",
@@ -887,7 +975,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_43",
@@ -897,7 +986,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_45",
@@ -907,7 +997,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_49",
@@ -917,7 +1008,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_50",
@@ -927,7 +1019,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_52",
@@ -937,7 +1030,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_53",
@@ -947,7 +1041,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_55",
@@ -957,7 +1052,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_56",
@@ -967,7 +1063,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_57",
@@ -977,7 +1074,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_58",
@@ -987,7 +1085,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_59",
@@ -997,7 +1096,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 15
   },
   {
     "id": "TB_BaconShop_HERO_60",
@@ -1007,7 +1107,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "TB_BaconShop_HERO_62",
@@ -1017,7 +1118,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 10
   },
   {
     "id": "TB_BaconShop_HERO_64",
@@ -1027,7 +1129,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_67",
@@ -1037,7 +1140,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_68",
@@ -1047,7 +1151,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_70",
@@ -1057,7 +1162,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_702",
@@ -1067,7 +1173,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_71",
@@ -1077,7 +1184,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_72",
@@ -1087,7 +1195,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_74",
@@ -1097,7 +1206,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_75",
@@ -1107,7 +1217,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_76",
@@ -1117,7 +1228,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_78",
@@ -1127,7 +1239,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_90",
@@ -1137,7 +1250,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_91",
@@ -1147,7 +1261,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_92",
@@ -1157,7 +1272,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_93",
@@ -1167,7 +1283,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_94",
@@ -1177,7 +1294,8 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   },
   {
     "id": "TB_BaconShop_HERO_95",
@@ -1187,6 +1305,7 @@
     "card_set": 1453,
     "card_type": 3,
     "rarity": 2,
-    "hero_draftable": true
+    "hero_draftable": true,
+    "armor": 12
   }
 ]

@@ -42,7 +42,7 @@ _SAVE_TAGS = [
 
 def _minion_value(m, aura_atk: int = 0, aura_hp: int = 0) -> int:
     """Base value: stats + auras + simple keyword bonus."""
-    base = (m.get_tag(GameTag.ATK, 0) + m.get_tag(GameTag.HEALTH, 0)
+    base = (m.atk + m.get_tag(GameTag.HEALTH, 0)
             + aura_atk + aura_hp)
     # Quick keyword bonuses for greedy completion sorting
     if m.has_tag(GameTag.DIVINE_SHIELD):
@@ -54,9 +54,9 @@ def _minion_value(m, aura_atk: int = 0, aura_hp: int = 0) -> int:
     if m.has_tag(GameTag.REBORN):
         base += 2
     if m.has_tag(GameTag.WINDFURY):
-        base += m.get_tag(GameTag.ATK, 0)
+        base += m.atk
     if m.has_tag(GameTag.CLEAVE):
-        base += m.get_tag(GameTag.ATK, 0) // 2
+        base += m.atk // 2
     if m.has_tag(GameTag.TAUNT):
         base += 1
     return base
@@ -81,7 +81,7 @@ def _combat_board_score(board, player, rng) -> int:
         aa, ah = (0, 0)
         if hasattr(player, 'get_global_aura_bonus'):
             aa, ah = player.get_global_aura_bonus(m)
-        atk = m.get_tag(GameTag.ATK, 0) + aa
+        atk = m.atk + aa
         hp = m.get_tag(GameTag.HEALTH, 0) + ah
 
         total_atk += atk

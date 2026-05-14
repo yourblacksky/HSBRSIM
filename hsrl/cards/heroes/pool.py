@@ -141,7 +141,7 @@ def register_all_heroes():
         if hero_id not in CARDS:
             tags = {
                 GameTag.BASE_HEALTH: hero_health,
-                GameTag.ARMOR: hero.get("armor", 0),
+                GameTag.ARMOR: hero.get("armor") or 0,
                 GameTag.HERO_POWER_COST: power_cost,
             }
             if power_id:

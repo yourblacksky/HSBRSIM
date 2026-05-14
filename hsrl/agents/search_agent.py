@@ -383,12 +383,22 @@ class SearchAgent:
         self.beam_width = beam_width
         self.beam_depth = beam_depth
 
-        # Load models
-        from hsrl.train.game_value import GameValueTrainer
-        from hsrl.train.board_eval import BoardEvalTrainer
-        from hsrl.train.game_value import encode_pomdp_state as _encode_pomdp
+        # Load models — detect checkpoint version
+        import torch
+        ckpt = torch.load(game_value_path, map_location=device, weights_only=False)
+        ckpt_version = ckpt.get("version", "v2")
 
-        self.game_value = GameValueTrainer.load(game_value_path, device=device)
+        from hsrl.train.board_eval import BoardEvalTrainer
+
+        if ckpt_version == "v4":
+            from hsrl.train.game_value_sp import SelfPlayGameValueTrainer
+            from hsrl.train.game_value_sp import encode_pomdp_state as _encode_pomdp
+            self.game_value = SelfPlayGameValueTrainer.load(game_value_path, device=device)
+        else:
+            from hsrl.train.game_value import GameValueTrainer
+            from hsrl.train.game_value import encode_pomdp_state as _encode_pomdp
+            self.game_value = GameValueTrainer.load(game_value_path, device=device)
+
         self.board_eval = BoardEvalTrainer.load(board_eval_path, device=device)
         self._encode_pomdp = _encode_pomdp
 

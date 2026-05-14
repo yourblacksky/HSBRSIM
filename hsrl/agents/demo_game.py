@@ -67,13 +67,37 @@ def run_demo(
 ):
     """Run a complete game with annotated commentary."""
 
+    import torch
+
     from hsrl.train.board_eval import BoardEvalTrainer
-    from hsrl.train.game_value import (
-        GameValueTrainer,
-        encode_pomdp_state,
-        compute_teacher_placement,
-    )
     from hsrl.train.combat_data import encode_board_from_minions
+
+    # Version-aware checkpoint loading
+    ckpt = torch.load(game_value_path, map_location="cuda", weights_only=False)
+    ckpt_version = ckpt.get("version", "v2")
+
+    if ckpt_version == "v4":
+        from hsrl.train.game_value_sp import SelfPlayGameValueTrainer
+        from hsrl.train.game_value_sp import encode_pomdp_state as _encode_pomdp
+        game_value = SelfPlayGameValueTrainer.load(game_value_path, device="cuda")
+    else:
+        from hsrl.train.game_value import (
+            GameValueTrainer,
+            encode_pomdp_state as _encode_pomdp_v2,
+        )
+        game_value = GameValueTrainer.load(game_value_path, device="cuda")
+
+    def encode_pomdp_state(game, player, board_eval):
+        if ckpt_version == "v4":
+            return _encode_pomdp(game, player, board_eval)
+        else:
+            return _encode_pomdp_v2(game, player, board_eval)
+
+    # Also need compute_teacher_placement for v2
+    if ckpt_version != "v4":
+        from hsrl.train.game_value import compute_teacher_placement
+    else:
+        from hsrl.train.game_value_sp import compute_terminal_placement as compute_teacher_placement
 
     # ── Card module imports (registrations) ──
     import hsrl.cards.minions.pool as _mp  # noqa
@@ -106,9 +130,8 @@ def run_demo(
     game.active_anomaly = True
     game.start_game()
 
-    # Load trained models
+    # Load board eval model (game_value already loaded above)
     board_eval = BoardEvalTrainer.load(board_eval_path, device="cuda")
-    game_value = GameValueTrainer.load(game_value_path, device="cuda")
 
     agent_player = players[0]
     opponent_players = players[1:]
@@ -121,8 +144,11 @@ def run_demo(
     print("  Hearthstone Battlegrounds — SearchAgent v2 Demo")
     print("=" * 70)
     print()
-    print(f"  Seed: {seed}  |  Model: BoardEval v2 + GameValue v2")
+    model_tag = f"GameValue {ckpt_version}" if ckpt_version == "v4" else f"GameValue {ckpt_version}"
+    print(f"  Seed: {seed}  |  Model: BoardEval v2 + {model_tag}")
     print(f"  Search: Greedy one-step lookahead with board embeddings")
+    if ckpt_version == "v4":
+        print(f"  Features: HDT-observable POMDP (397 dims, per-opponent combat memory)")
     print()
     print(f"  Agent Hero: {hero_name(agent_player)}")
     print(f"  Opponents (heuristic):")
@@ -182,12 +208,16 @@ def run_demo(
         # Tavern
         tavern_items = []
         for i, e in enumerate(agent_player.tavern):
-            atk = e.get_tag(GameTag.ATK, 0)
-            hp = e.get_tag(GameTag.HEALTH, 0)
             tier = e.get_tag(GameTag.TECH_LEVEL, 0)
             cost = e.get_tag(GameTag.COST, 3)
-            name = getattr(e, "name", None) or f"Minion"
-            tavern_items.append(f"[{i}] {name} {atk}/{hp} T{tier} ${cost}")
+            name = e.get_tag(GameTag.NAME) or "Unknown"
+            ctype = e.get_tag(GameTag.CARDTYPE, -1)
+            if ctype == CardType.SPELL:
+                text = e.get_tag(GameTag.TEXT, "")[:40] if e.get_tag(GameTag.TEXT, "") else ""
+                tavern_items.append(f"[{i}] {name} (spell) T{tier} ${cost}")
+            else:
+                golden = " [G]" if e.has_tag(GameTag.GOLDEN) else ""
+                tavern_items.append(f"[{i}] {name}{golden} {e.atk}/{e.health} T{tier} ${cost}")
         if tavern_items:
             print(f"  Tavern: {' | '.join(tavern_items)}")
         else:
@@ -268,9 +298,7 @@ def run_demo(
                 slot = best_action - BUY_OFFSET
                 entity = agent_player.tavern[slot] if slot < len(agent_player.tavern) else None
                 if entity:
-                    atk = entity.get_tag(GameTag.ATK, 0)
-                    hp = entity.get_tag(GameTag.HEALTH, 0)
-                    rationale = f"buy {atk}/{hp} minion"
+                    rationale = f"buy {entity.atk}/{entity.health} minion"
                 else:
                     rationale = "buy minion"
             elif SELL_OFFSET <= best_action <= SELL_OFFSET + 6:
@@ -299,8 +327,12 @@ def run_demo(
             step += 1
 
         # ── Combat ──
-        teacher = compute_teacher_placement(game, board_eval)
-        agent_teacher = teacher.get(agent_player.entity_id, 0)
+        if ckpt_version == "v4":
+            all_players = game.players
+            agent_teacher = compute_teacher_placement(agent_player, all_players)
+        else:
+            teacher = compute_teacher_placement(game, board_eval)
+            agent_teacher = teacher.get(agent_player.entity_id, 0)
 
         board_after = [
             _format_minion(m) for m in agent_player.board if not m.dead
@@ -361,17 +393,29 @@ def run_demo(
     print("    - Trained on 44,958 combat pairs from 500 games")
     print("    - Pairwise accuracy: 99.1%")
     print()
-    print("  GameValueNetwork v2 (embedding-based):")
-    print("    - Input: 32-dim board embedding + 6 own stats + 21 opponent + 2 global = 61 dims")
-    print("    - Teacher: pairwise CombatPredictor ranking (full-information)")
-    print("    - Trained on 47,346 POMDP snapshots from 500 games")
-    print("    - Val MAE: 0.143 (~1.0 placement position)")
+    if ckpt_version == "v4":
+        print("  GameValueNetwork v4 (HDT-observable POMDP):")
+        print("    - Per-opponent: last_seen_board(32) + staleness + combat_history +")
+        print("      hp + tier + armor + board_size + triples×6 + upgrades×5 = 51 dims")
+        print("    - Shared opp_proj(51→32→16) + mean pool → 16")
+        print("    - Total input: 32(board) + 6(own) + 7×51(opp) + 2(global) = 397 dims")
+        print("    - Teacher: CombatPredictor pairwise ranking (full-information)")
+        print("    - Model: 6,705 parameters")
+    else:
+        print("  GameValueNetwork v2 (embedding-based):")
+        print("    - Input: 32-dim board embedding + 6 own stats + 21 opponent + 2 global = 61 dims")
+        print("    - Teacher: pairwise CombatPredictor ranking (full-information)")
+        print("    - Trained on 47,346 POMDP snapshots from 500 games")
+        print("    - Val MAE: 0.143 (~1.0 placement position)")
     print()
     print("  SearchAgent v2:")
     print("    - Greedy one-step lookahead using GameValueNetwork")
     print("    - At each step: enumerate legal actions, simulate, evaluate V(s')")
     print("    - Chooses action with highest predicted state value")
-    print("    - Benchmark: avg_rank 2.07 (v2 greedy), 1.97 (v2 beam w=3)")
+    if ckpt_version == "v4":
+        print("    - v6 greedy: avg_rank 2.00 (matches v2 teacher)")
+    else:
+        print("    - Benchmark: avg_rank 2.07 (v2 greedy), 1.97 (v2 beam w=3)")
     print()
 
 
@@ -380,7 +424,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-turns", type=int, default=15)
     parser.add_argument("--board-eval", type=str, default="checkpoints/board_eval_v2.pt")
-    parser.add_argument("--game-value", type=str, default="checkpoints/game_value_v2.pt")
+    parser.add_argument("--game-value", type=str, default="checkpoints/game_value_v6.pt")
     args = parser.parse_args()
 
     run_demo(

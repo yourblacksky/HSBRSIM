@@ -638,6 +638,7 @@ class UpgradeTavern(Action):
         max_tier = 7 if self.player.get_tag(GameTag.TIER_7_UNLOCKED, False) else 6
         if current < max_tier:
             self.player.set_tag(GameTag.TAVERN_TIER, current + 1)
+            game.track_tavern_upgrade(self.player, current + 1)
             game.broadcast("TAVERN_UPGRADED", self.player, current + 1)
             # Trigger anomaly on_upgrade if active
             if (game.active_anomaly is not None

@@ -446,6 +446,7 @@ class TestPhaseIINewHeroPowers(unittest.TestCase):
     def test_graveyard_shift_damages_hero_and_gains_gold(self):
         """Lich Baz'hial: cost=2, take 3 damage, gain 2 gold. Net: 0 gold, -3 HP."""
         player = self._make_player_with_board("TB_BaconShop_HERO_25", gold=5)
+        player.armor = 0  # bypass armor for damage test
         self._add_minion(player)
         self.assertEqual(player.health, 40)
         self.game.use_hero_power(player)

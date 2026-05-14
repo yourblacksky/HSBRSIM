@@ -2354,6 +2354,7 @@
     "id": "BG34_639",
     "dbf_id": 126848,
     "name": "Egg of the Endtimes",
+    "atk": 0,
     "health": 5,
     "card_set": 1453,
     "card_type": 4,

@@ -53,6 +53,12 @@ class MinionPool:
             # Derived tokens (card_id ends with 't', e.g. BG19_010t) are not pool minions
             if card_id.endswith("t") and len(card_id) > 3:
                 continue
+            # Buddy cards (e.g. BG20_HERO_100_Buddy, BG20_HERO_100_Buddy_G) are not pool minions
+            if "Buddy" in card_id or "buddy" in card_id.lower():
+                continue
+            # Golden-only minions (card_id ends with _G) are not in the pool
+            if card_id.endswith("_G"):
+                continue
             count = self.POOL_SIZES[tech_level]
             self._pools[tech_level].extend([card_id] * count)
             self._pool_minions.add(card_id)
