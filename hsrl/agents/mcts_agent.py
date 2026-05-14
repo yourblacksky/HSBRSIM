@@ -369,10 +369,13 @@ class BeamSearchAgent:
 
         # UPGRADE
         if action == UPGRADE:
+            _BASE_COST = {2: 5, 3: 7, 4: 8, 5: 9, 6: 10}
             cost = max(player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5), 1)
             if player.gold >= cost and player.tavern_tier < 7:
                 player.gold -= cost
                 player.tavern_tier += 1
+                next_base = _BASE_COST.get(player.tavern_tier + 1, 10)
+                player.set_tag(GameTag.TAVERN_UPGRADE_COST, next_base)
                 return True
             return False
 
@@ -521,10 +524,13 @@ class BeamSearchAgent:
                     continue
 
             # Priority 4: Upgrade tavern if affordable
+            _BASE_COST = {2: 5, 3: 7, 4: 8, 5: 9, 6: 10}
             cost = max(player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5), 1)
             if player.gold >= cost and player.tavern_tier < 6:
                 player.gold -= cost
                 player.tavern_tier += 1
+                next_base = _BASE_COST.get(player.tavern_tier + 1, 10)
+                player.set_tag(GameTag.TAVERN_UPGRADE_COST, next_base)
                 continue
 
             # No more productive actions — stop

@@ -76,6 +76,8 @@ _SAVE_TAGS = [
     GameTag.HERO_POWER_USED,
     GameTag.HERO_POWER_EXTRA_USES,
     GameTag.FREE_REFRESH_REMAINING,
+    GameTag.FROZEN,
+    GameTag.TAVERN_UPGRADE_COST,
 ]
 
 

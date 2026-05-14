@@ -255,6 +255,7 @@ def run_demo(
                     "health": agent_player.health,
                     "tavern_tier": agent_player.tavern_tier,
                     "armor": agent_player.armor,
+                    "upgrade_cost": agent_player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5),
                 }
 
                 try:
@@ -279,6 +280,7 @@ def run_demo(
                 agent_player.health = saved["health"]
                 agent_player.tavern_tier = saved["tavern_tier"]
                 agent_player.armor = saved["armor"]
+                agent_player.set_tag(GameTag.TAVERN_UPGRADE_COST, saved["upgrade_cost"])
 
             if best_action == END_TURN:
                 print(f"  [{step}] END_TURN  (V={v_now:.4f})")

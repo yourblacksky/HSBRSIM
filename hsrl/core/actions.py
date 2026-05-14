@@ -629,6 +629,9 @@ class UseHeroPower(Action):
 class UpgradeTavern(Action):
     """Player upgrades their tavern tier."""
 
+    # Base gold cost to reach each tier (key = tier you are GOING TO)
+    _BASE_COST = {2: 5, 3: 7, 4: 8, 5: 9, 6: 10}
+
     def __init__(self, player: Player):
         super().__init__()
         self.player = player
@@ -636,24 +639,34 @@ class UpgradeTavern(Action):
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
         current = self.player.get_tag(GameTag.TAVERN_TIER, 1)
         max_tier = 7 if self.player.get_tag(GameTag.TIER_7_UNLOCKED, False) else 6
-        if current < max_tier:
-            self.player.set_tag(GameTag.TAVERN_TIER, current + 1)
-            game.track_tavern_upgrade(self.player, current + 1)
-            game.broadcast("TAVERN_UPGRADED", self.player, current + 1)
-            # Trigger anomaly on_upgrade if active
-            if (game.active_anomaly is not None
-                    and not isinstance(game.active_anomaly, bool)
-                    and game.active_anomaly.data
-                    and game.active_anomaly.data.scripts):
-                on_upgrade = getattr(game.active_anomaly.data.scripts, 'on_upgrade', None)
-                if on_upgrade and callable(on_upgrade):
-                    result = on_upgrade(game.active_anomaly, game)
-                    if result:
-                        if isinstance(result, (list, tuple)):
-                            for action in result:
-                                game.queue_action(action, source=game.active_anomaly)
-                        else:
-                            game.queue_action(result, source=game.active_anomaly)
+        if current >= max_tier:
+            return
+
+        cost = max(self.player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5), 1)
+        if self.player.gold < cost:
+            return
+
+        SpendGold(self.player, cost).do(source, game)
+        self.player.set_tag(GameTag.TAVERN_TIER, current + 1)
+        # Set the base cost for the next upgrade tier
+        next_base = self._BASE_COST.get(current + 2, 10)
+        self.player.set_tag(GameTag.TAVERN_UPGRADE_COST, next_base)
+        game.track_tavern_upgrade(self.player, current + 1)
+        game.broadcast("TAVERN_UPGRADED", self.player, current + 1)
+        # Trigger anomaly on_upgrade if active
+        if (game.active_anomaly is not None
+                and not isinstance(game.active_anomaly, bool)
+                and game.active_anomaly.data
+                and game.active_anomaly.data.scripts):
+            on_upgrade = getattr(game.active_anomaly.data.scripts, 'on_upgrade', None)
+            if on_upgrade and callable(on_upgrade):
+                result = on_upgrade(game.active_anomaly, game)
+                if result:
+                    if isinstance(result, (list, tuple)):
+                        for action in result:
+                            game.queue_action(action, source=game.active_anomaly)
+                    else:
+                        game.queue_action(result, source=game.active_anomaly)
 
 
 # ── Blood Gem Actions ──

@@ -67,6 +67,7 @@ _SAVE_TAGS = [
     GameTag.HERO_POWER_EXTRA_USES,
     GameTag.FREE_REFRESH_REMAINING,
     GameTag.FROZEN,
+    GameTag.TAVERN_UPGRADE_COST,
 ]
 
 
@@ -153,11 +154,14 @@ def _simulate_action(player, action: int) -> bool:
         return True
 
     if action == UPGRADE:
+        _BASE_COST = {2: 5, 3: 7, 4: 8, 5: 9, 6: 10}
         cost = max(player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5), 1)
         if player.gold < cost or player.tavern_tier >= 7:
             return False
         player.gold -= cost
         player.tavern_tier += 1
+        next_base = _BASE_COST.get(player.tavern_tier + 1, 10)
+        player.set_tag(GameTag.TAVERN_UPGRADE_COST, next_base)
         return True
 
     if action == FREEZE:
@@ -317,11 +321,14 @@ def _simulate_for_beam(player, action: int, rng: random.Random) -> bool:
 
     # ── UPGRADE ──
     if action == UPGRADE:
+        _BASE_COST = {2: 5, 3: 7, 4: 8, 5: 9, 6: 10}
         cost = max(player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5), 1)
         if player.gold < cost or player.tavern_tier >= 7:
             return False
         player.gold -= cost
         player.tavern_tier += 1
+        next_base = _BASE_COST.get(player.tavern_tier + 1, 10)
+        player.set_tag(GameTag.TAVERN_UPGRADE_COST, next_base)
         return True
 
     # ── FREEZE (no-op for evaluation) ──
