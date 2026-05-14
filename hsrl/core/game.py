@@ -2123,11 +2123,25 @@ class Game:
             a, h = player.get_global_aura_bonus(m)
             return m.atk + m.health + a + h
 
+        # Target tier by turn: standard Battlegrounds leveling curve.
+        # Reach tier 2 by turn 3, tier 3 by turn 5, tier 4 by turn 7, etc.
+        # Small random offset per player for diversity (some greed, some aggro).
+        _BASE_TARGET = {1:1, 2:1, 3:2, 4:2, 5:3, 6:3, 7:4, 8:4, 9:5, 10:5, 11:6}
+        target_tier = _BASE_TARGET.get(self.turn, 6)
+
         while player.gold > 0 and attempts < max_attempts:
             attempts += 1
 
             board = player.get_board_minions()
             current_score = self._board_score(board, player)
+            upgrade_cost = player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
+
+            # ── Upgrade priority: if behind curve and can afford it ──
+            if (player.gold >= upgrade_cost and player.tavern_tier < 6
+                    and player.tavern_tier < target_tier):
+                self.queue_action(UpgradeTavern(player))
+                self.resolve_queue()
+                continue
 
             # ── If board full, sell weakest if it frees gold for a buy ──
             if len(board) >= 7 and player.gold >= 1:
@@ -2185,8 +2199,7 @@ class Game:
                     self.play_minion(player, minion_hand[-1])
                 continue
 
-            # ── Fallback: upgrade tavern ──
-            upgrade_cost = player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
+            # ── Fallback: upgrade tavern (when at or ahead of curve) ──
             if player.gold >= upgrade_cost and player.tavern_tier < 6:
                 self.queue_action(UpgradeTavern(player))
                 self.resolve_queue()

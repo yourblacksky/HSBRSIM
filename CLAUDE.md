@@ -70,10 +70,11 @@ HrSRL/
 │   │   └── shared_observation.py      # 共享观察编码
 │   ├── agents/                        # AI 智能体
 │   │   ├── __init__.py
-│   │   ├── mcts_agent.py              # Beam Search 备战阶段规划智能体
+│   │   ├── mcts_agent.py              # Beam Search 备战阶段规划智能体 (ATK bug 已修复)
 │   │   ├── nn_mcts_agent.py           # BC 策略网络智能体 (avg rank 4.28, 击败贪心)
-│   │   ├── search_agent.py            # ★ SearchAgent v2 — 贪心/束搜索前瞻 (avg_rank 1.97)
-│   │   ├── demo_game.py               # 实战演示脚本 (完整对局 + 解说)
+│   │   ├── search_agent.py            # ★ SearchAgent v2 — 贪心/束搜索前瞻 (avg_rank 2.00 v6)
+│   │   ├── demo_game.py               # SearchAgent 实战演示 (v4/v6 版本感知加载)
+│   │   ├── heuristic_demo.py          # 全启发式 8 人对战演示 (Markdown 输出)
 │   │   └── benchmark_nn_mcts.py       # BC 智能体 vs 贪心基准测试
 │   ├── trajectory/                    # 轨迹对手系统
 │   │   ├── record.py                  # 数据结构 (MinionSnapshot, TurnSnapshot, Trajectory)
@@ -84,7 +85,8 @@ HrSRL/
 │   │   ├── network.py                 # Dual-Head Network (Policy + Value)
 │   │   ├── board_eval.py              # ★ BoardEvalNetwork v2 — 嵌入架构, 99.1% pairwise acc
 │   │   ├── combat_data.py             # 战斗数据收集 (44,958 样本/500局)
-│   │   ├── game_value.py              # ★ GameValueNetwork v2 — POMDP 价值评估, MAE 0.143
+│   │   ├── game_value.py              # ★ GameValueNetwork v2 (61-dim POMDP), MAE 0.143
+│   │   ├── game_value_sp.py           # ★ GameValueNetwork v4 (397-dim HDT-observable POMDP)
 │   │   ├── bc_collector_v2.py         # BC 数据收集: 10K局 → 10.77M triplets
 │   │   ├── bc_trainer_v2.py           # BC 训练: joint policy CE + value MSE
 │   │   ├── value_trainer.py            # GAE 价值网络重训 (on-policy, bootstrap targets)
@@ -140,7 +142,7 @@ Action → queue → broadcast events → resolve → trigger follow-ups → che
 | `enums.py` | 311 | GameTag (310+), CardType (11 types), Race, Zone, Step, State |
 | `entity.py` | 356 | BaseEntity (tags + buff + _script_overrides + 11 script hooks) |
 | `actions.py` | 1,980 | ★ 60+ Action 类 — 全部游戏机制 |
-| `game.py` | 2,077 | Game 引擎 — 回合/战斗/死亡/伤害/任务/异变/饰品/调度/种族过滤 |
+| `game.py` | 2,100+ | Game 引擎 — 回合/战斗/死亡/伤害/任务/异变/饰品/调度/种族过滤/战斗记忆/POMDP 特征 |
 | `events.py` | 148 | EventListener + 40+ 标准事件常量 |
 | `minion_pool.py` | 198 | MinionPool — 共享随从池 + remove_all_copies + 种族过滤 |
 | `spell_pool.py` | 107 | SpellPool — 共享法术池 |
@@ -192,6 +194,22 @@ Action → queue → broadcast events → resolve → trigger follow-ups → che
 | Buddy 系统 (160+ 伙伴卡牌注册) | ✅ |
 | 猜测随从 (GuessMinion) | ✅ |
 | 英雄技能 — 主动/被动 (94/94 CORRECT) | ✅ |
+| 顺序多目标 (Sequential Multi-Target) | ✅ |
+| 酒馆域目标 (target_domain="tavern") | ✅ |
+| SPELL_CAST_ON_MINION 广播 | ✅ |
+| 战斗记忆 (CombatRecord + combat_memory) | ✅ |
+| 三连追踪 (triples_by_tier) | ✅ |
+| 升级回合追踪 (tavern_upgrade_turns) | ✅ |
+
+### 已知缺失
+
+| 机制 | 影响 |
+|------|------|
+| 幽灵战斗 (奇数存活玩家) | 影响战斗结果分布 |
+| Tier 7 随从 | 部分异变/饰品需要 |
+| 英雄技能脚本 (132/164 缺失) | 影响模拟保真度 |
+| 法术脚本 (~48 缺失) | 影响备战阶段动作空间 |
+| 启发式升级逻辑 | 导致游戏过长 (~17 回合) |
 
 ### 卡牌注册状态
 
@@ -383,7 +401,7 @@ v2（嵌入）方案:
 - 模型: 17,154 参数，val_acc 99.1%
 - 文件: `hsrl/train/board_eval.py`, 检查点: `checkpoints/board_eval_v2.pt`
 
-##### GameValueNetwork v2 (POMDP 价值评估) — MAE 0.143
+##### GameValueNetwork v2 (61-dim POMDP) — MAE 0.143
 
 v1 的观察仅包含标量 board_score（特征 0），损失所有组合信息。
 
@@ -394,15 +412,29 @@ v2 改进:
 - 训练数据: 47,346 快照 (500 局)
 - 文件: `hsrl/train/game_value.py`, 检查点: `checkpoints/game_value_v2.pt`
 
-##### SearchAgent (前瞻搜索) — avg_rank 1.97
+##### GameValueNetwork v4 (397-dim HDT-observable POMDP) — avg_rank 2.00
+
+v4 解决 v2 的 POMDP 盲点——添加每对手战斗记忆:
+
+- 每对手特征 (51 dims × 7): last_seen_board(32) + staleness + combat_history + hp + tier + armor + board_size + triples×6 + upgrades×5
+- 共享 opp_proj(51→32→16) + mean pool → 16
+- 总输入: 32(board) + 6(own) + 7×51(opp) + 2(global) = 397 维
+- 教师: CombatPredictor pairwise ranking (full-information)
+- 模型: 6,705 参数，avg_rank 2.00 (greedy)
+- 文件: `hsrl/train/game_value_sp.py`, 检查点: `checkpoints/game_value_v6.pt`
+
+##### SearchAgent v2 (前瞻搜索) — avg_rank 1.97~2.00
 
 基于 GameValueNetwork 的贪心前瞻搜索:
 - 枚举合法动作 → 模拟 → 编码 POMDP → V(s') 评估 → 选最大值
 - 支持束搜索 (beam search) 处理多步序列 (refresh→buy, sell→buy→play)
 - 文件: `hsrl/agents/search_agent.py`
-- 演示: `hsrl/agents/demo_game.py`
+- 演示: `hsrl/agents/demo_game.py` (v4/v6 版本感知加载)
 
-**评测结果 (2026-05-13, 30 局 vs 7 启发式对手)**:
+**⚠️ 所有现有检查点已被污染** — buddy/golden 卡牌污染了随从池，零护甲数据影响了游戏速度。
+需从干净数据重新训练所有模型。详见 Phase 0 审计结果。
+
+**评测结果 (被污染检查点, 2026-05-13, 30 局 vs 7 启发式对手)**:
 
 | 方法 | avg_rank | win% | top4% | 时间/局 |
 |------|----------|------|-------|---------|
@@ -412,8 +444,9 @@ v2 改进:
 | SearchAgent v1 束搜索 (w=3,d=3) | 2.03 | 3.3% | 100% | 17.9s |
 | **SearchAgent v2 贪心** | **2.07** | 0.0% | 100% | 4.4s |
 | **SearchAgent v2 束搜索 (w=3,d=3)** | **1.97** | **6.7%** | 100% | 22.4s |
+| **SearchAgent v6 贪心 (POMDP v4)** | **2.00** | — | 100% | — |
 
-**分析**: 嵌入架构在束搜索中展现更大优势（1.97 vs 2.03），因为多步序列中的组合差异（剧毒 vs 大身材）逐渐累积。但 avg_rank 天花板 ~2.0 的主要原因是 **POMDP 瓶颈**——智能体仅能看到对手 HP/等级，无法观测对手棋盘。即使有完美的 CombatPredictor，GameValue 也无法利用它。
+**分析**: 嵌入架构在束搜索中展现更大优势（1.97 vs 2.03），因为多步序列中的组合差异（剧毒 vs 大身材）逐渐累积。但 avg_rank 天花板 ~2.0 的主要原因是 **POMDP 瓶颈**——智能体仅能看到对手 HP/等级，无法观测对手棋盘。
 
 ##### 已探索的死胡同
 
@@ -422,16 +455,30 @@ v2 改进:
 - **DAgger 迭代蒸馏**: 单次迭代无效 (SearchAgent 与启发式状态分布高度重叠)
 - **BC 策略网络**: avg_rank 4.37 仅略优于启发式 4.5
 
-##### 下一步方向
+#### Phase 3: Bug 修复与审计 ✅ 已完成 (2026-05-14)
 
-- **对手棋盘建模**: 根据对手 HP/等级估计其棋盘分布，用 CombatPredictor 模拟战斗
-- **蒙特卡洛 END_TURN**: 采样对手棋盘 → CombatPredictor 成对预测 → 期望排名分布
-- **战斗历史特征**: 记录过往战斗中的关键词/随从类型作为 POMDP 的额外信息
+发现并修复 6 个关键 bug:
+1. **英雄护甲始终为 0**: `bg_heroes.json` armor 全为 null → 填充真实护甲值 (5-18)
+2. **Buddy/Golden 卡牌污染随从池**: `minion_pool.py` 未过滤 `_Buddy`/`_G` 后缀卡牌
+3. **ATK 显示错误**: 使用 `get_tag(GameTag.ATK,0)` 而非 `.atk` 属性（3 个文件共 7 处）
+4. **酒馆法术显示**: 未区分随从与法术类型
+5. **v4 检查点签名不兼容**: `compute_terminal_placement` vs `compute_teacher_placement`
+6. **BG34_639 缺失 atk 字段**: 添加 `"atk": 0`
 
-#### Phase 3: 自对弈训练 (规划中)
+**审计发现**:
+- 卡牌脚本覆盖率: 英雄技能 19.5% (32/164), 法术 33%, 饰品 ~56%
+- 启发式从不升级酒馆等级 → 平均 17.1 回合 (应为 12-15)
+- 所有现有检查点必须从干净数据重新训练
 
-- `hsrl/train/self_play_trainer.py` — 自对弈训练循环
-- `hsrl/train/model_pool.py` — 模型池管理 + ELO 评分
-- `hsrl/train/opponent_selector.py` — 对手选择策略 (含轨迹对手 + MCTS 对手)
+#### Phase 4: 干净重训练路线图 (规划中 → 执行中)
 
-**目标**: 自对弈持续提升 + 多种对手作为多样性锚点
+参见最新路线图: `docs/RL_ROADMAP.md` 或本项目计划文件。
+
+**架构决策**: 集中 80% 资源于 Search+Value 方法 (已验证 avg_rank ~2.0)。
+BC→RL 方法 (DQN/PPO) 存在结构性劣势 (flat observation 无法表达组合动作序列)。
+
+**关键路径**:
+1. 修复启发式升级逻辑 → 重新生成轨迹
+2. 重新训练 BoardEval v3 → GameValue 检查点
+3. POMDP v5: 战斗模拟集成 + 对手棋盘预测
+4. 自对弈 PPO 训练
