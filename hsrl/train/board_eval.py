@@ -234,6 +234,7 @@ class BoardEvalTrainer:
         batch_size: int = 512,
         val_split: float = 0.1,
         verbose: bool = True,
+        save_path: str = "checkpoints/board_eval_v2.pt",
     ):
         data = np.load(data_path)
         boards_a = torch.as_tensor(data["boards_a"], dtype=torch.float32)
@@ -311,7 +312,7 @@ class BoardEvalTrainer:
 
             if val_acc >= best_val_acc:
                 best_val_acc = val_acc
-                self.save("checkpoints/board_eval_v2.pt", epoch, val_acc)
+                self.save(save_path, epoch, val_acc)
 
             if verbose and (epoch + 1) % 10 == 0:
                 elapsed = time.time() - t_start
@@ -327,7 +328,7 @@ class BoardEvalTrainer:
         if verbose:
             print(f"\nTraining complete: {epochs} epochs in {elapsed:.0f}s")
             print(f"  Best val_acc: {best_val_acc:.3f}")
-            print(f"  Model saved to: checkpoints/board_eval_v2.pt")
+            print(f"  Model saved to: {save_path}")
 
         return best_val_acc
 
@@ -383,6 +384,7 @@ def main():
     parser.add_argument("--embed-dim", type=int, default=_EMBED_DIM)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--save", type=str, default="checkpoints/board_eval_v2.pt")
     args = parser.parse_args()
 
     trainer = BoardEvalTrainer(
@@ -395,6 +397,7 @@ def main():
         data_path=args.data,
         epochs=args.epochs,
         batch_size=args.batch_size,
+        save_path=args.save,
     )
 
 

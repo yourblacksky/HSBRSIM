@@ -22,16 +22,16 @@ No hidden state. No magic numbers. Every property is declared upfront in `hsrl/c
 
 | Module | Lines | Responsibility |
 |--------|-------|---------------|
-| `hsrl/core/enums.py` | 295 | GameTag (180+), CardType (9), Race, Zone, Step, State |
-| `hsrl/core/entity.py` | 345 | BaseEntity — tags, buffs, script hooks |
-| `hsrl/core/actions.py` | 1,897 | 60+ Action classes — all game mechanics |
-| `hsrl/core/game.py` | 1,424 | Game engine — turn flow, combat, death, damage |
-| `hsrl/core/events.py` | 145 | EventListener + 40+ standard event constants |
-| `hsrl/core/player.py` | 123 | Player — gold, health, board, hand, trinkets |
+| `hsrl/core/enums.py` | 311 | GameTag (310+), CardType (11), Race, Zone, Step, State |
+| `hsrl/core/entity.py` | 356 | BaseEntity — tags, buffs, script hooks |
+| `hsrl/core/actions.py` | 1,980 | 60+ Action classes — all game mechanics |
+| `hsrl/core/game.py` | 2,100+ | Game engine — turns, combat, death, quests, trinkets |
+| `hsrl/core/events.py` | 148 | EventListener + 40+ standard event constants |
+| `hsrl/core/player.py` | 131 | Player — gold, health, board, hand, trinkets |
 | `hsrl/core/card_db.py` | 157 | CardDB singleton + `register_card()` |
 | `hsrl/core/minion.py` | 54 | Minion — combat state, can_attack |
-| `hsrl/core/minion_pool.py` | 188 | Shared minion pool + `remove_all_copies` |
-| `hsrl/core/spell_pool.py` | 101 | Shared spell pool |
+| `hsrl/core/minion_pool.py` | 198 | Shared minion pool + `remove_all_copies` |
+| `hsrl/core/spell_pool.py` | 107 | Shared spell pool |
 
 ## Implemented Mechanics
 
@@ -76,30 +76,29 @@ No hidden state. No magic numbers. Every property is declared upfront in `hsrl/c
 | Free Refresh | Gain free tavern refreshes | ✅ |
 | Spell Discount | Reduce next spell's cost | ✅ |
 | Buddy System | Hero-specific companion minions | ✅ |
-| Trinkets | Lesser/Greater trinket selection | ✅ |
-| Anomalies | Game-modifying rules (64/105 implemented) | ✅ |
-| Quests | Quest + reward system (66/76 implemented) | ✅ |
+| Trinkets | Trinket purchase + Lesser/Greater filtering | ✅ |
+| Anomalies | Game-modifying rules | ✅ |
+| Quests | Quest + reward system | ✅ |
 
 ### Card Registration Status
 
-| Category | Count | CORRECT | DEFERRED |
-|----------|-------|---------|----------|
-| Minion Pool | 244 | 218 | 0 |
-| Spell Pool | 71 | 71 | 0 |
-| Token Minions | ~200 | ~200 | 0 |
-| Heroes | 120 | 120 | 0 |
-| Hero Powers | 94 | 94 | 0 |
-| Trinkets | 327 | 311 | 5 (OOS Duos) |
-| Anomalies | 105 | 64 | 41 |
-| Quest Rewards | 76 | 66 | 10 |
-| **Total** | **~1,237** | **~1,144** | **56** |
+| Category | Count | CORRECT | DEFERRED | OOS |
+|----------|-------|---------|----------|-----|
+| Minion Pool | 218 | 218 | 0 | — |
+| Spell Pool | 71 | ~23 | ~48 | — |
+| Heroes | 119 | 119 | 0 | — |
+| Hero Powers | 94 | 94 | 0 | — |
+| Trinkets | 327 | 297 | 19 | 11 (Duos) |
+| Anomalies | 105 | 101 | 0 | 4 (Duos) |
+| Quest Rewards | 76 | 76 | 0 | — |
+| **Total** | **~1,010** | **~928** | **~67** | **15** |
 
 ## Project Structure
 
 ```
 HSBRSIM/
 ├── hsrl/                              # Main Python package
-│   ├── core/                          # Game engine (5,581 lines)
+│   ├── core/                          # Game engine (7,000+ lines)
 │   │   ├── enums.py                   # GameTag, CardType, Race, Zone, Step
 │   │   ├── entity.py                  # BaseEntity — tags, buffs, hooks
 │   │   ├── minion.py                  # Minion — combat state

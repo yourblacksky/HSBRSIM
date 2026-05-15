@@ -18,6 +18,11 @@ Hearthstone-Deck-Tracker.wiki/
 
 # Collected game data
 data/real_games/
+data/trajectories/
+data/trajectories_clean/
+data/bc_training/
+data/bc_training_v2/
+data/combat_pairs/
 
 # AI assistant configuration (excluded from public repo)
 AGENTS.md

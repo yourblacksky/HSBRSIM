@@ -970,6 +970,38 @@ class Game:
     # Cached tribe → trinket-id list. Built lazily from card_db when needed.
     _trinket_tribe_index: Optional[Dict[str, List[str]]] = None
 
+    # Cached trinket type pools (lesser/greater). Loaded from pool_trinket_texts.json.
+    _trinket_lesser_ids: Optional[set] = None
+    _trinket_greater_ids: Optional[set] = None
+
+    @classmethod
+    def _load_trinket_type_pools(cls) -> None:
+        """Load trinket type classification from pool_trinket_texts.json.
+
+        Populates _trinket_lesser_ids and _trinket_greater_ids class caches.
+        Called lazily on first _offer_trinkets() invocation.
+        """
+        if cls._trinket_lesser_ids is not None:
+            return
+        import json
+        import os
+        pool_path = os.path.join(os.path.dirname(__file__), "..", "..", "data",
+                                 "pool_trinket_texts.json")
+        lesser, greater = set(), set()
+        try:
+            with open(pool_path) as f:
+                data = json.load(f)
+            for cid, entry in data.items():
+                ttype = entry.get("trinket_type", "")
+                if ttype == "lesser":
+                    lesser.add(cid)
+                elif ttype == "greater":
+                    greater.add(cid)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+        cls._trinket_lesser_ids = lesser
+        cls._trinket_greater_ids = greater
+
     @classmethod
     def _get_trinket_tribe_index(cls, card_db) -> Dict[str, List[str]]:
         """Build (or return cached) index: tribe_name → [trinket_id, ...].
@@ -1098,43 +1130,62 @@ class Game:
         return score
 
     def _offer_trinkets(self, player: Player) -> None:
-        """Offer trinkets on Turn 6 (Lesser/TRINKET_1) and Turn 9 (Greater/TRINKET_2).
+        """Offer 4 trinkets on Turn 6 (Lesser) and Turn 9 (Greater).
 
-        Selection is biased toward the player's dominant board tribe.  At least
-        one offered trinket costs ≤ 2 gold.  The best trinket is auto-selected
-        using a simple tribe + cost scoring function.
+        Selection is biased toward the player's dominant board tribe. At least
+        one offered trinket costs ≤ 2 gold. Offers are stored on
+        player._pending_trinket_offers for the player (or agent) to choose from.
         """
-        from hsrl.core.trinket import Trinket
-
         trinket_slot = GameTag.TRINKET_1 if self.turn == 6 else GameTag.TRINKET_2
-        if player.has_tag(trinket_slot) or player.has_tag(GameTag.TRINKET_OFFERED):
+        if player.has_tag(trinket_slot) or player._pending_trinket_offers:
             return
-        player.set_tag(GameTag.TRINKET_OFFERED, True)
 
-        # ── Build candidate pools ──
+        # ── Load trinket type pools (lazy) ──
+        self._load_trinket_type_pools()
+        allowed_ids = (
+            self._trinket_lesser_ids if self.turn == 6
+            else self._trinket_greater_ids
+        )
+
+        # ── Build candidate pools filtered by trinket type ──
         index = self._get_trinket_tribe_index(self.card_db)
-        neutral_pool: List[str] = list(index.get(None, []))  # type: ignore[arg-type]
+        neutral_pool: List[str] = [
+            cid for cid in index.get(None, [])
+            if allowed_ids is None or cid in allowed_ids
+        ]
         dominant = self._detect_dominant_tribe(player)
-        tribe_pool: List[str] = list(index.get(dominant, [])) if dominant else []  # type: ignore[arg-type]
+        tribe_pool: List[str] = [
+            cid for cid in index.get(dominant, [])
+            if allowed_ids is None or cid in allowed_ids
+        ] if dominant else []
 
-        # ── Assemble offers: bias toward dominant tribe ──
+        # ── Assemble 4 offers: bias toward dominant tribe ──
         offered: List[str] = []
         if tribe_pool:
-            # Pick 2 from tribe pool (or all if pool is small)
-            n_tribe = min(2, len(tribe_pool))
+            n_tribe = min(3, len(tribe_pool))
             offered.extend(random.sample(tribe_pool, n_tribe))
 
         # Fill remaining slots from neutral pool
-        needed = 3 - len(offered)
+        needed = 4 - len(offered)
         if needed > 0 and neutral_pool:
             offered.extend(random.sample(neutral_pool, min(needed, len(neutral_pool))))
 
-        # If we still don't have enough, pad from any pool
-        needed = 3 - len(offered)
-        if needed > 0 and tribe_pool:
-            remaining_tribe = [t for t in tribe_pool if t not in offered]
-            if remaining_tribe:
-                offered.extend(random.sample(remaining_tribe, min(needed, len(remaining_tribe))))
+        # If still short, pad from any filtered candidate
+        if len(offered) < 4:
+            all_filtered = tribe_pool + neutral_pool
+            remaining = [c for c in all_filtered if c not in offered]
+            needed = 4 - len(offered)
+            if remaining:
+                offered.extend(random.sample(remaining, min(needed, len(remaining))))
+
+        if len(offered) < 4:
+            # Fallback: use all available trinkets (ignore type filter)
+            all_ids = [cid for cid in index.get(None, []) + sum(
+                [v for k, v in index.items() if k is not None], []
+            ) if cid not in offered]
+            needed = 4 - len(offered)
+            if all_ids:
+                offered.extend(random.sample(all_ids, min(needed, len(all_ids))))
 
         if not offered:
             return
@@ -1142,28 +1193,55 @@ class Game:
         # ── Ensure at least one cheap option (cost ≤ 2) ──
         has_cheap = any(self._get_trinket_cost(cid) <= 2 for cid in offered)
         if not has_cheap:
+            all_candidates = tribe_pool + neutral_pool
             cheap_candidates = [
-                cid for cid in (tribe_pool + neutral_pool)
+                cid for cid in all_candidates
                 if cid not in offered and self._get_trinket_cost(cid) <= 2
             ]
             if cheap_candidates:
-                # Replace the most expensive offered trinket
                 offered.sort(key=lambda cid: self._get_trinket_cost(cid))
-                offered[0] = random.choice(cheap_candidates)
+                offered[-1] = random.choice(cheap_candidates)
 
-        # ── Score and select the best trinket ──
-        chosen_id = max(offered, key=lambda cid: self._score_trinket_for_player(cid, player))
+        player._pending_trinket_offers = offered
+        self.broadcast("TRINKETS_OFFERED", player, offered)
+
+    def buy_trinket(self, player: Player, offer_index: int) -> bool:
+        """Purchase a trinket from the player's pending offers.
+
+        Args:
+            player: The player making the purchase.
+            offer_index: 0-based index into player._pending_trinket_offers.
+
+        Returns:
+            True if the purchase succeeded, False otherwise.
+        """
+        from hsrl.core.trinket import Trinket
+        from hsrl.core.actions import SpendGold
+
+        if not player._pending_trinket_offers:
+            return False
+        if offer_index < 0 or offer_index >= len(player._pending_trinket_offers):
+            return False
+
+        trinket_slot = GameTag.TRINKET_1 if self.turn == 6 else GameTag.TRINKET_2
+        if player.has_tag(trinket_slot):
+            return False
+
+        chosen_id = player._pending_trinket_offers[offer_index]
         trinket_data = self.card_db.get(chosen_id)
         if trinket_data is None:
-            return
+            return False
+
+        cost = trinket_data.tags.get(GameTag.COST, 3) if trinket_data.tags else 3
+        if player.gold < cost:
+            return False
+
         trinket = Trinket(trinket_data, game=self)
         trinket.controller = player
-        cost = trinket.cost
-        if player.gold >= cost:
-            from hsrl.core.actions import SpendGold
-            self.queue_action(SpendGold(player, cost))
+        self.queue_action(SpendGold(player, cost))
         player.trinkets.append(trinket)
         player.set_tag(trinket_slot, True)
+        player._pending_trinket_offers = []
 
         # Register on_summon listener if present
         if trinket_data.scripts:
@@ -1171,8 +1249,9 @@ class Game:
             if fn and callable(fn):
                 fn(trinket, self)
 
-        self.broadcast("TRINKET_OFFERED", player, chosen_id)
+        self.broadcast("TRINKET_PURCHASED", player, chosen_id)
         self.resolve_queue()
+        return True
 
     # ── Quest System ──────────────────────────────────────────────────────────
 
@@ -2115,6 +2194,15 @@ class Game:
         total board stats. When board is full, consider selling the weakest
         minion to make room if it yields a net stat gain and gold >= 3."""
         from hsrl.core.actions import SpendGold, UpgradeTavern
+
+        # ── Trinket selection: score and buy best affordable trinket ──
+        if player._pending_trinket_offers:
+            offers = player._pending_trinket_offers
+            best_idx = max(
+                range(len(offers)),
+                key=lambda i: self._score_trinket_for_player(offers[i], player)
+            )
+            self.buy_trinket(player, best_idx)
 
         max_attempts = 30
         attempts = 0

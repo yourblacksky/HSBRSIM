@@ -200,6 +200,11 @@ Action → queue → broadcast events → resolve → trigger follow-ups → che
 | 战斗记忆 (CombatRecord + combat_memory) | ✅ |
 | 三连追踪 (triples_by_tier) | ✅ |
 | 升级回合追踪 (tavern_upgrade_turns) | ✅ |
+| **饰品购买系统 (Trinket Purchase)** | ✅ |
+| 饰品大小池过滤 (Lesser/Greater Filtering) | ✅ |
+| Every-N-Turns 饰品引擎 | ✅ |
+| 饰品种族偏好 (Tribe Biasing) | ✅ |
+| 饰品启发式评分 (Heuristic Scoring) | ✅ |
 
 ### 已知缺失
 
@@ -217,10 +222,10 @@ Action → queue → broadcast events → resolve → trigger follow-ups → che
 |--------|---------|----------|-------------|
 | Hero Powers (94) | 94 | 0 | — |
 | Minions (218) | 218 | 0 | — |
-| Trinkets (327) | 316 | 0 | 11 (Duos) |
+| Trinkets (327) | 297 | 19 | 11 (Duos) |
 | Anomalies (105) | 101 | 0 | 4 (Duos) |
 | Quest Rewards (76) | 76 | 0 | — |
-| **Total** | **805** | **0** | **15** |
+| **Total** | **786** | **19** | **15** |
 
 范围完成率: 100%。剩余 15 张 OOS: 4 张双打异变 + 11 张双打饰品。
 

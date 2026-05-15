@@ -5506,6 +5506,7 @@ class ElectrodeAttractorScript:
         game.register_listener(source, EventListener(
             event_name=TAVERN_REFRESH,
             action=_RefreshMagneticAction(source.controller),
+            condition=lambda player: player == source.controller,
         ))
 
 
@@ -5557,6 +5558,7 @@ class InnkeepersSteinScript:
         game.register_listener(source, EventListener(
             event_name=TAVERN_REFRESH,
             action=_SteinAction(source.controller),
+            condition=lambda player: player == source.controller,
         ))
 
 
@@ -5954,8 +5956,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_416": TokenOfTheOldGodsScript,     # Token of the Old Gods (DEFERRED)
     "BG30_MagicItem_995": BronzeTimepieceScript,       # Bronze Timepiece
     "BG30_MagicItem_542": EmeraldDreamcatcherScript,   # Emerald Dreamcatcher
-    "BG30_MagicItem_991": FelbatPortraitScript,        # Felbat Portrait (DEFERRED)
-    "BG30_MagicItem_429": SpellcraftConsumeTavernMinionScript,  # Demonblood Gourd
+    "BG30_MagicItem_991": FelbatPortraitScript,        # Felbat Portrait     "BG30_MagicItem_429": SpellcraftConsumeTavernMinionScript,  # Demonblood Gourd
     "BG35_MagicItem_812": CorruptedTomeScript,         # Corrupted Tome (DEFERRED)
 
     # ── EoT ──
@@ -5998,8 +5999,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_987": BalladistPortraitScript,        # Balladist Portrait: get Lovesick Balladist
     "BG31_MagicItem_903": WisdomballSupplyScript,         # Wisdomball Supply: get Knockoff Wisdomball
     "BG32_MagicItem_831": SellementalPortraitScript,      # Sellemental Portrait: get Sellemental
-    "BG30_MagicItem_916": SoTRepeatGetScript,             # Essence of Dreams: get Dreamer's Embrace (DEFERRED: spell SC pool)
-
+    "BG30_MagicItem_916": SoTRepeatGetScript,             # Essence of Dreams: get Dreamer's Embrace 
     # ── SoT: Repeat Get (random tribe) ──
     "BG30_MagicItem_543": SoTRepeatGetRandomDemonScript,  # Devourer Sticker: random Demon
     "BG30_MagicItem_942": SoTGetRandomMagneticMechScript, # Mecha-Jaraxxus Sticker: 2 Magnetic Mecha-Demons
@@ -6127,13 +6127,13 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_433t": FirstDeathTransferStats2xScript,    # Alliance Keychain (Greater): first death → transfer to 2
     "BG30_MagicItem_981": OnFriendlyDeathCombatGetTavernSpellScript,  # Eye of Dalaran: tribeless dies → Tavern spell
 
-    # ── Phase 9: Every N Turns (engine ready, token IDs needed) ──
-    "BG30_MagicItem_425": Every2TurnsGainGoldDiscoverT6Script,                   # Azeroth Model Globe: every 2 turns gain 2 Gold + Discover T6 (DEFERRED)
-    "BG30_MagicItem_435": GoldenizerSupplyScript,                   # Goldenizer Supply: every 3 turns get Goldenizer (DEFERRED: token id)
-    "BG30_MagicItem_707": DiscoverTier3DarkmoonPrizeScript,                   # Tickatus Sticker: every 3 turns Discover Darkmoon Prize (DEFERRED)
-    "BG32_MagicItem_300": Every2TurnsCraftUndeadScript,                   # Putricide Sticker: every 2 turns craft Undead (DEFERRED)
-    "BG35_MagicItem_305": ConchPortraitScript,                   # Conch Portrait: every 2 turns get Cloning Conch (DEFERRED: token id)
-    "BG35_MagicItem_817": LensCaseGetScript,                   # Lens Case: every 2 turns get Duplicating Lens (DEFERRED: token id)
+    # ── Phase 9: Every N Turns ──
+    "BG30_MagicItem_425": Every2TurnsGainGoldDiscoverT6Script,   # Azeroth Model Globe: every 2 turns gain 2 Gold + Discover T6
+    "BG30_MagicItem_435": GoldenizerSupplyScript,                # Goldenizer Supply: every 3 turns get Goldenizer
+    "BG30_MagicItem_707": DiscoverTier3DarkmoonPrizeScript,      # Tickatus Sticker: every 3 turns Discover Darkmoon Prize (DEFERRED: Darkmoon pool)
+    "BG32_MagicItem_300": Every2TurnsCraftUndeadScript,          # Putricide Sticker: every 2 turns craft Undead
+    "BG35_MagicItem_305": ConchPortraitScript,                   # Conch Portrait: every 2 turns get Cloning Conch
+    "BG35_MagicItem_817": LensCaseGetScript,                     # Lens Case: every 2 turns get Duplicating Lens
 
     # ── Phase 11: Combat Events ──
 
@@ -6170,173 +6170,65 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     # ── Phase 13-15: Remaining trinkets (DEFERRED — need engine subsystems) ──
 
     "BG30_MagicItem_402": ConductorPortraitScript,  # Conductor Portrait: get Howler Driver (discard trigger defer)
-    "BG30_MagicItem_403": SoCTripleTribelessStatsScript,  # DEFERRED
-    "BG30_MagicItem_407": SoCSummonAndGetPirateAttackScript,  # DEFERRED
-    "BG30_MagicItem_410": AvengeImproveBG1HealthScript,
+    "BG30_MagicItem_403": SoCTripleTribelessStatsScript,    "BG30_MagicItem_407": SoCSummonAndGetPirateAttackScript,    "BG30_MagicItem_410": AvengeImproveBG1HealthScript,
     "BG30_MagicItem_410t2": AvengeImproveBG1x1Script,
-    "BG30_MagicItem_418": GetBrannAndRandomBCScript,  # DEFERRED
-    "BG30_MagicItem_419": EoTGetRandomMinionPerTribeScript,
+    "BG30_MagicItem_418": GetBrannAndRandomBCScript,    "BG30_MagicItem_419": EoTGetRandomMinionPerTribeScript,
     "BG30_MagicItem_422": LorewalkerScrollLesserScript,  # Lorewalker Scroll (Lesser): cast spell on minion → +2/+2
     "BG30_MagicItem_422t": LorewalkerScrollGreaterScript, # Lorewalker Scroll (Greater): cast spell on minion → +8/+8
     "BG30_MagicItem_423": InnkeepersSteinScript,  # Innkeeper's Stein: refresh always offers extra higher-tier minion
-    "BG30_MagicItem_427": OnFriendlyDamageBuffRandomScript,  # DEFERRED
-    "BG30_MagicItem_427t": OnFriendlyDamageBuffRandom4Script,  # DEFERRED
-    "BG30_MagicItem_431": GetLivingAzeriteElementalBonusScript,  # DEFERRED
-    "BG30_MagicItem_434": FirstSpellEachTurnExtraTimeScript,  # DEFERRED
-    "BG30_MagicItem_439": DesignerEyepatchScript,  # Designer Eyepatch: pirates only need 2 copies for golden
+    "BG30_MagicItem_427": OnFriendlyDamageBuffRandomScript,    "BG30_MagicItem_427t": OnFriendlyDamageBuffRandom4Script,    "BG30_MagicItem_431": GetLivingAzeriteElementalBonusScript,    "BG30_MagicItem_434": FirstSpellEachTurnExtraTimeScript,    "BG30_MagicItem_439": DesignerEyepatchScript,  # Designer Eyepatch: pirates only need 2 copies for golden
     "BG30_MagicItem_440": BoomControllerScript,  # Boom Controller: summon copy of first dead mech in combat
-    "BG30_MagicItem_442": QuilboarDeathSummonGolemScript,  # DEFERRED
-    "BG30_MagicItem_546": CounterAttackPlayBGOnQuilboarScript,  # DEFERRED
-    "BG30_MagicItem_547": OnCastSpellBuffUndeadWhereverScript,  # DEFERRED
-    "BG30_MagicItem_547t": OnCastSpellBuffUndeadWherever2Script,  # DEFERRED
-    "BG30_MagicItem_548": GetTimewarpedGlowscaleScript,  # DEFERRED
-    "BG30_MagicItem_555": GetElementalOfSurpriseScript,  # DEFERRED
-    "BG30_MagicItem_700": DiscoverDRFirstDRExtraTimeScript,  # DEFERRED
-    "BG30_MagicItem_701": Every4BuysHealthCostScript,  # DEFERRED
-    "BG30_MagicItem_702": GetPrimalfinLookoutDiscoverSpellScript,  # DEFERRED
-    "BG30_MagicItem_709": ElectromagneticDeviceScript,  # Electromagnetic Device: discover magnetic + magnetize buff +3/+3
+    "BG30_MagicItem_442": QuilboarDeathSummonGolemScript,    "BG30_MagicItem_546": CounterAttackPlayBGOnQuilboarScript,    "BG30_MagicItem_547": OnCastSpellBuffUndeadWhereverScript,    "BG30_MagicItem_547t": OnCastSpellBuffUndeadWherever2Script,    "BG30_MagicItem_548": GetTimewarpedGlowscaleScript,    "BG30_MagicItem_555": GetElementalOfSurpriseScript,    "BG30_MagicItem_700": DiscoverDRFirstDRExtraTimeScript,    "BG30_MagicItem_701": Every4BuysHealthCostScript,    "BG30_MagicItem_702": GetPrimalfinLookoutDiscoverSpellScript,    "BG30_MagicItem_709": ElectromagneticDeviceScript,  # Electromagnetic Device: discover magnetic + magnetize buff +3/+3
     "BG30_MagicItem_711": MarineSignetScript,  # Marine Signet: after 4 minions → get spell + improve tier
     "BG30_MagicItem_714": TrinketSpellcraft3030Script,
-    "BG30_MagicItem_777": GetSilverGooseScript,  # DEFERRED
-    "BG30_MagicItem_803": GetKaboomBotDRBonusScript,  # DEFERRED
-    "BG30_MagicItem_821": GetFishOfNZothScript,  # DEFERRED
-    "BG30_MagicItem_821t2": SoCSummonGoldenFishNZothScript,  # DEFERRED
-    "BG30_MagicItem_822": TwinSkyLanternsScript,  # Twin Sky Lanterns (Lesser): summon copy of first summoned in combat
+    "BG30_MagicItem_777": GetSilverGooseScript,    "BG30_MagicItem_803": GetKaboomBotDRBonusScript,    "BG30_MagicItem_821": GetFishOfNZothScript,    "BG30_MagicItem_821t2": SoCSummonGoldenFishNZothScript,    "BG30_MagicItem_822": TwinSkyLanternsScript,  # Twin Sky Lanterns (Lesser): summon copy of first summoned in combat
     "BG30_MagicItem_822t2": TwinSkyLanternsGreaterScript,  # Twin Sky Lanterns (Greater): summon 2 copies of first summoned
-    "BG30_MagicItem_825": GetWhelpSmugglerSetStatsScript,  # DEFERRED
-    "BG30_MagicItem_828": GetZestyShakerExtraCopyScript,  # DEFERRED
-    "BG30_MagicItem_843t": SoCBuffLowTier75Script,  # DEFERRED
-    "BG30_MagicItem_868": GetSoulRewinderAndWrathWeaverScript,  # DEFERRED
-    "BG30_MagicItem_869": GetSlimyFelbloodScript,  # DEFERRED
-    "BG30_MagicItem_876": GetFacelessManipulatorScript,  # DEFERRED
-    "BG30_MagicItem_888": SouvenirStandScript,  # Souvenir Stand: transform into copy of greater trinket (approx)
+    "BG30_MagicItem_825": GetWhelpSmugglerSetStatsScript,    "BG30_MagicItem_828": GetZestyShakerExtraCopyScript,    "BG30_MagicItem_843t": SoCBuffLowTier75Script,    "BG30_MagicItem_868": GetSoulRewinderAndWrathWeaverScript,    "BG30_MagicItem_869": GetSlimyFelbloodScript,    "BG30_MagicItem_876": GetFacelessManipulatorScript,    "BG30_MagicItem_888": SouvenirStandScript,  # Souvenir Stand: transform into copy of greater trinket (approx)
     "BG30_MagicItem_891": TripVouchersScript,  # Trip Vouchers: after 2 turns discover greater trinket (approx)
-    "BG30_MagicItem_914": OnPlayBuffLeftmostHandScript,  # DEFERRED
-    "BG30_MagicItem_914t": OnPlayBuffLeftmostHand6x6Script,  # DEFERRED
-    "BG30_MagicItem_917": SoCGiveNagaSpellcraftDRScript,  # DEFERRED
-    "BG30_MagicItem_918": GetPromoDrakeFirstSoCExtraTimeScript,  # DEFERRED
-    "BG30_MagicItem_919": OnPlayNagaGetSpellcraftScript,  # DEFERRED
-    "BG30_MagicItem_920": SpitescaleSushiRollScript,  # Spitescale Sushi Roll: get Spitescale Special + extra spellcraft casts
-    "BG30_MagicItem_921": GetSkyPirateFlagbearerAuraScript,  # DEFERRED
-    "BG30_MagicItem_923": CounterPirateAttackGainGoldScript,  # DEFERRED
-    "BG30_MagicItem_943": GetHotAirSurveyorBGBonusScript,  # DEFERRED
-    "BG30_MagicItem_944": GetRedeemerPortraitScript,  # DEFERRED
-    "BG30_MagicItem_952": SoCGiveElementalFrostlingDRScript,  # DEFERRED
-    "BG30_MagicItem_971": GetLightfangAllTypesScript,  # DEFERRED
-    "BG30_MagicItem_972": SoCSummonCopyLeftmostScript,  # DEFERRED
-    "BG30_MagicItem_979": OnPlayElementalDiscountNextSpellScript,  # DEFERRED
-    "BG30_MagicItem_986": First3SpellsFreeEachTurnScript,  # DEFERRED
-    "BG30_Trinket_1st": UITimerScript,  # UI timer: Lesser Trinket shop countdown (no gameplay effect)
+    "BG30_MagicItem_914": OnPlayBuffLeftmostHandScript,    "BG30_MagicItem_914t": OnPlayBuffLeftmostHand6x6Script,    "BG30_MagicItem_917": SoCGiveNagaSpellcraftDRScript,    "BG30_MagicItem_918": GetPromoDrakeFirstSoCExtraTimeScript,    "BG30_MagicItem_919": OnPlayNagaGetSpellcraftScript,    "BG30_MagicItem_920": SpitescaleSushiRollScript,  # Spitescale Sushi Roll: get Spitescale Special + extra spellcraft casts
+    "BG30_MagicItem_921": GetSkyPirateFlagbearerAuraScript,    "BG30_MagicItem_923": CounterPirateAttackGainGoldScript,    "BG30_MagicItem_943": GetHotAirSurveyorBGBonusScript,    "BG30_MagicItem_944": GetRedeemerPortraitScript,    "BG30_MagicItem_952": SoCGiveElementalFrostlingDRScript,    "BG30_MagicItem_971": GetLightfangAllTypesScript,    "BG30_MagicItem_972": SoCSummonCopyLeftmostScript,    "BG30_MagicItem_979": OnPlayElementalDiscountNextSpellScript,    "BG30_MagicItem_986": First3SpellsFreeEachTurnScript,    "BG30_Trinket_1st": UITimerScript,  # UI timer: Lesser Trinket shop countdown (no gameplay effect)
     "BG30_Trinket_2nd": UITimerScript,  # UI timer: Greater Trinket shop countdown (no gameplay effect)
 
-    "BG32_MagicItem_172": GetDrBoomsMonsterRepeatScript,  # DEFERRED
-    "BG32_MagicItem_179": GetDrakkariMechElementalScript,  # DEFERRED
-    "BG32_MagicItem_204": GetArchlichKelThuzadScript,  # DEFERRED
-    "BG32_MagicItem_205": GetMawCasterDestroyCoinScript,  # DEFERRED
-    "BG32_MagicItem_230": CounterSpendGoldDoubleATKScript,  # DEFERRED
-    "BG32_MagicItem_270": AvengeImproveTavernSpellScript,  # DEFERRED
-    "BG32_MagicItem_270t": AvengeImproveTavernSpell1x1Script,  # DEFERRED
-    "BG32_MagicItem_271": DelayedGreaterTrinketGain3Script,  # Ornate Clock: gain 3 Gold (greater trinket timing defer)
-    "BG32_MagicItem_274": GetBristlebachScript,  # DEFERRED
-    "BG32_MagicItem_278": OnBuyGetMagneticSatelliteScript,  # DEFERRED
-    "BG32_MagicItem_279": EoTPlayBGOnMinionOfEachTypeScript,  # DEFERRED
-    "BG32_MagicItem_280": SoCBuffOnePerTribeImproveScript,  # DEFERRED
-    "BG32_MagicItem_282": GetMagneticMechsScript,   # Magneto-Mechinator (Lesser): get 2 Magnetic Mechs
-    "BG32_MagicItem_283": GetChargingCzarinaHealthScript,  # DEFERRED
-    "BG32_MagicItem_284": EoTPlayBGOnEachTribeScript,
-    "BG32_MagicItem_306": SoCTriggerAllFriendlyDRScript,  # DEFERRED
-    "BG32_MagicItem_362": DiscoverTier6MinionSetStatsScript,  # DEFERRED
-    "BG32_MagicItem_362t": DiscoverTwoTier6SetStatsScript,  # DEFERRED
-    "BG32_MagicItem_363": OnFriendlyDragonAttackGiveDSScript,  # DEFERRED
-    "BG32_MagicItem_364": GetTimewarpedPoetScript,  # DEFERRED
-    "BG32_MagicItem_366": GuidingCandleScript,  # Guiding Candle: first 2 refreshes only tier 6
-    "BG32_MagicItem_400": TransformAllToRandomTier4Script,  # DEFERRED
-    "BG32_MagicItem_415": AvengeDiscoverBCAndTriggerBCScript,  # DEFERRED
-    "BG32_MagicItem_417": TarecgosaStickerScript,  # Tarecgosa Sticker: left/right dragons keep combat stats
-    "BG32_MagicItem_419": SoCMakeHighestTierDragonGoldenScript,  # DEFERRED
-    "BG32_MagicItem_428": DelayedGainGold10Script,  # DEFERRED
-    "BG32_MagicItem_801": SoTTavernSpellBuffCounterScript,  # Flask of Homunculation (Lesser): +1/+1 spell buff, improve after 5 spells
+    "BG32_MagicItem_172": GetDrBoomsMonsterRepeatScript,    "BG32_MagicItem_179": GetDrakkariMechElementalScript,    "BG32_MagicItem_204": GetArchlichKelThuzadScript,    "BG32_MagicItem_205": GetMawCasterDestroyCoinScript,    "BG32_MagicItem_230": CounterSpendGoldDoubleATKScript,    "BG32_MagicItem_270": AvengeImproveTavernSpellScript,    "BG32_MagicItem_270t": AvengeImproveTavernSpell1x1Script,    "BG32_MagicItem_271": DelayedGreaterTrinketGain3Script,  # Ornate Clock: gain 3 Gold (greater trinket timing defer)
+    "BG32_MagicItem_274": GetBristlebachScript,    "BG32_MagicItem_278": OnBuyGetMagneticSatelliteScript,    "BG32_MagicItem_279": EoTPlayBGOnMinionOfEachTypeScript,    "BG32_MagicItem_280": SoCBuffOnePerTribeImproveScript,    "BG32_MagicItem_282": GetMagneticMechsScript,   # Magneto-Mechinator (Lesser): get 2 Magnetic Mechs
+    "BG32_MagicItem_283": GetChargingCzarinaHealthScript,    "BG32_MagicItem_284": EoTPlayBGOnEachTribeScript,
+    "BG32_MagicItem_306": SoCTriggerAllFriendlyDRScript,    "BG32_MagicItem_362": DiscoverTier6MinionSetStatsScript,    "BG32_MagicItem_362t": DiscoverTwoTier6SetStatsScript,    "BG32_MagicItem_363": OnFriendlyDragonAttackGiveDSScript,    "BG32_MagicItem_364": GetTimewarpedPoetScript,    "BG32_MagicItem_366": GuidingCandleScript,  # Guiding Candle: first 2 refreshes only tier 6
+    "BG32_MagicItem_400": TransformAllToRandomTier4Script,    "BG32_MagicItem_415": AvengeDiscoverBCAndTriggerBCScript,    "BG32_MagicItem_417": TarecgosaStickerScript,  # Tarecgosa Sticker: left/right dragons keep combat stats
+    "BG32_MagicItem_419": SoCMakeHighestTierDragonGoldenScript,    "BG32_MagicItem_428": DelayedGainGold10Script,    "BG32_MagicItem_801": SoTTavernSpellBuffCounterScript,  # Flask of Homunculation (Lesser): +1/+1 spell buff, improve after 5 spells
     "BG32_MagicItem_801t": SoTTavernSpellBuffCounterFromHandScript,  # Flask of Homunculation (Greater): +1/+1 from-hand spells, improve after 4
     "BG32_MagicItem_802": ElementalStatBonusScript,  # Azerite-Encrusted (Lesser): elementals give extra +2/+1
     "BG32_MagicItem_802t": ElementalStatBonusGreaterScript,  # Azerite-Encrusted (Greater): elementals give extra +4/+2
-    "BG32_MagicItem_803": GetMonstrousMacawTriggerBCScript,  # DEFERRED
-    "BG32_MagicItem_804": GetSelflessHeroTriggerBCScript,  # DEFERRED
-    "BG32_MagicItem_806": GetBattlecruiser12x12Script,  # DEFERRED
-    "BG32_MagicItem_807": GetGoldenMishmashAndAmalgamScript,  # DEFERRED
-    "BG32_MagicItem_809": GemDonationScript,  # Gem Donation: first sell plays blood gems on 3 highest tavern minions
+    "BG32_MagicItem_803": GetMonstrousMacawTriggerBCScript,    "BG32_MagicItem_804": GetSelflessHeroTriggerBCScript,    "BG32_MagicItem_806": GetBattlecruiser12x12Script,    "BG32_MagicItem_807": GetGoldenMishmashAndAmalgamScript,    "BG32_MagicItem_809": GemDonationScript,  # Gem Donation: first sell plays blood gems on 3 highest tavern minions
     "BG32_MagicItem_817": EoTStealHighestTavernRepeatScript,
-    "BG32_MagicItem_820": GetImpulsiveTrickster6x6Script,  # DEFERRED
-    "BG32_MagicItem_821": PilgrimpStickerScript,  # Pilgrimp Sticker: one demon per turn buyable with health
+    "BG32_MagicItem_820": GetImpulsiveTrickster6x6Script,    "BG32_MagicItem_821": PilgrimpStickerScript,  # Pilgrimp Sticker: one demon per turn buyable with health
     "BG32_MagicItem_822": BazaarStickerScript,  # Bazaar Sticker: one spell per turn buyable with health
     "BG32_MagicItem_824": ImplicatorPortraitScript,  # Implicator Portrait: get 2 False Implicators
-    "BG32_MagicItem_830": GetFelementalExtraStatsScript,  # DEFERRED
-    "BG32_MagicItem_844": RemoveAllMinionsGainGoldScript,  # DEFERRED
-    "BG32_MagicItem_862": OnDRTriggerBuffRightmostScript,  # DEFERRED
-    "BG32_MagicItem_862t": OnDRTriggerBuffRightmost6x4Script,  # DEFERRED
-    "BG32_MagicItem_887": OnPlayDemonDealDamageToHeroScript,  # DEFERRED
-    "BG32_MagicItem_891": OnRefreshBuffMurlocsTavernScript,  # DEFERRED
-    "BG32_MagicItem_892": TrinketSpellcraftMurlocKeywordScript,
-    "BG32_MagicItem_893": OnCastSpellBuffLeftmostHand4x4Script,  # DEFERRED
-    "BG32_MagicItem_894": SoTRepeatGetNaturalBlessingScript,  # Blessing Portrait: get Natural Blessing + one each turn
+    "BG32_MagicItem_830": GetFelementalExtraStatsScript,    "BG32_MagicItem_844": RemoveAllMinionsGainGoldScript,    "BG32_MagicItem_862": OnDRTriggerBuffRightmostScript,    "BG32_MagicItem_862t": OnDRTriggerBuffRightmost6x4Script,    "BG32_MagicItem_887": OnPlayDemonDealDamageToHeroScript,    "BG32_MagicItem_891": OnRefreshBuffMurlocsTavernScript,    "BG32_MagicItem_892": TrinketSpellcraftMurlocKeywordScript,
+    "BG32_MagicItem_893": OnCastSpellBuffLeftmostHand4x4Script,    "BG32_MagicItem_894": SoTRepeatGetNaturalBlessingScript,  # Blessing Portrait: get Natural Blessing + one each turn
     "BG32_MagicItem_901": GoldPlatedCompassScript,  # Gold-plated Compass: next purchase golden + 5 free refreshes
-    "BG32_MagicItem_902": After2ConsumedGetTavernSpellScript,  # DEFERRED
-    "BG32_MagicItem_906": ArtanisStickerScript,  # Artanis Sticker: get a copy of hero-dependent card
+    "BG32_MagicItem_902": After2ConsumedGetTavernSpellScript,    "BG32_MagicItem_906": ArtanisStickerScript,  # Artanis Sticker: get a copy of hero-dependent card
     "BG32_MagicItem_907": STharaStickerScript,  # S'Thara Sticker: after last friendly dies, summon first dead demon
     "BG32_MagicItem_920": GetSoulJugglerSpellcraftScript,  # Juggler Portrait: get Soul Juggler with permanent spellcraft
-    "BG32_MagicItem_925": GetHackerfinEoTTriggerBCScript,  # DEFERRED
-    "BG32_MagicItem_926": GetTideOracleMorglScript,  # DEFERRED
-    "BG32_MagicItem_932": SoCBuffNagaImprovePerSpellsScript,  # DEFERRED
-    "BG32_MagicItem_933": GetSlumberSorcererSpellcraftScript,  # Sorcerer Portrait: get Slumber Sorcerer with permanent spellcraft
-    "BG32_MagicItem_935": FirstSpellEachTurnCosts1LessScript,  # DEFERRED
-    "BG32_MagicItem_944": SoTRepeatGetAzeriteScript,  # Azerite Portrait: get Azerite Empowerment + one each turn
-    "BG32_MagicItem_953": GetGoldgrubberAndAureateScript,  # DEFERRED
-    "BG32_MagicItem_957": OnBuyGetDoubloonGrifterScript,  # DEFERRED
-    "BG32_MagicItem_998": GetArcaneBehemothScript,  # DEFERRED
-
-    "BG35_MagicItem_150": OnRefreshBuffTavernMinionsScript,  # DEFERRED
-    "BG35_MagicItem_151": SoTRepeatGetWoodlandDefilerScript,  # Desecrator Portrait (Lesser): get Woodland Defiler + one each turn
+    "BG32_MagicItem_925": GetHackerfinEoTTriggerBCScript,    "BG32_MagicItem_926": GetTideOracleMorglScript,    "BG32_MagicItem_932": SoCBuffNagaImprovePerSpellsScript,    "BG32_MagicItem_933": GetSlumberSorcererSpellcraftScript,  # Sorcerer Portrait: get Slumber Sorcerer with permanent spellcraft
+    "BG32_MagicItem_935": FirstSpellEachTurnCosts1LessScript,    "BG32_MagicItem_944": SoTRepeatGetAzeriteScript,  # Azerite Portrait: get Azerite Empowerment + one each turn
+    "BG32_MagicItem_953": GetGoldgrubberAndAureateScript,    "BG32_MagicItem_957": OnBuyGetDoubloonGrifterScript,    "BG32_MagicItem_998": GetArcaneBehemothScript,
+    "BG35_MagicItem_150": OnRefreshBuffTavernMinionsScript,    "BG35_MagicItem_151": SoTRepeatGetWoodlandDefilerScript,  # Desecrator Portrait (Lesser): get Woodland Defiler + one each turn
     "BG35_MagicItem_151t": SoTRepeatGetWoodlandDefilerScript,  # Desecrator Portrait (Greater): get Woodland Defiler + one each turn
-    "BG35_MagicItem_154": OnPlayDemonConsumeTavernScript,  # DEFERRED
-    "BG35_MagicItem_155": OnHeroDamageTavernSpellBonusScript,  # DEFERRED
-    "BG35_MagicItem_156": GetFlamingEnforcerScript,  # DEFERRED
-    "BG35_MagicItem_303": GetTimewarpedSkipperScript,  # DEFERRED
-    "BG35_MagicItem_306": TrinketSpellcraftDestroyUndeadScript,
-    "BG35_MagicItem_310": GetTimewarpedRadioStarRebornScript,  # DEFERRED
-    "BG35_MagicItem_430": GetBristlemaneScrapsmithScript,  # DEFERRED
-    "BG35_MagicItem_431t": OnDRTriggerImproveBGTempScript,
+    "BG35_MagicItem_154": OnPlayDemonConsumeTavernScript,    "BG35_MagicItem_155": OnHeroDamageTavernSpellBonusScript,    "BG35_MagicItem_156": GetFlamingEnforcerScript,    "BG35_MagicItem_303": GetTimewarpedSkipperScript,    "BG35_MagicItem_306": TrinketSpellcraftDestroyUndeadScript,
+    "BG35_MagicItem_310": GetTimewarpedRadioStarRebornScript,    "BG35_MagicItem_430": GetBristlemaneScrapsmithScript,    "BG35_MagicItem_431t": OnDRTriggerImproveBGTempScript,
     "BG35_MagicItem_432": OnDRTriggerPlayBGRandomScript,
-    "BG35_MagicItem_700": SummonCounterGetRandomBeastScript,  # DEFERRED
-    "BG35_MagicItem_701": SoCBuffBeastsCombatImproveOnSummonScript,  # DEFERRED
-    "BG35_MagicItem_713": TrustyCrowbarScript,  # Trusty Crowbar: on get pirate → buff leftmost +2/+1
-    "BG35_MagicItem_714": SoCGivePirateSkyPirateDRScript,  # DEFERRED
-    "BG35_MagicItem_733": TrinketSpellcraftDestroyUndead2Script,
-    "BG35_MagicItem_741": GetBeatboxerAndMagneticScript,  # DEFERRED
-    "BG35_MagicItem_742": AccordOTronPortraitScript,
+    "BG35_MagicItem_700": SummonCounterGetRandomBeastScript,    "BG35_MagicItem_701": SoCBuffBeastsCombatImproveOnSummonScript,    "BG35_MagicItem_713": TrustyCrowbarScript,  # Trusty Crowbar: on get pirate → buff leftmost +2/+1
+    "BG35_MagicItem_714": SoCGivePirateSkyPirateDRScript,    "BG35_MagicItem_733": TrinketSpellcraftDestroyUndead2Script,
+    "BG35_MagicItem_741": GetBeatboxerAndMagneticScript,    "BG35_MagicItem_742": AccordOTronPortraitScript,
     "BG35_MagicItem_743": ElectrodeAttractorScript,  # Electrode Attractor: magnetic mechs cost (2) + refresh bonus magnetic
-    "BG35_MagicItem_750": OnBuyBuffMurlocTeachSpellScript,  # DEFERRED
-    "BG35_MagicItem_754": SoCGiveMurlocsHandATKScript,  # DEFERRED
-    "BG35_MagicItem_801": ExtraHeroPowerGainGoldScript,  # Teron's Training: extra hero power each turn + gain 1 gold after use
-    "BG35_MagicItem_815": GetTwoMinionsPerTier123Script,  # DEFERRED
-    "BG35_MagicItem_816": OrbOfTheUnknownScript,  # Orb of the Unknown: random lesser trinket (approx: free refresh + 2 gold)
-    "BG35_MagicItem_820": CastIceBlockGainGoldScript,  # DEFERRED
-    "BG35_MagicItem_821": DiscoverTier7LockScript,  # DEFERRED
-    "BG35_MagicItem_821t": DiscoverGoldenTier7LockScript,  # DEFERRED
-    "BG35_MagicItem_840": GetAllChromadrakesScript,  # DEFERRED
-    "BG35_MagicItem_840t": ChromaticTearScript,  # Chromatic Tear: get 2 Chromadrakes + repeat after 3 BC minions
-    "BG35_MagicItem_842": GetTwoEndtimesEggsScript,  # DEFERRED
-    "BG35_MagicItem_848t": EggOfTheEndtimesPortraitScript,  # Egg Portrait: get golden Egg, hatches next turn
-    "BG35_MagicItem_849": AvengeTransferATKScript,  # DEFERRED
-    "BG35_MagicItem_852": OnRefreshTransferHighestToLowestScript,  # DEFERRED
-    "BG35_MagicItem_861": GetTemperatureShiftScript,  # DEFERRED
-    "BG35_MagicItem_862": OnRefreshDoubleHighestHealthScript,  # DEFERRED
-    "BG35_MagicItem_870": GetTimewarpedLeapfroggerScript,  # DEFERRED
-    "BG35_MagicItem_871": OnSummonBeastBuff44Script,  # DEFERRED
-    "BG35_MagicItem_872": TrinketSpellcraftBeastBuffRebornScript,
+    "BG35_MagicItem_750": OnBuyBuffMurlocTeachSpellScript,    "BG35_MagicItem_754": SoCGiveMurlocsHandATKScript,    "BG35_MagicItem_801": ExtraHeroPowerGainGoldScript,  # Teron's Training: extra hero power each turn + gain 1 gold after use
+    "BG35_MagicItem_815": GetTwoMinionsPerTier123Script,    "BG35_MagicItem_816": OrbOfTheUnknownScript,  # Orb of the Unknown: random lesser trinket (approx: free refresh + 2 gold)
+    "BG35_MagicItem_820": CastIceBlockGainGoldScript,    "BG35_MagicItem_821": DiscoverTier7LockScript,    "BG35_MagicItem_821t": DiscoverGoldenTier7LockScript,    "BG35_MagicItem_840": GetAllChromadrakesScript,    "BG35_MagicItem_840t": ChromaticTearScript,  # Chromatic Tear: get 2 Chromadrakes + repeat after 3 BC minions
+    "BG35_MagicItem_842": GetTwoEndtimesEggsScript,    "BG35_MagicItem_848t": EggOfTheEndtimesPortraitScript,  # Egg Portrait: get golden Egg, hatches next turn
+    "BG35_MagicItem_849": AvengeTransferATKScript,    "BG35_MagicItem_852": OnRefreshTransferHighestToLowestScript,    "BG35_MagicItem_861": GetTemperatureShiftScript,    "BG35_MagicItem_862": OnRefreshDoubleHighestHealthScript,    "BG35_MagicItem_870": GetTimewarpedLeapfroggerScript,    "BG35_MagicItem_871": OnSummonBeastBuff44Script,    "BG35_MagicItem_872": TrinketSpellcraftBeastBuffRebornScript,
     "BG35_MagicItem_920": BubbleCrownScript,  # Bubble Crown: after 6 spells → improve tavern spell buff +2/+4
     "BG35_MagicItem_922": TideRaiserPortraitScript,  # Tide Raiser Portrait: get Tidemistress (combat spell copy TODO)
-    "BG35_MagicItem_923": OnCastSpellBuffAllPermanentScript,  # DEFERRED
-    "BG35_MagicItem_924": GetGroundbreakerLeftBuffScript,  # DEFERRED
-    "BG35_MagicItem_925": CoralSpearScript,  # Coral Spear: on spellcast → cast Might of Stormwind
+    "BG35_MagicItem_923": OnCastSpellBuffAllPermanentScript,    "BG35_MagicItem_924": GetGroundbreakerLeftBuffScript,    "BG35_MagicItem_925": CoralSpearScript,  # Coral Spear: on spellcast → cast Might of Stormwind
     "BG35_MagicItem_930": WarbandWhistleScript,  # Warband Whistle: free refresh with board copies
     "BG35_MagicItem_931": TranscribingTypewriterScript,  # Transcribing Typewriter (Lesser): extra copy of next 3 buys
     "BG35_MagicItem_931t": TranscribingTypewriterScript,  # Transcribing Typewriter (Greater): extra copy of next 3 buys

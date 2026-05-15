@@ -5453,21 +5453,31 @@ class TestTrinkets(unittest.TestCase):
     # ── Trinket offering ──
 
     def test_trinket_offered_turn_6(self):
-        """_offer_trinkets offers a trinket on Turn 6."""
+        """_offer_trinkets stores 4 offers on player._pending_trinket_offers."""
         self.game.turn = 6
         self.p1.set_tag(GameTag.GOLD, 10)
         self.game._offer_trinkets(self.p1)
 
+        self.assertEqual(len(self.p1._pending_trinket_offers), 4,
+                         "Should have 4 pending trinket offers on turn 6")
+        self.assertFalse(self.p1.has_tag(GameTag.TRINKET_1),
+                         "TRINKET_1 should NOT be set until buy_trinket is called")
+
+        # Purchase the first trinket
+        self.assertTrue(self.game.buy_trinket(self.p1, 0),
+                        "buy_trinket should succeed")
         self.assertTrue(self.p1.has_tag(GameTag.TRINKET_1),
-                        "TRINKET_1 should be set after offering on turn 6")
+                        "TRINKET_1 should be set after purchasing")
         self.assertGreater(len(self.p1.trinkets), 0,
-                           "Player should have a trinket after offering")
+                           "Player should have a trinket after purchasing")
+        self.assertEqual(len(self.p1._pending_trinket_offers), 0,
+                         "Pending offers should be cleared after purchase")
 
     def test_trinket_offered_turn_9(self):
-        """_offer_trinkets offers a trinket on Turn 9 (Greater)."""
+        """_offer_trinkets on turn 9 stores greater trinket offers."""
         self.game.turn = 9
         self.p1.set_tag(GameTag.GOLD, 10)
-        # Simulate earlier turn 6 offering
+        # Simulate earlier turn 6 trinket purchase
         self.p1.set_tag(GameTag.TRINKET_1, True)
         trinket1 = self.game.card_db.create_trinket("EXAMPLE_TRINKET", game=self.game)
         trinket1.controller = self.p1
@@ -5475,20 +5485,28 @@ class TestTrinkets(unittest.TestCase):
 
         self.game._offer_trinkets(self.p1)
 
+        self.assertEqual(len(self.p1._pending_trinket_offers), 4,
+                         "Should have 4 pending trinket offers on turn 9")
+        self.assertFalse(self.p1.has_tag(GameTag.TRINKET_2),
+                         "TRINKET_2 should NOT be set until buy_trinket is called")
+
+        # Purchase the first offer
+        self.assertTrue(self.game.buy_trinket(self.p1, 0),
+                        "buy_trinket should succeed")
         self.assertTrue(self.p1.has_tag(GameTag.TRINKET_2),
-                        "TRINKET_2 should be set after offering on turn 9")
+                        "TRINKET_2 should be set after purchasing")
         self.assertEqual(len(self.p1.trinkets), 2,
-                         "Player should have 2 trinkets after turn 9 offering")
+                         "Player should have 2 trinkets after turn 9 purchase")
 
     def test_trinket_not_reoffered(self):
-        """_offer_trinkets does nothing if TRINKET_OFFERED is already set."""
+        """_offer_trinkets does nothing if player already has the slot filled."""
         self.game.turn = 6
         self.p1.set_tag(GameTag.GOLD, 10)
-        self.p1.set_tag(GameTag.TRINKET_OFFERED, True)
+        self.p1.set_tag(GameTag.TRINKET_1, True)  # Already has lesser trinket
         self.game._offer_trinkets(self.p1)
 
-        self.assertFalse(self.p1.has_tag(GameTag.TRINKET_1),
-                         "Trinket should not be re-offered if TRINKET_OFFERED set")
+        self.assertEqual(len(self.p1._pending_trinket_offers), 0,
+                         "Should not offer if TRINKET_1 is already set")
 
 
 class TestQuests(unittest.TestCase):

@@ -2165,6 +2165,7 @@ class LaboratoryAssistantScript:
         listener = EventListener(
             event_name="TAVERN_REFRESH",
             action=AddFodderToRandomTavernMinion(source.controller),
+            condition=lambda player: player == source.controller,
         )
         game.register_listener(source, listener)
         return None
@@ -2191,6 +2192,7 @@ class EnDjinnBlazerScript:
         listener = EventListener(
             event_name="TAVERN_REFRESH",
             action=BuffRandomTavernMinion(source.controller, atk=3, health=3),
+            condition=lambda player: player == source.controller,
         )
         game.register_listener(source, listener)
         return None
@@ -2217,6 +2219,7 @@ class WavelingScript:
         listener = EventListener(
             event_name="TAVERN_REFRESH",
             action=BuffRandomTavernMinion(source.controller, atk=3, health=1),
+            condition=lambda player: player == source.controller,
         )
         game.register_listener(source, listener)
         return None
@@ -2693,6 +2696,7 @@ class WoodlandDefilerScript:
         listener = EventListener(
             event_name="TAVERN_REFRESH",
             action=AddFodderToRandomTavernMinion(source.controller),
+            condition=lambda player: player == source.controller,
         )
         game.register_listener(source, listener)
         return None

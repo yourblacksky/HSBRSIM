@@ -651,6 +651,7 @@ class ExampleAfterRefreshScript:
         listener = EventListener(
             event_name="TAVERN_REFRESH",
             action=BuffRandomTavernMinion(source.controller, atk=2, health=2),
+            condition=lambda player: player == source.controller,
         )
         game.register_listener(source, listener)
         return None

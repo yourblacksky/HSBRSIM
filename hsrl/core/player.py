@@ -27,6 +27,7 @@ class Player(BaseEntity):
         self.auras: list = []                    # List[GlobalAura] — persistent "this game" auras
         self.tavern_buffs: list = []             # List[TavernBuff] — buffs applied to future tavern offerings
         self.trinkets: list = []                # List[Trinket] — purchased trinket items
+        self._pending_trinket_offers: list[str] = []  # Card IDs offered for selection
         self.active_quest: Optional["Quest"] = None  # Current active quest
         self.rewards: list = []                 # List[QuestReward] — unlocked quest rewards
 

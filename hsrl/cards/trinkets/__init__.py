@@ -91,3 +91,24 @@ register_card(
     },
     script_class=ExampleTrinketScript,
 )
+
+# ── Token cards referenced by trinket scripts ──────────────────────────────
+
+_tokens = [
+    ("BG26_813t", "The Goldenizer", "Make a friendly minion Golden.", CardType.SPELL),
+    ("BG28_601", "Cloning Conch", "Discover a copy of a friendly minion.", CardType.SPELL),
+    ("BG35_MagicItem_817t", "Duplicating Lens", "Get a copy of the first minion you summon each combat.", CardType.TRINKET),
+]
+for _tid, _tname, _ttext, _ttype in _tokens:
+    if _tid not in [t["id"] for t in _trinkets]:
+        register_card(
+            card_id=_tid,
+            name=_tname,
+            text=_ttext,
+            cardtype=_ttype,
+            race=Race.INVALID,
+            tech_level=1,
+            rarity=Rarity.COMMON,
+            tags={GameTag.COST: 0},
+            script_class=None,
+        )

@@ -226,6 +226,67 @@ def run_demo(
         print(f"  Initial V_game = {v_before:.4f}")
         print()
 
+        # ── Trinket selection (Turn 6 / Turn 9) ──
+        if agent_player._pending_trinket_offers:
+            offers = agent_player._pending_trinket_offers
+            print(f"  🎪 Trinket Offer ({'Lesser' if game.turn == 6 else 'Greater'}):")
+            for i, cid in enumerate(offers):
+                tdata = game.card_db.get(cid)
+                tname = tdata.name if tdata else cid
+                tcost = tdata.tags.get(GameTag.COST, 3) if tdata and tdata.tags else 3
+                print(f"    [{i}] {tname} — ${tcost}")
+            print()
+
+            # Greedy evaluation of each trinket
+            saved = {
+                "gold": agent_player.gold,
+                "board": list(agent_player.board),
+                "hand": list(agent_player.hand),
+                "tavern": list(agent_player.tavern),
+                "health": agent_player.health,
+                "tavern_tier": agent_player.tavern_tier,
+                "armor": agent_player.armor,
+                "upgrade_cost": agent_player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5),
+            }
+
+            best_trinket = -1  # -1 = decline
+            best_trinket_v = v_before
+
+            for i, cid in enumerate(offers):
+                tdata = game.card_db.get(cid)
+                tcost = tdata.tags.get(GameTag.COST, 3) if tdata and tdata.tags else 3
+                if agent_player.gold < tcost:
+                    continue
+                agent_player.gold -= tcost
+                obs_t = encode_pomdp_state(game, agent_player, board_eval)
+                v_t = float(np.asarray(game_value.predict(obs_t)).flat[0])
+                total_evals += 1
+                # Restore
+                agent_player.gold = saved["gold"]
+                agent_player.board = saved["board"]
+                agent_player.hand = saved["hand"]
+                agent_player.tavern = saved["tavern"]
+                agent_player.health = saved["health"]
+                agent_player.tavern_tier = saved["tavern_tier"]
+                agent_player.armor = saved["armor"]
+                agent_player.set_tag(GameTag.TAVERN_UPGRADE_COST, saved["upgrade_cost"])
+
+                if v_t > best_trinket_v:
+                    best_trinket_v = v_t
+                    best_trinket = i
+                tname = tdata.name if tdata else cid
+                print(f"    [{i}] {tname}: V={v_t:.4f}  (Δ={v_t - v_before:+.4f})")
+
+            if best_trinket >= 0:
+                game.buy_trinket(agent_player, best_trinket)
+                tdata = game.card_db.get(offers[best_trinket])
+                tname = tdata.name if tdata else offers[best_trinket]
+                print(f"    → Purchased [{best_trinket}] {tname}  (V→{best_trinket_v:.4f})")
+            else:
+                agent_player._pending_trinket_offers = []
+                print(f"    → Declined (cannot afford any offer)")
+            print()
+
         # ── Agent action loop ──
         game.active_player = agent_player
         step = 0

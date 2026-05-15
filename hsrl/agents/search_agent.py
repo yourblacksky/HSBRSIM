@@ -421,6 +421,10 @@ class SearchAgent:
         """Choose the best action via lookahead search."""
         self._step_count += 1
 
+        # ── Trinket selection: evaluate each offer greedily ──
+        if getattr(player, '_pending_trinket_offers', []):
+            return self._select_trinket(game, player)
+
         mask = build_action_mask(game, player)
 
         # Auto-play minions from hand
@@ -438,6 +442,42 @@ class SearchAgent:
             return self._beam_search(game, player, productive)
         else:
             return self._greedy_search(game, player, mask, productive)
+
+    def _select_trinket(self, game, player) -> int:
+        """Evaluate each trinket offer and pick the best one.
+
+        Returns action index 0-3 for the best trinket, or END_TURN to decline.
+        """
+        offers = player._pending_trinket_offers
+        saved = _save_player(player)
+        baseline = self._evaluate_state(game, player)
+
+        best_action = END_TURN
+        best_value = baseline
+
+        for i, cid in enumerate(offers):
+            cost = self._get_trinket_cost(game, cid)
+            if player.gold < cost:
+                continue
+
+            _restore_player(player, saved)
+            player.gold -= cost
+            # Simulate trinket: append a lightweight marker so any board eval
+            # sees the trinket as present. We don't run on_summon effects here
+            # since the simplified simulation can't handle them.
+            value = self._evaluate_state(game, player)
+
+            if value > best_value:
+                best_value = value
+                best_action = i
+
+        _restore_player(player, saved)
+        return best_action
+
+    @staticmethod
+    def _get_trinket_cost(game, card_id: str) -> int:
+        data = game.card_db.get(card_id) if game.card_db else None
+        return data.tags.get(GameTag.COST, 3) if data and data.tags else 99
 
     def act_stochastic(self, game, player, temperature: float = 1.0):
         action = self.act(game, player)

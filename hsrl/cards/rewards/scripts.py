@@ -393,6 +393,7 @@ class AfterRefreshBuffTavernScript:
         game.register_listener(source, EventListener(
             event_name=TAVERN_REFRESH,
             action=_RefreshAction(source.controller),
+            condition=lambda player: player == source.controller,
         ))
 
 
@@ -892,6 +893,7 @@ class PerRefreshTavernBuffScript:
         game.register_listener(source, EventListener(
             event_name=TAVERN_REFRESH,
             action=_RefreshAction(),
+            condition=lambda player: player == source.controller,
         ))
 
 
@@ -928,6 +930,7 @@ class After5RefreshMakeGoldenScript:
         game.register_listener(source, EventListener(
             event_name=TAVERN_REFRESH,
             action=_RefreshAction(),
+            condition=lambda player: player == source.controller,
         ))
 
 
@@ -1400,6 +1403,7 @@ class UsefulRefreshScript:
         game.register_listener(source, EventListener(
             event_name=TAVERN_REFRESH,
             action=_RefreshAction(source),
+            condition=lambda player: player == source.controller,
         ))
 
 
@@ -1488,6 +1492,7 @@ class RefreshAlwaysOffers2Script:
         game.register_listener(source, EventListener(
             event_name=TAVERN_REFRESH,
             action=_RefreshAction(source.controller),
+            condition=lambda player: player == source.controller,
         ))
 
 
