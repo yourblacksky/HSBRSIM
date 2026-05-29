@@ -2,239 +2,199 @@
 
 ## 项目概述
 
-HrSRL 是一个干净、可扩展的 Python 引擎，用于模拟《炉石传说》酒馆战棋**单打（Solo）**模式。从零开始设计，目标：
-- **机制准确性**：每个关键词、触发器和战斗规则与官方描述完全一致
-- **强化学习就绪**：快速模拟、完整状态可观察性
-- **数据驱动开发**：卡牌从结构化定义注册，定义直接从自然语言卡牌文本推导
+HrSRL 是一个干净、可扩展的 Python 引擎，用于模拟《炉石传说》酒馆战棋**单打（Solo）**模式。
 
-> **范围限制：本项目仅支持单打模式。双打（Duos）模式的所有内容（传递机制、队伍交互、双打专属卡牌/饰品/英雄）均不在项目范围内，不实现、不维护。**
+- **机制准确性**：每个关键词、触发器和战斗规则与官方描述一致
+- **强化学习就绪**：快速模拟、完整状态可观察性、多智能体环境
+- **数据驱动开发**：卡牌从结构化定义注册，定义从自然语言卡牌文本推导
+
+> **范围限制：仅支持单打模式。双打（Duos）模式不在项目范围内。**
 
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
 | 语言 | Python 3.10+ |
-| 卡牌数据 | hsdata (CardDefs.xml) + Amalgadon API → `data/` JSON |
-| 参考代码 | fireplace (HearthSim 的炉石引擎，仅参考) |
-| 测试 | pytest / unittest |
-| 构建 | setuptools (pyproject.toml) |
+| 卡牌数据 | hsdata (CardDefs.xml) → `data/` JSON |
+| 神经网络 | PyTorch |
+| RL 框架 | Gymnasium + 自定义 PPO/MCTS |
+| 测试 | pytest (772 passed, 1 skipped) |
 
 ## 项目结构
 
 ```
 HrSRL/
-├── docs/                              # 冻结的规则手册（不依赖网络访问）
+├── docs/                              # 规则手册 + Demo 输出
 │   ├── BATTLEGROUNDS_RULES.md         # ★ 权威规则手册
 │   ├── MECHANICS_REFERENCE.md         # ★ 机制实现参考
 │   ├── CARD_REGISTRATION_GUIDE.md     # ★ 卡牌注册指南
-│   └── wiki_crawls/                   # 本地缓存的 wiki 爬取结果
+│   └── demo_*.md                      # Demo 对局审计输出
 │
-├── data/                              # 清洗后的卡牌数据 (JSON)
+├── data/                              # 卡牌数据 + 轨迹
 │   ├── bg_cards.json                  # 全量 BG 卡牌 (5,189 张)
-│   ├── bg_pool_minions.json           # 可购买随从池 (270 种)
-│   ├── bg_pool_spells.json            # 可购买法术池 (71 种)
+│   ├── bg_pool_minions.json           # 可购买随从池
+│   ├── bg_pool_spells.json            # 可购买法术池
 │   ├── bg_heroes.json                 # 英雄定义 (119 位)
 │   ├── bg_hero_powers.json            # 英雄技能 (164 个)
-│   ├── bg_quest_rewards.json          # 任务奖励 (73 个)
+│   ├── bg_trinkets.json               # 饰品 (326 个)
 │   ├── bg_anomalies.json              # 异变 (104 个)
-│   └── bg_trinkets.json               # 饰品 (326 个)
+│   ├── bg_quest_rewards.json          # 任务奖励 (73 个)
+│   ├── combat_pairs/                  # 战斗对训练数据
+│   └── trajectories/                  # 轨迹对手数据 (1,100+)
 │
 ├── hsrl/                              # 主代码包
 │   ├── core/                          # ★ 游戏引擎核心
 │   │   ├── enums.py                   # GameTag (310+), CardType, Race, Zone, Step
-│   │   ├── entity.py                  # BaseEntity + CardData — 标签存储 + buff
-│   │   ├── minion.py                  # Minion — 战斗状态
-│   │   ├── player.py                  # Player — 金币/血量/酒馆等级/board/hand
-│   │   ├── actions.py                 # ★ Action 系统 (1,980 行, 60+ Action 类)
-│   │   ├── events.py                  # EventListener + 40+ 标准事件常量
-│   │   ├── game.py                    # ★ Game 引擎 (2,077 行)
+│   │   ├── entity.py                  # BaseEntity — 标签 + buff + deep snapshot
+│   │   ├── player.py                  # Player — 金币/血量/board/hand/tavern
+│   │   ├── actions.py                 # ★ Action 系统 (60+ Action 类)
+│   │   ├── game.py                    # ★ Game 引擎 — 回合/战斗/快照/战斗记忆
 │   │   ├── minion_pool.py             # MinionPool — 共享随从池 + 种族过滤
 │   │   ├── spell_pool.py              # SpellPool — 共享法术池
-│   │   ├── card_db.py                 # CardDB 单例 + register_card()
-│   │   ├── quest.py                   # Quest + QuestReward 实体
-│   │   ├── anomaly.py                 # Anomaly 实体
-│   │   └── trinket.py                 # Trinket 实体
-│   ├── cards/                         # 卡牌定义 (805 CORRECT, 0 DEFERRED, 15 OOS)
-│   │   ├── minions/                   # 随从卡牌 (pool, scripts, tokens)
-│   │   ├── heroes/                    # 英雄卡牌 (pool, scripts)
-│   │   ├── spells/                    # 法术卡牌
-│   │   ├── rewards/                   # 任务奖励卡牌
-│   │   ├── trinkets/                  # 饰品卡牌
-│   │   └── anomalies/                 # 异变卡牌
-│   ├── env/                           # RL 环境 (Gymnasium)
-│   │   ├── battlegrounds_env.py       # 单智能体环境
-│   │   ├── multi_agent_env.py         # 多智能体环境
+│   │   └── card_db.py                 # CardDB + register_card()
+│   ├── cards/                         # 卡牌定义 (805 CORRECT, 15 OOS)
+│   │   ├── minions/                   # 随从 (pool, scripts, tokens)
+│   │   ├── heroes/                    # 英雄 (pool, scripts)
+│   │   ├── spells/                    # 法术
+│   │   ├── rewards/                   # 任务奖励
+│   │   ├── trinkets/                  # 饰品
+│   │   └── anomalies/                 # 异变
+│   ├── env/                           # RL 环境
 │   │   ├── action.py                  # Discrete(50) 动作空间 + mask + 解码
-│   │   ├── observation.py             # 观察空间构建
-│   │   ├── reward.py                  # 奖励计算 (v4: per-action recruit + combat + terminal)
-│   │   └── shared_observation.py      # 共享观察编码
+│   │   ├── observation.py             # 观察空间 (374-dim flat)
+│   │   ├── reward.py                  # 奖励 (v4 per-action + v5 dense)
+│   │   └── multi_agent_env.py         # 多智能体环境 + 轨迹对手
 │   ├── agents/                        # AI 智能体
-│   │   ├── __init__.py
-│   │   ├── mcts_agent.py              # Beam Search 备战阶段规划智能体 (ATK bug 已修复)
-│   │   ├── nn_mcts_agent.py           # BC 策略网络智能体 (avg rank 4.28, 击败贪心)
-│   │   ├── search_agent.py            # ★ SearchAgent v2 — 贪心/束搜索前瞻 (avg_rank 2.00 v6)
-│   │   ├── demo_game.py               # SearchAgent 实战演示 (v4/v6 版本感知加载)
-│   │   ├── heuristic_demo.py          # 全启发式 8 人对战演示 (Markdown 输出)
-│   │   └── benchmark_nn_mcts.py       # BC 智能体 vs 贪心基准测试
+│   │   ├── search_agent.py            # ★ 混合 SearchAgent (avg_rank 2.17)
+│   │   ├── az_agent.py                # ★ AlphaZero MCTS Agent
+│   │   ├── heuristic_demo.py          # 全启发式 8 人对战 demo
+│   │   ├── self_play_demo.py          # 8 混合 agent 自对弈 demo
+│   │   └── agent_vs_heuristic_demo.py # 1 agent vs 7 启发式审计 demo
+│   ├── advisor/                       # HDT 插件 + 数据收集
+│   │   ├── overlay_protocol.py        # C# ↔ Python 协议
+│   │   ├── state_mapper.py            # HDT 状态 → 观察向量
+│   │   ├── server.py                  # WebSocket 服务器
+│   │   ├── collector.py               # 真实对局数据收集
+│   │   └── trajectory_converter.py    # HDT 数据 → Trajectory 格式
 │   ├── trajectory/                    # 轨迹对手系统
-│   │   ├── record.py                  # 数据结构 (MinionSnapshot, TurnSnapshot, Trajectory)
-│   │   ├── generate.py                # 批量生成启发式轨迹 (1,100+ 场)
-│   │   ├── group.py                   # 按兼容种族集分组
-│   │   └── opponent.py                # 轨迹对手加载器
+│   │   ├── record.py                  # MinionSnapshot, TurnSnapshot, Trajectory
+│   │   ├── generate.py                # 批量生成轨迹
+│   │   ├── opponent.py                # 轨迹对手加载 + 棋盘注入
+│   │   ├── group.py                   # 按种族兼容性分组
+│   │   └── pool.py                    # 轨迹池采样
 │   ├── train/                         # 训练脚本
-│   │   ├── network.py                 # Dual-Head Network (Policy + Value)
-│   │   ├── board_eval.py              # ★ BoardEvalNetwork v2 — 嵌入架构, 99.1% pairwise acc
-│   │   ├── combat_data.py             # 战斗数据收集 (44,958 样本/500局)
-│   │   ├── game_value.py              # ★ GameValueNetwork v2 (61-dim POMDP), MAE 0.143
-│   │   ├── game_value_sp.py           # ★ GameValueNetwork v4 (397-dim HDT-observable POMDP)
-│   │   ├── bc_collector_v2.py         # BC 数据收集: 10K局 → 10.77M triplets
-│   │   ├── bc_trainer_v2.py           # BC 训练: joint policy CE + value MSE
-│   │   ├── value_trainer.py            # GAE 价值网络重训 (on-policy, bootstrap targets)
-│   │   ├── ppo_trainer.py               # ★ 完整 PPO 微调 (unfreeze trunk+policy+value)
-│   │   ├── trajectory_trainer.py      # PPO 训练入口
-│   │   ├── self_play_trainer.py       # 自对弈训练
-│   │   ├── self_play_config.py        # 自对弈配置
-│   │   ├── opponent_selector.py       # 对手选择策略
-│   │   ├── model_pool.py              # 模型池管理
+│   │   ├── network.py                 # Dual-Head Network (policy + value, 374-dim)
+│   │   ├── board_eval.py              # BoardEvalNetwork — 嵌入战斗预测 (98.4%)
+│   │   ├── combat_data.py             # 战斗数据收集
+│   │   ├── game_value.py              # GameValueNetwork v2 (61-dim)
+│   │   ├── game_value_sp.py           # GameValueNetwork v4 (397-dim POMDP)
+│   │   ├── value_dense.py             # DenseValueNetwork (survival+board dense reward)
+│   │   ├── bc_collector_v3.py         # BC 数据收集 (SearchAgent 决策)
+│   │   ├── bc_trainer_v3.py           # BC 策略训练
+│   │   ├── ppo_trainer_v2.py          # PPO 微调 (GAE + GameValue + dense reward)
+│   │   ├── self_play_trainer.py       # 自对弈 PPO 训练器
 │   │   └── wrappers.py                # 环境 Wrapper
-│   └── tests/                         # 测试 (696 passed, 1 skipped)
+│   └── tests/                         # 测试 (772 passed, 1 skipped)
 │
-├── hsdata/                            # HearthSim 官方 XML 数据 (git submodule)
-├── fireplace/                         # fireplace 引擎 (参考代码，不修改)
-├── AGENTS.md                          # AI 开发助手规范
-├── README.md                          # 用户文档
-├── pyproject.toml                     # 项目配置
+├── hsrl_advisor/plugin/               # HDT C# 插件
+│   ├── GameStateExtractor.cs          # 游戏状态提取 (含 card_id)
+│   └── AdviserPlugin.cs               # 插件入口
+├── checkpoints/                       # 模型检查点
+├── hsdata/                            # HearthSim CardDefs.xml (submodule)
 └── CLAUDE.md                          # 本文件
 ```
 
 ## 核心设计哲学
 
-### 1. Action 驱动架构
+1. **Action 驱动**: 所有状态变更通过 `Action → queue → broadcast → resolve` 流程
+2. **语义精确性**: 卡牌只有 CORRECT 或 DEFERRED，禁止"简化实现"
+3. **标签可见性**: 所有属性在 `core/enums.py` 的 GameTag 中显式声明
+4. **文档冻结**: 外部规则冻结在 `docs/` 中，不依赖网络访问
 
-所有状态变更必须通过 Action 系统：
+## 当前 Agent 性能 (干净数据, vs 7 启发式对手, 30 局)
+
+| Agent | avg_rank | top4% | 时间/局 | 方法 |
+|-------|----------|-------|---------|------|
+| **混合 SearchAgent** | **2.17** | 100% | 1.1s | 启发式优先级 + GameValue fallback |
+| BC 策略 (argmax) | 2.23 | 100% | 1.4s | 模仿混合 agent |
+| PPO + GV | 2.23 | 100% | 1.4s | BC → PPO 微调 |
+| AZ MCTS + GV | 2.30 | 100% | 21s | 200 sims PUCT + GameValue |
+| AZ MCTS + BoardEval | 2.30 | 100% | 139s | 200 sims PUCT + 战斗预测 |
+| AZ MCTS + DenseValue | 2.30 | 100% | 27s | 200 sims PUCT + dense value |
+| PPO 从头训练 | 7.81 | 0% | — | 随机初始化 |
+| 纯启发式基线 | ~4.5 | ~50% | 0.4s | Q-score greedy |
+
+**所有 agent 在弱基线内部比较** — 启发式对手本身水平有限（avg_rank ~4.5 在 8 个同样弱的对手中）。真正突破需要真人轨迹对手或更强的价值信号。
+
+## 关键检查点
+
+| 文件 | 说明 |
+|------|------|
+| `checkpoints/board_eval_v3_clean.pt` | BoardEval — 战斗预测 98.4% accuracy |
+| `checkpoints/game_value_sp_iter1.pt` | GameValue v4 — terminal placement 教师, val_mae 0.177 |
+| `checkpoints/game_value_sp_bootstrap.pt` | GameValue v4 bootstrap |
+| `checkpoints/game_value_sp_iter2.pt` | GameValue v4 iter2 |
+| `checkpoints/game_value_v5_diverse.pt` | GameValue v5 — 噪声数据训练 |
+| `checkpoints/value_dense.pt` | DenseValue — 存活+棋盘强度 dense reward |
+| `checkpoints/bc_search_agent.pt` | BC 策略 — 模仿混合 agent, val_acc 67.4% |
+| `checkpoints/ppo_finetuned.pt` | PPO 微调策略 |
+| `checkpoints/ppo_gv.pt` | PPO + GameValue 策略 |
+
+## 混合 SearchAgent 架构
 
 ```
-Action → queue → broadcast events → resolve → trigger follow-ups → check deaths
+act(game, player):
+  1. 处理 pending choices / trinket offers
+  2. Auto-play 手牌中的随从
+  3. Q-score 购买 (棋盘未满时买最强随从)
+  4. 曲线升级 (低于预期等级时升级)
+  5. 卖弱买强 (棋盘满时替换)
+  6. 有用刷新 (仅当刷新后能购买时)
+  7. Value network fallback + epsilon 探索
 ```
 
-### 2. 语义精确性原则
+## AZ MCTS Agent 架构
 
-- **代码实现必须与卡牌文本的操作语义精确一致**
-- **每个脚本类使用三段式文档注释**: Natural language / Formal spec / Test
-- **卡牌只有两种状态**: CORRECT（精确匹配卡牌文本）或 DEFERRED（返回 None + 依赖说明）
-- **禁止"简化实现"**: 语义不同的近似行为是 bug，不是简化
-- 关键动词区分："Get" ≠ "Play"、"Summon" ≠ "Add to hand"
+```
+act(game, player):
+  1. 处理 pending events
+  2. Auto-play 手牌随从
+  3. 构建 root 节点 (snapshot_player_state)
+  4. 预展开 root (所有合法动作)
+  5. N 次模拟:
+     a. SELECT: PUCT 下降 (Q + c_puct * P * sqrt(N_parent) / (1+N_child))
+     b. EXPAND: 为叶子节点创建子节点
+     c. EVALUATE: DenseValue 或 GameValue 或 BoardEval 战斗预测
+     d. BACKUP: 反向传播值
+  6. 返回访问次数最多的动作
+```
 
-### 3. 所有可见属性预声明
+## 奖励函数
 
-每个 GameTag 必须在 `core/enums.py` 中显式声明。禁止魔术数字、禁止隐藏状态。
+### v4: Per-action recruit + combat + terminal
+- 备战增量: (board_score_delta) × 0.05
+- 战斗结算: (damage_dealt - damage_taken) × 0.3 + knockout_bonus(2.0)
+- 终局排名: {1:20, 2:10, ..., 8:-20}
 
-### 4. 文档冻结
+### v5 Dense: Survival + Board Strength + Turn
+- 存活回合: turn × 0.2
+- 棋盘强度: sum(atk+health) × 0.01
+- 战斗结果: -damage_taken × 0.5
+- 终局排名: 同上
 
-所有外部规则已冻结在 `docs/` 中。开发**不依赖网络访问**。
+## 轨迹对手系统
 
-## 当前实现状态
+用于 RL 训练的冻结战斗对手 — 从历史对局中提取棋盘快照。
 
-### 引擎核心
-
-| 文件 | 行数 | 职责 |
+| 组件 | 文件 | 职责 |
 |------|------|------|
-| `enums.py` | 311 | GameTag (310+), CardType (11 types), Race, Zone, Step, State |
-| `entity.py` | 356 | BaseEntity (tags + buff + _script_overrides + 11 script hooks) |
-| `actions.py` | 1,980 | ★ 60+ Action 类 — 全部游戏机制 |
-| `game.py` | 2,100+ | Game 引擎 — 回合/战斗/死亡/伤害/任务/异变/饰品/调度/种族过滤/战斗记忆/POMDP 特征 |
-| `events.py` | 148 | EventListener + 40+ 标准事件常量 |
-| `minion_pool.py` | 198 | MinionPool — 共享随从池 + remove_all_copies + 种族过滤 |
-| `spell_pool.py` | 107 | SpellPool — 共享法术池 |
-| `player.py` | 131 | Player — 金币/血量/board/hand/tavern/trinkets/auras |
-| `card_db.py` | 157 | CardDB + register_card() + create_trinket/quest/anomaly |
-| `minion.py` | 54 | Minion — can_attack, reset_combat_state |
-| `quest.py` | 98 | Quest + QuestReward 实体 |
-| `anomaly.py` | 51 | Anomaly 实体 |
-| `trinket.py` | 73 | Trinket 实体 |
+| 数据结构 | `hsrl/trajectory/record.py` | MinionSnapshot, TurnSnapshot, Trajectory |
+| 批量生成 | `hsrl/trajectory/generate.py` | 启发式对局轨迹 (1,100+) |
+| 对手加载 | `hsrl/trajectory/opponent.py` | JSON → Minion, inject to Player.board |
+| 分组 | `hsrl/trajectory/group.py` | 按种族兼容性分组 |
+| HDT 转换 | `hsrl/advisor/trajectory_converter.py` | 真人数据 → Trajectory |
 
-### 已实现机制
-
-| 机制 | 状态 |
-|------|------|
-| 基础关键词 (Taunt/DS/Poisonous/Venomous/Reborn/Windfury/Cleave) | ✅ |
-| 战吼/亡语 | ✅ |
-| 战斗开始时 (Start of Combat) | ✅ |
-| 复仇 (Avenge) | ✅ |
-| Rally (进击) + Rally 传播 + RALLY_DOUBLED | ✅ |
-| 回合结束时/回合开始时 (EoT/SoT) | ✅ |
-| 出售时 (On Sell) | ✅ |
-| 全局光环 (GlobalAura) + ApplyGlobalAura | ✅ |
-| 鲜血宝石 (Get/Play/Improve) | ✅ |
-| 发现 (DiscoverMinion/DiscoverSpell/DiscoverReward) | ✅ |
-| 变形 (Transform) | ✅ |
-| 吞噬 (FodderConsume) | ✅ |
-| Spellcraft + PERMANENT_SPELLCRAFT | ✅ |
-| 磁力 (Magnetic) + MAGNETIC_COST_OVERRIDE | ✅ |
-| 金色/三连 (Golden/Triple) + NEXT_PURCHASE_GOLDEN | ✅ |
-| 酒馆 Buff (TavernBuff/BuffTavern) | ✅ |
-| 战斗召唤 (Combat Summon) | ✅ |
-| Improves 增强追踪 (IncrementImproveCounter) | ✅ |
-| 酒馆刷新后 (After Refresh) + TAVERN_REFRESH 事件 | ✅ |
-| 战吼触发后 (BATTLECRY_TRIGGER) | ✅ |
-| 酒馆法术施放 (TAVERN_SPELL_CAST) | ✅ |
-| 光环翻倍 (BC Doubler/EoT Doubler/DR Doubler) | ✅ |
-| 临时 Buff (Temporary Buff) | ✅ |
-| 免费刷新 (GainFreeRefresh/FREE_REFRESH_REMAINING) | ✅ |
-| 法术折扣 (NEXT_SPELL_COST_REDUCTION) | ✅ |
-| 额外英雄技能 (HERO_POWER_EXTRA_USES) | ✅ |
-| 生命值购买 (HEALTH_COST_DEMON/SPELL) | ✅ |
-| 战斗持久化 (_persist_combat_stats) | ✅ |
-| 回合调度 (schedule_turn_action) | ✅ |
-| 金币跨回合保留 (gold carryover) | ✅ |
-| Eleventh Hour 致命伤害防止 | ✅ |
-| 池移除 (minion_pool.remove_all_copies) | ✅ |
-| Yogg 命运之轮 (CastYoggWheel) | ✅ |
-| 随从教学 (TAUGHT_SPELL_ID + _script_overrides) | ✅ |
-| Buddy 系统 (160+ 伙伴卡牌注册) | ✅ |
-| 猜测随从 (GuessMinion) | ✅ |
-| 英雄技能 — 主动/被动 (94/94 CORRECT) | ✅ |
-| 顺序多目标 (Sequential Multi-Target) | ✅ |
-| 酒馆域目标 (target_domain="tavern") | ✅ |
-| SPELL_CAST_ON_MINION 广播 | ✅ |
-| 战斗记忆 (CombatRecord + combat_memory) | ✅ |
-| 三连追踪 (triples_by_tier) | ✅ |
-| 升级回合追踪 (tavern_upgrade_turns) | ✅ |
-| **饰品购买系统 (Trinket Purchase)** | ✅ |
-| 饰品大小池过滤 (Lesser/Greater Filtering) | ✅ |
-| Every-N-Turns 饰品引擎 | ✅ |
-| 饰品种族偏好 (Tribe Biasing) | ✅ |
-| 饰品启发式评分 (Heuristic Scoring) | ✅ |
-
-### 已知缺失
-
-| 机制 | 影响 |
-|------|------|
-| 幽灵战斗 (奇数存活玩家) | 影响战斗结果分布 |
-| Tier 7 随从 | 部分异变/饰品需要 |
-| 英雄技能脚本 (132/164 缺失) | 影响模拟保真度 |
-| 法术脚本 (~48 缺失) | 影响备战阶段动作空间 |
-| 启发式升级逻辑 | 导致游戏过长 (~17 回合) |
-
-### 卡牌注册状态
-
-| 子系统 | CORRECT | DEFERRED | OUT_OF_SCOPE |
-|--------|---------|----------|-------------|
-| Hero Powers (94) | 94 | 0 | — |
-| Minions (218) | 218 | 0 | — |
-| Trinkets (327) | 297 | 19 | 11 (Duos) |
-| Anomalies (105) | 101 | 0 | 4 (Duos) |
-| Quest Rewards (76) | 76 | 0 | — |
-| **Total** | **786** | **19** | **15** |
-
-范围完成率: 100%。剩余 15 张 OOS: 4 张双打异变 + 11 张双打饰品。
-
-### 测试覆盖
-
-- **测试总数**: 696 passed, 1 skipped
-- 核心机制: ~350 个测试用例 — 攻击/伤害/关键词/战斗/随从池/战吼/亡语/复仇/Rally/光环/鲜血宝石/发现/变型/吞噬/Spellcraft/酒馆Buff/三连/任务/异变/饰品/子系统
-- 令牌卡牌: 77 个测试用例
-- 英雄技能: 145 个测试用例
+存储: `data/trajectories/traj_{seed:06d}.json` + `index.jsonl`
 
 ## 开发命令
 
@@ -242,11 +202,34 @@ Action → queue → broadcast events → resolve → trigger follow-ups → che
 # 运行全部测试
 python -m pytest hsrl/tests/ -v
 
-# 运行核心机制测试
-python -m pytest hsrl/tests/test_core_mechanics.py -v
+# 运行启发式 demo
+python -m hsrl.agents.heuristic_demo --seed 42
 
-# 代码行数统计
-find hsrl/core -name "*.py" | xargs wc -l
+# 运行 8 混合 agent 自对弈 demo
+python -m hsrl.agents.self_play_demo --seed 42 --output docs/demo.md
+
+# 运行 1 agent vs 7 启发式审计
+python -m hsrl.agents.agent_vs_heuristic_demo --seed 42
+
+# Benchmark SearchAgent (30 局)
+python -m hsrl.agents.search_agent --benchmark --games 30
+
+# 训练 BoardEval
+python -m hsrl.train.combat_data --games 500
+python -m hsrl.train.board_eval --data data/combat_pairs/combats.npz --epochs 50
+
+# 训练 GameValue (v4 POMDP, terminal placement teacher)
+python -m hsrl.train.game_value_sp --games 500 --self-play 1 --heuristic 7
+
+# 训练 Dense Value
+python -m hsrl.train.value_dense --games 500 --epochs 100
+
+# 收集 BC 数据 + 训练策略
+python -m hsrl.train.bc_collector_v3 --games 300
+python -m hsrl.train.bc_trainer_v3 --data data/bc_search_agent.npz --epochs 30
+
+# PPO 微调
+python -m hsrl.train.ppo_trainer_v2 --checkpoint checkpoints/bc_search_agent.pt --epochs 50
 ```
 
 ## 禁止事项
@@ -256,234 +239,5 @@ find hsrl/core -name "*.py" | xargs wc -l
 - 不要创建"简化实现" — 卡牌只有 CORRECT 或 DEFERRED 两种状态
 - 不要修改 `fireplace/`（仅参考）
 - 不要依赖外部 wiki 访问
-- **不要实现双打（Duos）系统** — 本项目仅限单打模式
+- **不要实现双打（Duos）系统**
 - 每个脚本类必须使用三段式文档注释 (Natural language / Formal spec / Test)
-
-## 轨迹对手系统
-
-用于 RL 训练的冻结战斗对手 —— 从历史获胜对局中提取棋盘快照。
-
-| 组件 | 文件 | 职责 |
-|------|------|------|
-| 数据结构 | `hsrl/trajectory/record.py` | MinionSnapshot, TurnSnapshot, Trajectory — 可序列化状态快照 |
-| 批量生成 | `hsrl/trajectory/generate.py` | 运行 N 场启发式对局，每回合记录棋盘状态 |
-| 分组 | `hsrl/trajectory/group.py` | 按兼容种族集分组 (Jaccard ≥ 0.6)，保证每组 ≥7 条 |
-| 对手加载 | `hsrl/trajectory/opponent.py` | 从 JSON 重建 Minion 对象，注入到 Player.board |
-
-存储: `data/trajectories/traj_{seed:06d}.json` + `index.jsonl`
-
-## 种族过滤系统
-
-每局从 10 个种族中随机选 5 个，酒馆仅刷新选中种族的随从。
-
-- `Game.active_tribes`: `Optional[set[Race]]` — 当前局的活跃种族
-- `Game._select_active_tribes()`: 在 `start_game()` 中调用，随机选择 5/10 种族 (异变可覆写)
-- `MinionPool._matches_race()`: 接受单值或 set，`Race.ALL` 始终匹配
-- `refresh_tavern()`: 所有 5 处 `minion_pool.draw()` 调用均传入 `race_filter=self.active_tribes`
-
-## 数据文件说明
-
-| 文件 | 内容 | 条目数 |
-|------|------|--------|
-| `bg_cards.json` | 全量酒馆战棋卡牌 | 5,189 |
-| `bg_pool_minions.json` | 可购买随从池 | 270 |
-| `bg_pool_spells.json` | 可购买法术池 | 71 |
-| `bg_heroes.json` | 英雄定义 | 119 |
-| `bg_hero_powers.json` | 英雄技能 | 164 |
-| `bg_trinkets.json` | 饰品定义 | 326 |
-| `bg_anomalies.json` | 异变定义 | 104 |
-| `bg_quest_rewards.json` | 任务奖励 | 73 |
-
-数据版本: Patch 35.2.2.241135 | 赛季: Season 13 "Cataclysm Calls"
-
-## 强化学习接口设计
-
-### 设计原则
-
-1. **标准化接口**: 遵循 Gymnasium (gym) 标准 `env.step(action) → (obs, reward, terminated, truncated, info)`
-2. **单智能体训练**: 每个玩家独立训练，对手使用冻结模型或启发式策略
-3. **自对弈 (Self-Play)**: 训练后期使用自对弈提升上限
-4. **可向量化**: 支持并行环境加速训练
-
-### 技术选型
-
-| 层级 | 技术 |
-|------|------|
-| RL 框架 | Gymnasium (gym) |
-| 神经网络 | PyTorch |
-| 并行化 | Ray / multiprocessing |
-| 实验追踪 | TensorBoard / WandB |
-
-### 观察空间 (Observation Space)
-
-```
-Dict({
-    # 全局信息 (标量)
-    "global": Box(shape=(20,)),   # turn, phase, alive_count, damage_cap, anomaly_id
-    
-    # 自身状态 (标量)
-    "player": Box(shape=(15,)),   # HP, gold, tavern_tier, armor, hand_size, board_size
-    
-    # 酒馆 (多实体)
-    "tavern": Box(shape=(7, 12)), # 7 slots × (atk, health, tier, cost, race, keywords×5, frozen)
-    
-    # 手牌 (多实体)
-    "hand": Box(shape=(10, 12)),  # 10 slots × 实体属性
-    
-    # 棋盘 (多实体)
-    "board": Box(shape=(7, 15)),  # 7 slots × (atk, health, tier, race, keywords×8, golden, exhausted)
-    
-    # 饰品/任务 (标量)
-    "trinkets": Box(shape=(2, 8)), # 2 slots × 饰品属性
-})
-```
-
-### 动作空间 (Action Space)
-
-```
-Discrete(50) 编码为:
-
-0-6:   购买酒馆第 N 个实体 (随从或法术)
-7-13:  出售棋盘第 N 个随从
-14-23: 打出手牌第 N 张 (10 hand slots)
-24:    刷新酒馆 (消耗 1 金币或免费刷新次数)
-25:    升级酒馆等级
-26:    冻结/解冻酒馆
-27:    使用英雄技能
-28:    结束回合 (进入战斗)
-29:    获取 Buddy (伙伴计量器满时)
-30:    重排棋盘 (Combat-aware heuristic)
-31-49: 保留 (Reserved)
-```
-
-### 奖励函数 (v4: 每一步备战增量 + 战斗结算 + 终局排名)
-
-| 组件 | 时机 | 公式 | 量级 |
-|------|------|------|------|
-| 备战增量 | 每个动作 | `(board_score_after - board_score_before) × 0.05 + STEP_COST(-0.001)` | ~[-0.5, +0.5]/action |
-| 战斗结算 | END_TURN | `(damage_dealt - damage_taken) × 0.3 + knockout_bonus(+2.0)` | ~[-4.5, +6.5]/turn |
-| 终局排名 | 游戏结束 | {1:20, 2:10, 3:5, 4:2, 5:-2, 6:-5, 7:-10, 8:-20} | [-20, 20] |
-
-核心设计: 备战增量 (per-action recruit delta) 保证即时反馈，一个回合内的增量之和 = 回合级备战收益 (telescoping sum)。
-无 ad-hoc 惩罚项，无效率税 (STEP_COST 仅用于阻止无限循环)。
-
-### 实现路线
-
-#### Phase 0: 引擎与数据 ✅ 已完成
-
-- 全部 805 张在范围卡牌 CORRECT
-- 696 个测试用例通过
-- 启发式自动对战 (Q-score greedy heuristic, 平均排名 ~4.5)
-
-#### Phase 1: DQN 基线 ✅ 已完成 (ceiling ~7.0)
-
-- `hsrl/env/battlegrounds_env.py` — 单智能体 Gymnasium 环境
-- `hsrl/env/action.py` — Discrete(50) 动作空间 + mask
-- `hsrl/env/observation.py` — Dict→Flat 观察空间
-- `hsrl/env/reward.py` — v4 奖励函数 (per-action recruit delta + combat + terminal)
-- `hsrl/train/train_dqn.py` — MaskableDQN (Double DQN + Dueling + Action Masking)
-- `hsrl/train/bc_dqn_trainer.py` — BC 预训练 (DuelingQNetwork 分类器, val_acc 96.7%)
-- `hsrl/train/bc_dqn_finetune.py` — BC→RL 微调
-- `hsrl/train/bc_guided_dqn.py` — BC 奖励引导 DQN
-- `hsrl/train/eval_bc_dqn.py` — 确定性评估脚本
-- 轨迹对手系统: `hsrl/trajectory/` (record, generate, group, opponent)
-
-**结论**: 所有 DQN/BC 变体天花板 ~7.0，远低于启发式 ~4.5。DQN 的单步 TD + flat observation 无法学习备战阶段的组合动作序列。
-
-#### Phase 2: Search + Value 架构 ✅ 已完成 (avg_rank 1.97, win% 6.7%)
-
-**架构管线**: Combat Simulator → BoardEvalNetwork → GameValueNetwork → SearchAgent
-
-##### BoardEvalNetwork v2 (嵌入架构) — 99.1% pairwise 准确率
-
-v1（标量）问题: 标量 board_score 无法表达组合交互，例如"6 大型白板 vs 7 小剧毒"标量无法判断剧毒方优势。
-
-v2（嵌入）方案:
-- **BoardEmbedder**: `(7, 15) → R^32` — 每个槽位 MLP + 学习注意力 + weighted mean/max pool
-- **CombatPredictor**: `[emb_a; emb_b; emb_a-emb_b; emb_a⊙emb_b]` → MLP → P(A wins)
-- 端到端联合训练，BCEWithLogitsLoss
-- 训练数据: 44,958 对战样本 (500 局)
-- 模型: 17,154 参数，val_acc 99.1%
-- 文件: `hsrl/train/board_eval.py`, 检查点: `checkpoints/board_eval_v2.pt`
-
-##### GameValueNetwork v2 (61-dim POMDP) — MAE 0.143
-
-v1 的观察仅包含标量 board_score（特征 0），损失所有组合信息。
-
-v2 改进:
-- 输入维度: 32 (嵌入) + 6 (自身) + 21 (对手) + 2 (全局) = 61 维
-- 教师信号: CombatPredictor 成对预测排名（替代 v1 标量排序）
-- 模型: 4,457 参数，val_mae 0.143 (~1.0 排名位置)
-- 训练数据: 47,346 快照 (500 局)
-- 文件: `hsrl/train/game_value.py`, 检查点: `checkpoints/game_value_v2.pt`
-
-##### GameValueNetwork v4 (397-dim HDT-observable POMDP) — avg_rank 2.00
-
-v4 解决 v2 的 POMDP 盲点——添加每对手战斗记忆:
-
-- 每对手特征 (51 dims × 7): last_seen_board(32) + staleness + combat_history + hp + tier + armor + board_size + triples×6 + upgrades×5
-- 共享 opp_proj(51→32→16) + mean pool → 16
-- 总输入: 32(board) + 6(own) + 7×51(opp) + 2(global) = 397 维
-- 教师: CombatPredictor pairwise ranking (full-information)
-- 模型: 6,705 参数，avg_rank 2.00 (greedy)
-- 文件: `hsrl/train/game_value_sp.py`, 检查点: `checkpoints/game_value_v6.pt`
-
-##### SearchAgent v2 (前瞻搜索) — avg_rank 1.97~2.00
-
-基于 GameValueNetwork 的贪心前瞻搜索:
-- 枚举合法动作 → 模拟 → 编码 POMDP → V(s') 评估 → 选最大值
-- 支持束搜索 (beam search) 处理多步序列 (refresh→buy, sell→buy→play)
-- 文件: `hsrl/agents/search_agent.py`
-- 演示: `hsrl/agents/demo_game.py` (v4/v6 版本感知加载)
-
-**⚠️ 所有现有检查点已被污染** — buddy/golden 卡牌污染了随从池，零护甲数据影响了游戏速度。
-需从干净数据重新训练所有模型。详见 Phase 0 审计结果。
-
-**评测结果 (被污染检查点, 2026-05-13, 30 局 vs 7 启发式对手)**:
-
-| 方法 | avg_rank | win% | top4% | 时间/局 |
-|------|----------|------|-------|---------|
-| Greedy heuristic (Q-score) | ~4.5 | ~10% | ~50% | 0.4s |
-| BC Policy argmax | 4.37 | 13.3% | 53.3% | 0.9s |
-| SearchAgent v1 贪心 | 2.10 | 0.0% | 100% | 1.8s |
-| SearchAgent v1 束搜索 (w=3,d=3) | 2.03 | 3.3% | 100% | 17.9s |
-| **SearchAgent v2 贪心** | **2.07** | 0.0% | 100% | 4.4s |
-| **SearchAgent v2 束搜索 (w=3,d=3)** | **1.97** | **6.7%** | 100% | 22.4s |
-| **SearchAgent v6 贪心 (POMDP v4)** | **2.00** | — | 100% | — |
-
-**分析**: 嵌入架构在束搜索中展现更大优势（1.97 vs 2.03），因为多步序列中的组合差异（剧毒 vs 大身材）逐渐累积。但 avg_rank 天花板 ~2.0 的主要原因是 **POMDP 瓶颈**——智能体仅能看到对手 HP/等级，无法观测对手棋盘。
-
-##### 已探索的死胡同
-
-- **DQN/BC**: 天花板 ~7.0，单步 TD + flat observation 无法学习组合动作
-- **MCTS + BC value**: 价值噪声 (MAE 3.90) > 动作差异 (~1.0), PUCT 无法区分动作
-- **DAgger 迭代蒸馏**: 单次迭代无效 (SearchAgent 与启发式状态分布高度重叠)
-- **BC 策略网络**: avg_rank 4.37 仅略优于启发式 4.5
-
-#### Phase 3: Bug 修复与审计 ✅ 已完成 (2026-05-14)
-
-发现并修复 6 个关键 bug:
-1. **英雄护甲始终为 0**: `bg_heroes.json` armor 全为 null → 填充真实护甲值 (5-18)
-2. **Buddy/Golden 卡牌污染随从池**: `minion_pool.py` 未过滤 `_Buddy`/`_G` 后缀卡牌
-3. **ATK 显示错误**: 使用 `get_tag(GameTag.ATK,0)` 而非 `.atk` 属性（3 个文件共 7 处）
-4. **酒馆法术显示**: 未区分随从与法术类型
-5. **v4 检查点签名不兼容**: `compute_terminal_placement` vs `compute_teacher_placement`
-6. **BG34_639 缺失 atk 字段**: 添加 `"atk": 0`
-
-**审计发现**:
-- 卡牌脚本覆盖率: 英雄技能 19.5% (32/164), 法术 33%, 饰品 ~56%
-- 启发式从不升级酒馆等级 → 平均 17.1 回合 (应为 12-15)
-- 所有现有检查点必须从干净数据重新训练
-
-#### Phase 4: 干净重训练路线图 (规划中 → 执行中)
-
-参见最新路线图: `docs/RL_ROADMAP.md` 或本项目计划文件。
-
-**架构决策**: 集中 80% 资源于 Search+Value 方法 (已验证 avg_rank ~2.0)。
-BC→RL 方法 (DQN/PPO) 存在结构性劣势 (flat observation 无法表达组合动作序列)。
-
-**关键路径**:
-1. 修复启发式升级逻辑 → 重新生成轨迹
-2. 重新训练 BoardEval v3 → GameValue 检查点
-3. POMDP v5: 战斗模拟集成 + 对手棋盘预测
-4. 自对弈 PPO 训练

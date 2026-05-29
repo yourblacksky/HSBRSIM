@@ -156,6 +156,11 @@ class GameTag(IntEnum):
     TRINKET_2 = 203                # Second trinket slot (Greater, Turn 9)
     TRINKET_OFFERED = 204          # Trinkets have been offered this turn
     QUEST_PROGRESS = 205            # Current progress toward quest completion
+    TRIPLE_REWARD_IS_PRIZE = 206    # Corrupted Tome: triple rewards use DiscoverPrize
+    IMPLICATOR_CONSUME_HIGHEST = 207  # Implicator Portrait: demons eat highest-health
+    NEXT_BATTLECRY_DOUBLED = 208    # Varden: next battlecry triggers twice
+    MAIEV_DORMANT = 209             # Maiev: minion is in dormant stasis
+    MAIEV_DORMANT_TURNS = 210       # Maiev: turns remaining in dormant
     QUEST_TARGET = 160              # Target value needed to complete quest
     QUEST_ACTIVE = 161              # Whether a quest is currently active
     REWARD_UNLOCKED = 162           # Whether quest reward has been unlocked

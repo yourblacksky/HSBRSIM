@@ -23,7 +23,7 @@ from hsrl.core.actions import (
     DiscoverMinion, DiscoverSpell, GainDeathrattle, GainFreeRefresh,
     GainGold, GainKeyword, ImproveBloodGem, ImproveTavernSpellBuff,
     IncrementImproveCounter, PlayBloodGems, SetNextSpellDiscount,
-    Summon, Transform, AddToHand,
+    Summon, Transform, AddToHand, TriggerBattlecry,
 )
 
 if TYPE_CHECKING:
@@ -36,9 +36,9 @@ if TYPE_CHECKING:
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _random_friendly(player: Player) -> Optional[BaseEntity]:
-    living = [m for m in player.board if not m.dead]
-    return random.choice(living) if living else None
+def _random_friendly(source) -> Optional[BaseEntity]:
+    living = [m for m in source.controller.board if not m.dead]
+    return source.game.rng.choice(living) if living else None
 
 
 def _living_board(player: Player) -> list:
@@ -63,7 +63,7 @@ def _buff_tribe(source, tribe: Race, atk=0, health=0):
 
 def _buff_random(source, count: int, atk=0, health=0):
     living = [m for m in source.controller.board if not m.dead]
-    targets = random.sample(living, min(count, len(living)))
+    targets = source.game.rng.sample(living, min(count, len(living)))
     actions = []
     for m in targets:
         actions.append(Buff(m, atk=atk, health=health))
@@ -289,7 +289,7 @@ class SoCGiveTribeKeywordRandomScript:
         if n == 0:
             return None
         actions = []
-        for m in random.sample(targets, n):
+        for m in game.rng.sample(targets, n):
             actions.append(GainKeyword(m, cls.KEYWORD))
         return actions if actions else None
 
@@ -573,7 +573,7 @@ class AvengeGetRandomMagneticScript:
         ]
         if not magnetic_ids:
             return None
-        token = game.create_minion(random.choice(magnetic_ids))
+        token = game.create_minion(game.rng.choice(magnetic_ids))
         if token is None:
             return None
         return AddToHand(source.controller, token)
@@ -600,7 +600,7 @@ class AvengeGiveKeywordScript:
             targets = [m for m in targets if m.race == cls.TRIBE]
         if not targets:
             return None
-        return GainKeyword(random.choice(targets), cls.KEYWORD)
+        return GainKeyword(game.rng.choice(targets), cls.KEYWORD)
 
 
 class AvengeGiveRebornUndeadScript(AvengeGiveKeywordScript):
@@ -625,7 +625,7 @@ class OnBuyBuffScript:
             targets = [m for m in targets if m.race == cls.TARGET_TRIBE]
         if not targets:
             return None
-        target = random.choice(targets)
+        target = game.rng.choice(targets)
         return Buff(target, atk=cls.ATK, health=cls.HEALTH)
 
 
@@ -700,7 +700,7 @@ class SoTGetRandomBattlecryScript:
         ]
         if not bc_ids:
             return None
-        return AddToHand(source.controller, random.choice(bc_ids))
+        return AddToHand(source.controller, game.rng.choice(bc_ids))
 
 
 class SoTGetRandomMagneticScript:
@@ -717,7 +717,7 @@ class SoTGetRandomMagneticScript:
         ]
         if not magnetic_ids:
             return None
-        return AddToHand(source.controller, random.choice(magnetic_ids))
+        return AddToHand(source.controller, game.rng.choice(magnetic_ids))
 
 
 class SoTCastSpellScript:
@@ -730,6 +730,15 @@ class SoTCastSpellScript:
         for _ in range(cls.COUNT):
             actions.append(CastTavernSpell(source.controller))
         return actions if actions else None
+
+
+class PocketCycloneScript(SoTCastSpellScript):
+    """Cast Easterly Winds once. At the start of each turn, repeat it."""
+    COUNT = 1
+
+    @classmethod
+    def on_summon(cls, source: BaseEntity, game: Game) -> Optional[Action]:
+        return CastTavernSpell(source.controller)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -750,20 +759,16 @@ class SoTRepeatGetScript:
 
 
 class SoTRepeatGetBloodGemScript:
-    """Get a Blood Gem. At the start of each turn, get another (play on random friendly)."""
+    """Get a keyword Blood Gem. At the start of each turn, get another."""
+    GEM_IDS = ("BLOOD_GEM_TAUNT", "BLOOD_GEM_DS", "BLOOD_GEM_REBORN")
 
-    @staticmethod
-    def _gem(source):
-        living = _living_board(source.controller)
-        if not living:
-            return None
-        return PlayBloodGems(random.choice(living), 1)
+    @classmethod
+    def _gem(cls, source):
+        return AddToHand(source.controller, source.game.rng.choice(cls.GEM_IDS))
 
     @classmethod
     def on_summon(cls, source: BaseEntity, game: Game) -> None:
-        action = cls._gem(source)
-        if action:
-            game.queue_action(action, source=source)
+        game.queue_action(cls._gem(source), source=source)
 
     @classmethod
     def start_of_turn(cls, source: BaseEntity, game: Game) -> Optional[Action]:
@@ -788,7 +793,7 @@ class SoTRepeatGetRandomTribeScript:
             return None
         actions = []
         for _ in range(cls.COUNT):
-            actions.append(AddToHand(source.controller, random.choice(pool)))
+            actions.append(AddToHand(source.controller, game.rng.choice(pool)))
         return actions if actions else None
 
     @classmethod
@@ -821,7 +826,7 @@ class SoTRepeatGetRandomTierScript:
             return None
         actions = []
         for _ in range(cls.COUNT):
-            actions.append(AddToHand(source.controller, random.choice(pool)))
+            actions.append(AddToHand(source.controller, game.rng.choice(pool)))
         return actions if actions else None
 
     @classmethod
@@ -996,15 +1001,15 @@ class EoTBuffLeftmost3x2Script(EoTBuffLeftmostScript):
 
 
 class EoTBuffLeftmost2x2Script(EoTBuffLeftmostScript):
-    """Charming Panpipes: +2/+2 leftmost, improves per spell cast this game.
+    """Charming Panpipes: +3/+3 leftmost, improves per spell cast this game.
 
     Formal spec:
       1. on_summon: register TAVERN_SPELL_CAST listener → IncrementImproveCounter
       2. end_of_turn: buff leftmost by (ATK + counter, HEALTH + counter)
 
-    Test: cast N spells → EoT buffs leftmost for (2+N)/(2+N).
+    Test: cast N spells → EoT buffs leftmost for (3+N)/(3+N).
     """
-    ATK = 2; HEALTH = 2
+    ATK = 3; HEALTH = 3
 
     @classmethod
     def on_summon(cls, source, game):
@@ -1055,7 +1060,7 @@ class EoTBuffRandomMurlocScript:
                     if not m.dead and m.race == Race.MURLOC]
         if not murlocs:
             return None
-        return Buff(random.choice(murlocs), atk=cls.ATK, health=cls.HEALTH)
+        return Buff(game.rng.choice(murlocs), atk=cls.ATK, health=cls.HEALTH)
 
 
 class MugOfTheSireScript:
@@ -1091,7 +1096,7 @@ class ToxicStingerScript:
                     if not m.dead and m.race == Race.MURLOC]
         if not murlocs:
             return None
-        target = random.choice(murlocs)
+        target = game.rng.choice(murlocs)
         return [Buff(target, atk=8, health=8),
                 GainKeyword(target, GameTag.VENOMOUS)]
 
@@ -1106,19 +1111,17 @@ class EoTGetWindfallScript:
 
 
 class EoTTriggerBattlecriesScript:
-    """End of Turn: Trigger all friendly Battlecries."""
+    """End of Turn: Trigger your left- and right-most minions' Battlecries."""
 
     @classmethod
     def end_of_turn(cls, source: BaseEntity, game: Game) -> Optional[Action]:
-        actions = []
-        for m in source.controller.board:
-            if not m.dead:
-                bc = m.battlecry
-                if bc:
-                    if isinstance(bc, (list, tuple)):
-                        actions.extend(bc)
-                    else:
-                        actions.append(bc)
+        board = [m for m in source.controller.board if not m.dead]
+        if not board:
+            return None
+        targets = [board[0]]
+        if len(board) > 1:
+            targets.append(board[-1])
+        actions = [TriggerBattlecry(m) for m in targets if m.has_tag(GameTag.BATTLECRY)]
         return actions if actions else None
 
 
@@ -1155,6 +1158,8 @@ class OnPlayBuffTribeScript:
 
 class OnPlayBuffDragonScript(OnPlayBuffTribeScript):
     TRIBE = Race.DRAGON
+    ATK = 4
+    HEALTH = 4
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1170,7 +1175,7 @@ class OnSpendGoldBuffScript:
         living = _living_board(source.controller)
         if not living:
             return None
-        return Buff(random.choice(living), atk=cls.ATK, health=cls.HEALTH)
+        return Buff(game.rng.choice(living), atk=cls.ATK, health=cls.HEALTH)
 
 
 class OnSpendGoldBuffMurlocScript(OnSpendGoldBuffScript):
@@ -1203,7 +1208,7 @@ class GetRandomMinionsTierScript:
             return None
         actions = []
         for _ in range(cls.COUNT):
-            actions.append(AddToHand(source.controller, random.choice(pool)))
+            actions.append(AddToHand(source.controller, game.rng.choice(pool)))
         return actions if actions else None
 
 
@@ -1260,7 +1265,7 @@ class OnPlayTribeFilteredScript:
 class OnPlayElementalTavernBuffScript(OnPlayTribeFilteredScript):
     """After you play an Elemental, give Elementals in the Tavern +ATK/+HEALTH this game."""
     TRIBE = Race.ELEMENTAL
-    ATK = 2; HEALTH = 1
+    ATK = 2; HEALTH = 2
 
     @classmethod
     def _on_tribe_play(cls, source, game, played_card):
@@ -1269,7 +1274,7 @@ class OnPlayElementalTavernBuffScript(OnPlayTribeFilteredScript):
 
 
 class OnPlayElementalTavernBuff4x4Script(OnPlayElementalTavernBuffScript):
-    ATK = 4; HEALTH = 4
+    ATK = 5; HEALTH = 5
 
 
 class OnPlayElementalFreeRefreshScript(OnPlayTribeFilteredScript):
@@ -1298,7 +1303,7 @@ class OnPlayElementalGetTavernSpellScript(OnPlayTribeFilteredScript):
         ]
         if not spell_ids:
             return None
-        return AddToHand(source.controller, random.choice(spell_ids))
+        return AddToHand(source.controller, game.rng.choice(spell_ids))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1311,8 +1316,28 @@ class OnCastBuffTribeScript:
     ATK = 2; HEALTH = 2
 
     @classmethod
-    def on_spell_cast(cls, source: BaseEntity, game: Game) -> Optional[Action]:
-        return _buff_tribe(source, cls.TRIBE, atk=cls.ATK, health=cls.HEALTH)
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _tribe = cls.TRIBE
+        _atk = cls.ATK
+        _health = cls.HEALTH
+
+        class _BuffTribeOnCast(Action):
+            def do(self, source_ent, game_ref, target=None):
+                actions = []
+                for m in source.controller.board:
+                    if not m.dead and m.race == _tribe:
+                        actions.append(Buff(m, atk=_atk, health=_health))
+                for a in actions:
+                    game_ref.queue_action(a)
+
+        listener = EventListener(
+            event_name="TAVERN_SPELL_CAST",
+            action=_BuffTribeOnCast(),
+            condition=lambda spell, player: player == source.controller,
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnCastBuffPirateScript(OnCastBuffTribeScript):
@@ -1320,15 +1345,28 @@ class OnCastBuffPirateScript(OnCastBuffTribeScript):
 
 
 class OnCastBuffTribelessScript:
-    """After you cast a Tavern spell, give your minions with no type +ATK/+HEALTH."""
+    """After you cast a Tavern spell, give your minions with no type +4/+4."""
 
     @classmethod
-    def on_spell_cast(cls, source: BaseEntity, game: Game) -> Optional[Action]:
-        actions = []
-        for m in source.controller.board:
-            if not m.dead and m.race == Race.NONE:
-                actions.append(Buff(m, atk=4, health=4))
-        return actions if actions else None
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+
+        class _BuffTribelessOnCast(Action):
+            def do(self, source_ent, game_ref, target=None):
+                actions = []
+                for m in source.controller.board:
+                    if not m.dead and m.race == Race.NONE:
+                        actions.append(Buff(m, atk=4, health=4))
+                for a in actions:
+                    game_ref.queue_action(a)
+
+        listener = EventListener(
+            event_name="TAVERN_SPELL_CAST",
+            action=_BuffTribelessOnCast(),
+            condition=lambda spell, player: player == source.controller,
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1351,7 +1389,7 @@ class FirstDeathTransferStatsScript:
         living = [m for m in source.controller.board if not m.dead]
         if not living:
             return None
-        targets = random.sample(living, min(cls.TARGET_COUNT, len(living)))
+        targets = game.rng.sample(living, min(cls.TARGET_COUNT, len(living)))
         actions = []
         for t in targets:
             actions.append(Buff(t, atk=dead_minion.atk, health=dead_minion.health))
@@ -1387,7 +1425,7 @@ class OnFriendlyDeathCombatGetTavernSpellScript:
         ]
         if not spell_ids:
             return None
-        return AddToHand(source.controller, random.choice(spell_ids))
+        return AddToHand(source.controller, game.rng.choice(spell_ids))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1468,8 +1506,26 @@ class CounterSpellCastScript(_CounterBase):
     """After you cast N Tavern spells, trigger."""
 
     @classmethod
-    def on_spell_cast(cls, source, game):
-        return cls._increment(source, game)
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+
+        class _IncrementOnCast(Action):
+            def do(self, source_ent, game_ref, target=None):
+                result = cls._increment(source, game_ref)
+                if result is not None:
+                    if isinstance(result, (list, tuple)):
+                        for a in result:
+                            game_ref.queue_action(a, source=source)
+                    else:
+                        game_ref.queue_action(result, source=source)
+
+        listener = EventListener(
+            event_name="TAVERN_SPELL_CAST",
+            action=_IncrementOnCast(),
+            condition=lambda spell, player: player == source.controller,
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class CounterBuyScript(_CounterBase):
@@ -1512,7 +1568,7 @@ class CounterBuyBCScript(CounterBuyScript):
         ]
         if not bc_ids:
             return None
-        return AddToHand(source.controller, random.choice(bc_ids))
+        return AddToHand(source.controller, game.rng.choice(bc_ids))
 
 
 class CounterSellMurlocScript(CounterSellScript):
@@ -1529,7 +1585,7 @@ class CounterSellMurlocScript(CounterSellScript):
         ]
         if not pool:
             return None
-        return AddToHand(source.controller, random.choice(pool))
+        return AddToHand(source.controller, game.rng.choice(pool))
 
 
 class CounterSellElementalScript(CounterSellScript):
@@ -1547,13 +1603,13 @@ class CounterSellElementalScript(CounterSellScript):
         ]
         if not pool:
             return None
-        return AddToHand(source.controller, random.choice(pool))
+        return AddToHand(source.controller, game.rng.choice(pool))
 
 
 class CounterSellTokenScript(CounterSellScript):
-    """After you sell 5 minions, get a specific token."""
-    TARGET = 5
-    TOKEN_ID = ""
+    """After you sell 4 minions, get a Mounting Avalanche."""
+    TARGET = 4
+    TOKEN_ID = "BG33_899"
 
     @classmethod
     def on_trigger(cls, source, game):
@@ -1574,7 +1630,7 @@ class CounterSpellCastNagaScript(CounterSpellCastScript):
         ]
         if not pool:
             return None
-        return AddToHand(source.controller, random.choice(pool))
+        return AddToHand(source.controller, game.rng.choice(pool))
 
 
 class CounterSpellCastBloodGemAllScript(CounterSpellCastScript):
@@ -1638,12 +1694,12 @@ class CounterDeathGetUndeadScript(CounterDeathScript):
         ]
         if not pool:
             return None
-        return AddToHand(source.controller, random.choice(pool))
+        return AddToHand(source.controller, game.rng.choice(pool))
 
 
 class CounterDeathGetBeastScript(CounterDeathScript):
-    """After 6 friendly minions die, get a random Beast."""
-    TARGET = 6
+    """After 7 friendly minions die, get a random Beast."""
+    TARGET = 7
 
     @classmethod
     def on_trigger(cls, source, game):
@@ -1655,7 +1711,7 @@ class CounterDeathGetBeastScript(CounterDeathScript):
         ]
         if not pool:
             return None
-        return AddToHand(source.controller, random.choice(pool))
+        return AddToHand(source.controller, game.rng.choice(pool))
 
 
 class CounterDeathGetMechScript(CounterDeathScript):
@@ -1672,7 +1728,7 @@ class CounterDeathGetMechScript(CounterDeathScript):
         ]
         if not pool:
             return None
-        return AddToHand(source.controller, random.choice(pool))
+        return AddToHand(source.controller, game.rng.choice(pool))
 
 
 class CounterSpendGoldScript(_CounterBase):
@@ -1730,11 +1786,29 @@ class OnAttackBuffScript:
     ATK = 4
 
     @classmethod
-    def on_friendly_attack(cls, source: BaseEntity, game: Game,
-                            attacker=None) -> Optional[Action]:
-        if attacker is None or attacker.dead:
-            return None
-        return Buff(attacker, atk=cls.ATK, health=0)
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _atk = cls.ATK
+
+        class _BuffAttacker(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if target is None or target.dead:
+                    return
+                if target.controller != source.controller:
+                    return
+                game_ref.queue_action(Buff(target, atk=_atk, health=0))
+
+        listener = EventListener(
+            event_name="AFTER_ATTACK",
+            action=_BuffAttacker(),
+            condition=lambda attacker, defender: (
+                attacker is not None
+                and not attacker.dead
+                and attacker.controller == source.controller
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnAttackBuffBeastScript:
@@ -1743,15 +1817,37 @@ class OnAttackBuffBeastScript:
     IMPROVE_BY = 1
 
     @classmethod
-    def on_friendly_attack(cls, source: BaseEntity, game: Game,
-                            attacker=None) -> Optional[Action]:
-        if attacker is None or attacker.dead or attacker.race != Race.BEAST:
-            return None
-        # Improve the trinket's ATK bonus permanently
-        source.set_tag(GameTag.IMPROVE_COUNTER,
-                       source.get_tag(GameTag.IMPROVE_COUNTER, 0) + cls.IMPROVE_BY)
-        bonus = source.get_tag(GameTag.IMPROVE_COUNTER, 0)
-        return Buff(attacker, atk=cls.ATK + bonus, health=0)
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _atk_base = cls.ATK
+        _improve = cls.IMPROVE_BY
+
+        class _BuffAttackingBeast(Action):
+            def do(self, source_ent, game_ref, target=None):
+                # target = args[0] from AFTER_ATTACK = attacker
+                if target is None or target.dead:
+                    return
+                if target.race != Race.BEAST:
+                    return
+                if target.controller != source.controller:
+                    return
+                source.set_tag(GameTag.IMPROVE_COUNTER,
+                               source.get_tag(GameTag.IMPROVE_COUNTER, 0) + _improve)
+                bonus = source.get_tag(GameTag.IMPROVE_COUNTER, 0)
+                game_ref.queue_action(Buff(target, atk=_atk_base + bonus, health=0))
+
+        listener = EventListener(
+            event_name="AFTER_ATTACK",
+            action=_BuffAttackingBeast(),
+            condition=lambda attacker, defender: (
+                attacker is not None
+                and not attacker.dead
+                and attacker.race == Race.BEAST
+                and attacker.controller == source.controller
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnLoseDSRegainDSScript(_LimitedPerCombatBase):
@@ -1787,7 +1883,7 @@ class OnLoseDSGetSpellScript(_LimitedPerCombatBase):
         ]
         if not spell_ids:
             return None
-        return AddToHand(source.controller, random.choice(spell_ids))
+        return AddToHand(source.controller, game.rng.choice(spell_ids))
 
 
 class OnLoseVenomousBuffScript:
@@ -1796,11 +1892,33 @@ class OnLoseVenomousBuffScript:
     HEALTH = 4
 
     @classmethod
-    def on_lose_divine_shield(cls, source: BaseEntity, game: Game,
-                               minion=None) -> Optional[Action]:
-        # Note: Despite the method name, this triggers on VENOMOUS_LOST
-        # We use the same dispatch point since venomous loss is also handled in Hit.do()
-        return None  # Venomous loss needs separate broadcast; DEFERRED for now
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+
+        _atk = cls.ATK
+        _health = cls.HEALTH
+
+        class _BuffOnVenomousLost(Action):
+            def do(self, source_ent, game_ref, target=None):
+                # target = args[0] from KEYWORD_LOST broadcast = the minion
+                if target is None or target.dead:
+                    return
+                if target.controller != source.controller:
+                    return
+                game_ref.queue_action(Buff(target, atk=_atk, health=_health))
+
+        listener = EventListener(
+            event_name="KEYWORD_LOST",
+            action=_BuffOnVenomousLost(),
+            condition=lambda minion, keyword: (
+                keyword == GameTag.VENOMOUS
+                and minion is not None
+                and not minion.dead
+                and minion.controller == source.controller
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnSummonInCombatGiveDSScript(_LimitedPerCombatBase):
@@ -1851,7 +1969,7 @@ class OnSummonMechGiveMechDSScript:
                  and not m.has_tag(GameTag.DIVINE_SHIELD)]
         if not mechs:
             return None
-        return GainKeyword(random.choice(mechs), GameTag.DIVINE_SHIELD)
+        return GainKeyword(game.rng.choice(mechs), GameTag.DIVINE_SHIELD)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1870,15 +1988,25 @@ class ModifyBloodGemBonusScript:
 
 
 class GreatBoarStickerLesserScript(ModifyBloodGemBonusScript):
-    """Your Blood Gems give an extra +4 Attack."""
-    EXTRA_ATK = 4
-    EXTRA_HEALTH = 0
+    """Get 3 Blood Gems. Your Blood Gems give an extra +2/+1."""
+    EXTRA_ATK = 2
+    EXTRA_HEALTH = 1
+    COUNT = 3
+
+    @classmethod
+    def on_summon(cls, source, game):
+        return [AddToHand(source.controller, "BLOOD_GEM") for _ in range(cls.COUNT)]
 
 
 class GreatBoarStickerGreaterScript(ModifyBloodGemBonusScript):
-    """Your Blood Gems give an extra +3/+3."""
+    """Get 5 Blood Gems. Your Blood Gems give an extra +3/+3."""
     EXTRA_ATK = 3
     EXTRA_HEALTH = 3
+    COUNT = 5
+
+    @classmethod
+    def on_summon(cls, source, game):
+        return [AddToHand(source.controller, "BLOOD_GEM") for _ in range(cls.COUNT)]
 
 
 class HogwashBasinScript:
@@ -1926,7 +2054,7 @@ class HoggyBankScript:
 
 class OnMagnetizeBuffScript:
     """Whenever you Magnetize a minion, give it +ATK/+HEALTH and improve this."""
-    ATK = 1
+    ATK = 2
     HEALTH = 1
     IMPROVE_ATK = 1
     IMPROVE_HEALTH = 1
@@ -1936,11 +2064,10 @@ class OnMagnetizeBuffScript:
                        host=None, magnetic_minion=None) -> Optional[Action]:
         if host is None or host.dead:
             return None
-        # Improve this trinket
-        counter = source.get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
-        source.set_tag(GameTag.IMPROVE_COUNTER, counter)
+        counter = source.get_tag(GameTag.IMPROVE_COUNTER, 0)
         bonus_atk = cls.ATK + counter * cls.IMPROVE_ATK
         bonus_health = cls.HEALTH + counter * cls.IMPROVE_HEALTH
+        source.set_tag(GameTag.IMPROVE_COUNTER, counter + 1)
         return Buff(host, atk=bonus_atk, health=bonus_health)
 
 
@@ -2021,7 +2148,7 @@ class OnPlayMagneticGetSpellScript:
         ]
         if not spell_ids:
             return None
-        return AddToHand(source.controller, random.choice(spell_ids))
+        return AddToHand(source.controller, game.rng.choice(spell_ids))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2029,20 +2156,37 @@ class OnPlayMagneticGetSpellScript:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class OnDRTriggerBuffRightmostScript:
-    """After you trigger a Deathrattle, give your right-most minion +X/+Y permanently."""
+    """After you trigger a Deathrattle, give your right-most minion +X/+Y."""
     ATK = 2
     HEALTH = 2
 
     @classmethod
-    def on_friendly_deathrattle_triggered(cls, source, game, **kwargs):
-        board = _living_board(source.controller)
-        if not board:
-            return None
-        return Buff(board[-1], atk=cls.ATK, health=cls.HEALTH)
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _atk = cls.ATK
+        _health = cls.HEALTH
+
+        class _BuffRightmost(Action):
+            def do(self, source_ent, game_ref, target=None):
+                board = _living_board(source.controller)
+                if not board:
+                    return
+                game_ref.queue_action(Buff(board[-1], atk=_atk, health=_health))
+
+        listener = EventListener(
+            event_name="DEATHRATTLE_TRIGGER",
+            action=_BuffRightmost(),
+            condition=lambda m: (
+                m is not None
+                and m.controller == source.controller
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnDRTriggerBuffRightmost6x4Script(OnDRTriggerBuffRightmostScript):
-    """After you trigger a Deathrattle, give your right-most minion +6/+4 permanently."""
+    """After you trigger a Deathrattle, give your right-most minion +6/+4."""
     ATK = 6
     HEALTH = 4
 
@@ -2103,6 +2247,26 @@ class GetTwoEndtimesEggsScript:
     @classmethod
     def on_summon(cls, source, game):
         return [AddToHand(source.controller, cls.CARD_ID) for _ in range(cls.COUNT)]
+
+
+class EggOfEndtimesPortraitLesserScript:
+    """Get an Egg of the Endtimes. At the start of every 2 turns, repeat this."""
+    CARD_ID = "BG34_639"
+    N = 2
+
+    @classmethod
+    def on_summon(cls, source, game):
+        source.set_tag(GameTag.TRINKET_COUNTER, 0)
+        return AddToHand(source.controller, cls.CARD_ID)
+
+    @classmethod
+    def on_turn_begin(cls, source, game):
+        counter = source.get_tag(GameTag.TRINKET_COUNTER, 0) + 1
+        if counter >= cls.N:
+            source.set_tag(GameTag.TRINKET_COUNTER, 0)
+            return AddToHand(source.controller, cls.CARD_ID)
+        source.set_tag(GameTag.TRINKET_COUNTER, counter)
+        return None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2201,6 +2365,37 @@ class GoldenizerSupplyScript(EveryNTurnsBaseScript):
         return None
 
 
+class DuplicatingLensScript:
+    """Get a copy of the first minion you summon each combat.
+
+    Formal spec:
+      1. on_summon: reset per-combat flag
+      2. on_summon_in_combat: first minion summoned → add copy to hand
+      3. start_of_combat: reset flag for new combat
+    """
+
+    @classmethod
+    def on_summon(cls, source, game):
+        source.set_tag(GameTag.TRINKET_COUNTER, 0)
+        return None
+
+    @classmethod
+    def start_of_combat(cls, source, game):
+        source.set_tag(GameTag.TRINKET_COUNTER, 0)
+        return None
+
+    @classmethod
+    def on_summon_in_combat(cls, source, game, summoned=None):
+        if source.get_tag(GameTag.TRINKET_COUNTER, 0) >= 1:
+            return None
+        if summoned is None or summoned.dead:
+            return None
+        if summoned.controller != source.controller:
+            return None
+        source.set_tag(GameTag.TRINKET_COUNTER, 1)
+        return AddToHand(source.controller, summoned.data.id)
+
+
 class LensCaseGetScript(EveryNTurnsBaseScript):
     """At the start of every 2 turns, get a Duplicating Lens."""
     N = 2
@@ -2256,10 +2451,10 @@ class DelayedGainGold10Script:
 
 
 class DelayedGreaterTrinketGain3Script:
-    """Gain 3 Gold. Greater Trinket early purchase timing is TODO."""
+    """Gain 2 Gold. Greater Trinket early purchase timing is TODO."""
     @classmethod
     def on_summon(cls, source, game):
-        game.queue_action(GainGold(source.controller, 3), source=source)
+        game.queue_action(GainGold(source.controller, 2), source=source)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2272,16 +2467,34 @@ class OnCastSpellBuffAllPermanentScript:
     HEALTH = 1
 
     @classmethod
-    def on_spell_cast(cls, source, game, **kwargs):
-        board = _living_board(source.controller)
-        if not board:
-            return None
-        return [Buff(m, atk=cls.ATK, health=cls.HEALTH) for m in board]
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _atk = cls.ATK
+        _health = cls.HEALTH
+
+        class _BuffAllOnCast(Action):
+            def do(self, source_ent, game_ref, target=None):
+                board = _living_board(source.controller)
+                if not board:
+                    return
+                for m in board:
+                    game_ref.queue_action(Buff(m, atk=_atk, health=_health))
+
+        listener = EventListener(
+            event_name="TAVERN_SPELL_CAST",
+            action=_BuffAllOnCast(),
+            condition=lambda spell, player: player == source.controller,
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnCastSpellBuffAllPermanentCombatScript(OnCastSpellBuffAllPermanentScript):
-    """Whenever you cast a spell, give minions +3/+2 in combat, +1/+1 out."""
-    # Simplified: always +1/+1 (the +3/+2 in-combat part would need combat context)
+    """Whenever you cast a spell, give minions +3/+2 in combat, +1/+1 out.
+
+    DEFERRED: always gives +1/+1. Full implementation needs combat-phase
+    context awareness for the +3/+2 in-combat variant.
+    """
     ATK = 1
     HEALTH = 1
 
@@ -2363,11 +2576,11 @@ class SoTSpinYoggWheelScript:
     @classmethod
     def on_summon(cls, source, game):
         # Spin once on equip
-        return CastTavernSpell(source.controller, random.choice(cls.YOGG_SPELL_IDS))
+        return CastTavernSpell(source.controller, game.rng.choice(cls.YOGG_SPELL_IDS))
 
     @classmethod
     def start_of_turn(cls, source, game):
-        return CastTavernSpell(source.controller, random.choice(cls.YOGG_SPELL_IDS))
+        return CastTavernSpell(source.controller, game.rng.choice(cls.YOGG_SPELL_IDS))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2399,7 +2612,8 @@ class AvengeImproveBG1x1Script(AvengeImproveBGScript):
 
 
 class EoTPlayBGOnEachTribeScript:
-    """End of Turn: Play a Blood Gem on a friendly minion of each type."""
+    """End of Turn: Play 7 Blood Gems on a friendly minion of each type."""
+    COUNT = 7
 
     @classmethod
     def end_of_turn(cls, source, game):
@@ -2412,8 +2626,8 @@ class EoTPlayBGOnEachTribeScript:
             return None
         actions = []
         for tribe, minions in tribes.items():
-            target = random.choice(minions)
-            actions.append(PlayBloodGems(target, 1))
+            target = game.rng.choice(minions)
+            actions.append(PlayBloodGems(target, cls.COUNT))
         return actions if actions else None
 
 
@@ -2422,12 +2636,29 @@ class OnDRTriggerPlayBGRandomScript:
     COUNT = 3
 
     @classmethod
-    def on_friendly_deathrattle_triggered(cls, source, game, **kwargs):
-        living = _living_board(source.controller)
-        if not living:
-            return None
-        targets = random.sample(living, min(cls.COUNT, len(living)))
-        return [PlayBloodGems(t, 1) for t in targets]
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _count = cls.COUNT
+
+        class _PlayBGOnDR(Action):
+            def do(self, source_ent, game_ref, target=None):
+                living = _living_board(source.controller)
+                if not living:
+                    return
+                targets = game.rng.sample(living, min(_count, len(living)))
+                for t in targets:
+                    game_ref.queue_action(PlayBloodGems(t, 1))
+
+        listener = EventListener(
+            event_name="DEATHRATTLE_TRIGGER",
+            action=_PlayBGOnDR(),
+            condition=lambda m: (
+                m is not None
+                and m.controller == source.controller
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnDRTriggerImproveBGTempScript:
@@ -2550,7 +2781,7 @@ class EoTGetRandomMinionPerTribeScript:
                     and data.tags.get(GameTag.RACE) == tribe
                     and not cid.startswith('EXAMPLE')]
             if pool:
-                actions.append(AddToHand(source.controller, random.choice(pool)))
+                actions.append(AddToHand(source.controller, game.rng.choice(pool)))
         return actions if actions else None
 
 
@@ -2622,7 +2853,7 @@ class SoTGetRandomSpellcraftScript:
         if not sc_pool:
             return None
         count = min(cls.COUNT, len(sc_pool))
-        chosen = random.sample(sc_pool, count)
+        chosen = game.rng.sample(sc_pool, count)
         return [AddToHand(source.controller, cid) for cid in chosen]
 
 
@@ -2653,7 +2884,7 @@ class SoTRepeatGetPrivateerScript:
                        and 'Bounty' in (getattr(data, 'name', '') or '')
                        and not cid.startswith('EXAMPLE')]
         if bounty_pool:
-            chosen = random.sample(bounty_pool, min(2, len(bounty_pool)))
+            chosen = game.rng.sample(bounty_pool, min(2, len(bounty_pool)))
             for cid in chosen:
                 actions.append(AddToHand(source.controller, cid))
         return actions
@@ -2667,21 +2898,23 @@ class SoTRepeatGetPrivateerScript:
                        and not cid.startswith('EXAMPLE')]
         if not bounty_pool:
             return None
-        chosen = random.sample(bounty_pool, min(2, len(bounty_pool)))
+        chosen = game.rng.sample(bounty_pool, min(2, len(bounty_pool)))
         return [AddToHand(source.controller, cid) for cid in chosen]
 
 
 class SoTGoldenRandomMinionScript:
-    """Make a random friendly minion (Tier 3 or below) Golden. At SoT, repeat."""
+    """Make a random friendly minion (Tier 4 or below) Golden. At SoT, repeat."""
+    MAX_TIER = 4
+
     @classmethod
     def start_of_turn(cls, source, game):
         eligible = [m for m in source.controller.board
                     if not m.dead
                     and not m.is_golden
-                    and m.get_tag(GameTag.TECH_LEVEL, 1) <= 3]
+                    and m.get_tag(GameTag.TECH_LEVEL, 1) <= cls.MAX_TIER]
         if not eligible:
             return None
-        target = random.choice(eligible)
+        target = game.rng.choice(eligible)
         target.set_tag(GameTag.GOLDEN, True)
         target.atk = target.atk * 2
         target.health = target.health * 2
@@ -2739,7 +2972,7 @@ class OnRefreshBuffMurlocsTavernScript:
         actions = []
         for m in murlocs:
             actions.append(Buff(m, atk=5, health=5))
-            actions.append(GainKeyword(m, random.choice(cls.BONUS_KEYWORDS)))
+            actions.append(GainKeyword(m, game.rng.choice(cls.BONUS_KEYWORDS)))
         return actions
 
 
@@ -2783,7 +3016,7 @@ class SoCBuffOnePerTribeImproveScript:
         health = cls.HEALTH + source.get_tag(GameTag.IMPROVE_COUNTER, 0)
         actions = []
         for tribe, minions in tribes.items():
-            target = random.choice(minions)
+            target = game.rng.choice(minions)
             actions.append(Buff(target, atk=atk, health=health))
         # Improve for next turn
         actions.append(IncrementImproveCounter(source, 1))
@@ -2820,7 +3053,7 @@ class AvengeTransferATKScript:
         dragons = [m for m in board if m.race == Race.DRAGON and m is not rightmost]
         if not dragons:
             return None
-        target = random.choice(dragons)
+        target = game.rng.choice(dragons)
         return Buff(target, atk=rightmost.atk, health=0)
 
 
@@ -3037,7 +3270,7 @@ class SoCSummonAndGetPirateAttackScript:
                        and not cid.startswith('EXAMPLE')]
         if not pirate_pool:
             return None
-        chosen_id = random.choice(pirate_pool)
+        chosen_id = game.rng.choice(pirate_pool)
         pirate = game.create_minion(chosen_id)
         if pirate is None:
             return None
@@ -3056,7 +3289,7 @@ class SoCGiveElementalFrostlingDRScript:
                       if not m.dead and m.race == Race.ELEMENTAL]
         if not elementals:
             return None
-        targets = random.sample(elementals, min(2, len(elementals)))
+        targets = game.rng.sample(elementals, min(2, len(elementals)))
         actions = []
         for t in targets:
             token_id = cls.FROSTLING_ID
@@ -3074,8 +3307,9 @@ class SoCGiveElementalFrostlingDRScript:
 
 
 class SoCGivePirateSkyPirateDRScript:
-    """SoC: Give 2 friendly Pirates 'Deathrattle: Summon a 1/1 Sky Pirate'."""
-    SKY_PIRATE_ID = "TB_BaconUps_140"  # Sky Pirate token
+    """SoC: Give 3 friendly Pirates 'Deathrattle: Summon an attacking Sky Pirate'."""
+    SKY_PIRATE_ID = "BGS_061t"
+    TARGET_COUNT = 3
 
     @classmethod
     def start_of_combat(cls, source, game):
@@ -3083,7 +3317,7 @@ class SoCGivePirateSkyPirateDRScript:
                    if not m.dead and m.race == Race.PIRATE]
         if not pirates:
             return None
-        targets = random.sample(pirates, min(2, len(pirates)))
+        targets = game.rng.sample(pirates, min(cls.TARGET_COUNT, len(pirates)))
         actions = []
         for t in targets:
             token_id = cls.SKY_PIRATE_ID
@@ -3092,7 +3326,11 @@ class SoCGivePirateSkyPirateDRScript:
                 def dr(source_minion, g):
                     token = g.create_minion(tid)
                     if token:
-                        return Summon(source_minion.controller, token)
+                        token.set_tag(GameTag.ATK, token.atk + source_minion.atk)
+                        return [
+                            Summon(source_minion.controller, token),
+                            AttackImmediately(token),
+                        ]
                     return None
                 return dr
 
@@ -3191,7 +3429,7 @@ class OnBuyGetRandomPirateScript:
                            and data.tags.get(GameTag.RACE) == Race.PIRATE
                            and not cid.startswith('EXAMPLE')]
             if pirate_pool:
-                return AddToHand(source.controller, random.choice(pirate_pool))
+                return AddToHand(source.controller, game.rng.choice(pirate_pool))
         return None
 
 
@@ -3221,42 +3459,61 @@ class SoCSummonMechCopyFirstDeadScript:
 
 
 class SoTSpinYoggWheelScript:
-    """Spin the Wheel of Yogg-Saron. At the start of each turn, spin it again."""
+    """Spin the Wheel of Yogg-Saron. At the start of each turn, spin it again.
+
+    Yogg wheel effects (subset of the full 20-effect table):
+      1. +4/+4 to all friendly minions
+      2. Deal 5 damage to a random enemy hero
+      3. Gain 4 Gold
+      4. Get a random minion of your tavern tier
+      5. Give a random friendly minion +8/+8
+      6. Refresh the tavern (free)
+    """
+
     @classmethod
     def on_summon(cls, source, game):
-        # Simplified: Yogg wheel effects are random buffs/damage
-        # Choose a random effect
-        return cls._random_yogg_effect(source, game)
+        return cls._spin(source, game)
 
     @classmethod
     def start_of_turn(cls, source, game):
-        return cls._random_yogg_effect(source, game)
+        return cls._spin(source, game)
 
     @classmethod
-    def _random_yogg_effect(cls, source, game):
+    def _spin(cls, source, game):
         board = _living_board(source.controller)
-        if not board:
-            return None
-        effect = random.randint(1, 4)
-        if effect == 1:
-            # +4/+4 to all
-            return [Buff(m, atk=4, health=4) for m in board]
-        elif effect == 2:
-            # Random friendly becomes golden (temporary)
-            target = random.choice(board)
-            return Buff(target, atk=target.atk, health=target.health)
-        elif effect == 3:
-            # Gain 3 Gold
-            return GainGold(source.controller, 3)
-        else:
-            # Deal 3 damage to random enemy
-            from hsrl.core.actions import DealDamageToHero
+        effect = game.rng.choice([
+            "_buff_all", "_damage_hero", "_gain_gold",
+            "_random_minion", "_buff_one", "_free_refresh",
+        ])
+        if effect == "_buff_all":
+            return [Buff(m, atk=4, health=4) for m in board] if board else None
+        elif effect == "_damage_hero":
             enemies = [p for p in game.players
                        if p is not source.controller and p.is_alive]
             if enemies:
-                enemy = random.choice(enemies)
-                return DealDamageToHero(enemy, 3)
+                from hsrl.core.actions import DealDamageToHero
+                return DealDamageToHero(game.rng.choice(enemies), 5)
             return None
+        elif effect == "_gain_gold":
+            return GainGold(source.controller, 4)
+        elif effect == "_random_minion":
+            tier = source.controller.tavern_tier
+            from hsrl.core.card_db import CARDS
+            pool = [cid for cid, data in CARDS._cards.items()
+                    if data.cardtype == 4 and data.tech_level == tier
+                    and not cid.startswith("EXAMPLE")]
+            if pool:
+                return AddToHand(source.controller, game.rng.choice(pool))
+            return None
+        elif effect == "_buff_one":
+            if board:
+                return Buff(game.rng.choice(board), atk=8, health=8)
+            return None
+        elif effect == "_free_refresh":
+            source.controller.set_tag(GameTag.FREE_REFRESH_REMAINING,
+                                      source.controller.get_tag(GameTag.FREE_REFRESH_REMAINING, 0) + 1)
+            return None
+        return None
 
 
 class CounterSpendGoldDoubleATKScript:
@@ -3297,7 +3554,7 @@ class AvengeDiscoverBCAndTriggerBCScript:
         bc_minions = [m for m in board if m.battlecry]
         if not bc_minions:
             return None
-        target = random.choice(bc_minions)
+        target = game.rng.choice(bc_minions)
         bc_fn = target.battlecry
         if bc_fn is not None and callable(bc_fn):
             return bc_fn(target, game)
@@ -3346,11 +3603,10 @@ class SoCGiveNagaSpellcraftDRScript:
             "BG35_MagicItem_733t",
         ]
         actions = []
-        import random as _random
         for t in naga:
             def make_dr(minion, pool=list(sc_spell_pool)):
                 def dr(source_minion, g):
-                    spell_id = _random.choice(pool)
+                    spell_id = g.rng.choice(pool)
                     return AddToHand(source_minion.controller, spell_id)
                 return dr
             actions.append(GainDeathrattle(t, make_dr(t)))
@@ -3369,7 +3625,7 @@ class OnPlayNagaGetSpellcraftScript:
             "BG23_004t", "BG23_007t", "BG23_008t",
             "BG26_501t", "BG31_920t", "BG33_319t",
         ]
-        return AddToHand(source.controller, random.choice(sc_spell_pool))
+        return AddToHand(source.controller, game.rng.choice(sc_spell_pool))
 
 
 class OnPlayDemonDealDamageToHeroScript:
@@ -3462,7 +3718,7 @@ class OnBuyFirstPirateFreeScript:
         bought = kwargs.get('minion') or kwargs.get('bought')
         if bought is not None and getattr(bought, 'race', None) == Race.PIRATE:
             source.set_tag(GameTag.TRINKET_COUNTER, 1)
-            # Refund the gold spent (approximation of "free")
+            # DEFERRED: refunds gold after purchase (full fix needs 0-cost during buy)
             return GainGold(source.controller, bought.get_tag(GameTag.COST, 3))
         return None
 
@@ -3501,7 +3757,7 @@ class SummonCounterGetRandomBeastScript:
                           and data.tags.get(GameTag.RACE) == Race.BEAST
                           and not cid.startswith('EXAMPLE')]
             if beast_pool:
-                return AddToHand(source.controller, random.choice(beast_pool))
+                return AddToHand(source.controller, game.rng.choice(beast_pool))
             return None
         source.set_tag(GameTag.TRINKET_COUNTER, counter)
         return None
@@ -3514,21 +3770,38 @@ class SummonCounterGetRandomBeastScript:
 # ════════════════ Phase 15a: on_friendly_damage → buff random ══════════════════
 
 class OnFriendlyDamageBuffRandomScript:
-    """Whenever a friendly minion takes damage, give a random friendly +X ATK permanently."""
-    ATK_BONUS = 2
+    """Whenever a friendly minion takes damage, give a random friendly +X ATK."""
+    ATK_BONUS = 3
 
     @classmethod
-    def on_friendly_damage(cls, source, game, **kwargs):
-        board = _living_board(source.controller)
-        if not board:
-            return None
-        target = random.choice(board)
-        return Buff(target, atk=cls.ATK_BONUS, health=0)
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _atk = cls.ATK_BONUS
+
+        class _BuffRandomOnFriendlyDamage(Action):
+            def do(self, source_ent, game_ref, target=None):
+                board = _living_board(source.controller)
+                if not board:
+                    return
+                chosen = game.rng.choice(board)
+                game_ref.queue_action(Buff(chosen, atk=_atk, health=0))
+
+        listener = EventListener(
+            event_name="DAMAGE",
+            action=_BuffRandomOnFriendlyDamage(),
+            condition=lambda minion, amount, src: (
+                minion is not None
+                and not minion.dead
+                and minion.controller == source.controller
+            ),
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 class OnFriendlyDamageBuffRandom4Script(OnFriendlyDamageBuffRandomScript):
-    """Whenever a friendly minion takes damage, give a random friendly +4 ATK permanently."""
-    ATK_BONUS = 4
+    """Whenever a friendly minion takes damage, give a random friendly +5 ATK."""
+    ATK_BONUS = 5
 
 
 # ════════════════ Phase 15b: SimpleGet (pure get-card) ═════════════════════════
@@ -3611,6 +3884,26 @@ class GetAllChromadrakesScript:
         return [AddToHand(source.controller, cid) for cid in cls.CHROMADRAKE_IDS]
 
 
+class ChromaticTearLesserScript:
+    """Get 2 random Chromadrakes. At the start of each turn, repeat this."""
+    COUNT = 2
+
+    @classmethod
+    def _get_chromadrakes(cls, source):
+        return [
+            AddToHand(source.controller, source.game.rng.choice(CHROMADRAKE_IDS))
+            for _ in range(cls.COUNT)
+        ]
+
+    @classmethod
+    def on_summon(cls, source, game):
+        return cls._get_chromadrakes(source)
+
+    @classmethod
+    def start_of_turn(cls, source, game):
+        return cls._get_chromadrakes(source)
+
+
 # ════════════════ Phase 15c: Get + secondary effect ════════════════════════════
 
 class GetSoulRewinderAndWrathWeaverScript:
@@ -3652,7 +3945,7 @@ class GetBrannAndRandomBCScript:
                    and not cid.startswith('EXAMPLE')]
         actions = [AddToHand(source.controller, cls.BRANN)]
         if bc_pool:
-            actions.append(AddToHand(source.controller, random.choice(bc_pool)))
+            actions.append(AddToHand(source.controller, game.rng.choice(bc_pool)))
         return actions
 
 
@@ -3879,7 +4172,7 @@ class Every2TurnsCraftUndeadScript:
 
     @classmethod
     def effect(cls, source, game):
-        # Simplified: Discover an Undead minion (craft = discover an undead)
+        # Discover an Undead minion — "craft" = discover + buff
         from hsrl.core.card_db import CARDS
         undead_pool = [cid for cid, data in CARDS._cards.items()
                        if data.cardtype == CardType.MINION
@@ -3925,7 +4218,7 @@ class GetRandomMinionRepeatScript:
                 if data.cardtype == CardType.MINION
                 and not cid.startswith('EXAMPLE')]
         if pool:
-            return AddToHand(source.controller, random.choice(pool))
+            return AddToHand(source.controller, game.rng.choice(pool))
         return None
 
     @classmethod
@@ -3935,7 +4228,7 @@ class GetRandomMinionRepeatScript:
                 if data.cardtype == CardType.MINION
                 and not cid.startswith('EXAMPLE')]
         if pool:
-            return AddToHand(source.controller, random.choice(pool))
+            return AddToHand(source.controller, game.rng.choice(pool))
         return None
 
 
@@ -3950,7 +4243,7 @@ class Get2RandomMinionsRepeatScript:
                 if data.cardtype == CardType.MINION
                 and not cid.startswith('EXAMPLE')]
         if pool:
-            chosen = random.sample(pool, min(cls.COUNT, len(pool)))
+            chosen = game.rng.sample(pool, min(cls.COUNT, len(pool)))
             return [AddToHand(source.controller, cid) for cid in chosen]
         return None
 
@@ -3961,7 +4254,7 @@ class Get2RandomMinionsRepeatScript:
                 if data.cardtype == CardType.MINION
                 and not cid.startswith('EXAMPLE')]
         if pool:
-            chosen = random.sample(pool, min(cls.COUNT, len(pool)))
+            chosen = game.rng.sample(pool, min(cls.COUNT, len(pool)))
             return [AddToHand(source.controller, cid) for cid in chosen]
         return None
 
@@ -4001,16 +4294,32 @@ class OnHeroDamageTavernSpellBonusScript:
 # ════════════════ Phase 16a: OnSpellCast → Buff Leftmost Hand ═════════════════
 
 class OnCastSpellBuffLeftmostHand4x4Script:
-    """After you cast a Tavern spell, give the left-most minion in your hand +4/+4."""
-    ATK = 4
-    HEALTH = 4
+    """After you cast a Tavern spell, give left-most hand and board minions +3/+3."""
+    ATK = 3
+    HEALTH = 3
 
     @classmethod
-    def on_spell_cast(cls, source, game, **kwargs):
-        hand = source.controller.hand
-        if not hand:
-            return None
-        return Buff(hand[0], atk=cls.ATK, health=cls.HEALTH)
+    def on_summon(cls, source, game):
+        from hsrl.core.events import EventListener
+        _atk = cls.ATK
+        _health = cls.HEALTH
+
+        class _BuffLeftmost(Action):
+            def do(self, source_ent, game_ref, target=None):
+                hand = source.controller.hand
+                if hand:
+                    game_ref.queue_action(Buff(hand[0], atk=_atk, health=_health))
+                board = _living_board(source.controller)
+                if board:
+                    game_ref.queue_action(Buff(board[0], atk=_atk, health=_health))
+
+        listener = EventListener(
+            event_name="TAVERN_SPELL_CAST",
+            action=_BuffLeftmost(),
+            condition=lambda spell, player: player == source.controller,
+        )
+        game.register_listener(source, listener)
+        return None
 
 
 # ════════════════ Phase 16b: OnConsume → Counter → Get Spell ══════════════════
@@ -4053,7 +4362,7 @@ class GetBeatboxerAndMagneticScript:
                          and not cid.startswith('EXAMPLE')]
         actions = [AddToHand(source.controller, cls.BEATBOXER)]
         if magnetic_pool:
-            actions.append(AddToHand(source.controller, random.choice(magnetic_pool)))
+            actions.append(AddToHand(source.controller, game.rng.choice(magnetic_pool)))
         return actions
 
 
@@ -4069,7 +4378,7 @@ class GetTwoMinionsPerTier123Script:
                     and data.tags.get(GameTag.TECH_LEVEL) == tier
                     and not cid.startswith('EXAMPLE')]
             if len(pool) >= 2:
-                chosen = random.sample(pool, 2)
+                chosen = game.rng.sample(pool, 2)
             elif pool:
                 chosen = pool[:]
             else:
@@ -4233,7 +4542,7 @@ class OnPlayDemonConsumeTavernScript:
                   if not m.dead and m.race == Race.DEMON and m is not played_card]
         if not demons:
             return None
-        consumer = random.choice(demons)
+        consumer = game.rng.choice(demons)
         return ConsumeTavernMinion(source.controller, consumer, mode="random")
 
 
@@ -4331,7 +4640,7 @@ class TransformAllToRandomTier4Script:
         actions = []
         for m in board:
             if not m.dead:
-                new_id = random.choice(t4_pool)
+                new_id = game.rng.choice(t4_pool)
                 actions.append(Transform(m, new_id))
         return actions if actions else None
 
@@ -4339,25 +4648,21 @@ class TransformAllToRandomTier4Script:
 # ════════════════ Phase 17c: Spell Discount — first spell costs (1) less ══════
 
 class FirstSpellEachTurnCosts1LessScript:
-    """The first Tavern spell you buy each turn costs (1) less."""
+    """The first Tavern spell you buy each turn costs (1) less.
+
+    Sets NEXT_SPELL_COST_REDUCTION=1 on the player. buy_spell() applies the
+    discount and clears it. Re-enabled each turn via start_of_turn.
+    """
+
     @classmethod
     def on_summon(cls, source, game):
-        source.set_tag(GameTag.TRINKET_COUNTER, 0)
+        source.controller.set_tag(GameTag.NEXT_SPELL_COST_REDUCTION, 1)
         return None
 
     @classmethod
     def start_of_turn(cls, source, game):
-        source.set_tag(GameTag.TRINKET_COUNTER, 0)
+        source.controller.set_tag(GameTag.NEXT_SPELL_COST_REDUCTION, 1)
         return None
-
-    @classmethod
-    def on_spell_bought(cls, source, game, **kwargs):
-        counter = source.get_tag(GameTag.TRINKET_COUNTER, 0)
-        if counter > 0:
-            return None
-        source.set_tag(GameTag.TRINKET_COUNTER, 1)
-        # Refund 1 gold (approximation of "costs (1) less")
-        return GainGold(source.controller, 1)
 
 
 # ════════════════ Phase 17d: EoT — Lock Tier 7 Discover ═══════════════════════
@@ -4414,8 +4719,8 @@ class GetHackerfinEoTTriggerBCScript:
 # ════════════════ Phase 17f: Combat — Quilboar death → Golem ══════════════════
 
 class QuilboarDeathSummonGolemScript:
-    """Whenever a friendly Quilboar dies, summon a Golem with stats equal to Blood Gems. (3 times per combat.)"""
-    MAX_TRIGGERS = 3
+    """Whenever a friendly Quilboar dies, summon a Golem with stats equal to Blood Gems."""
+    MAX_TRIGGERS = None
     GOLEM_ID = "BG28_801t"  # Placeholder — actual Blood Gem Golem token
 
     @classmethod
@@ -4426,7 +4731,7 @@ class QuilboarDeathSummonGolemScript:
     @classmethod
     def on_friendly_death_combat(cls, source, game, **kwargs):
         counter = source.get_tag(GameTag.TRINKET_COUNTER, 0)
-        if counter >= cls.MAX_TRIGGERS:
+        if cls.MAX_TRIGGERS is not None and counter >= cls.MAX_TRIGGERS:
             return None
         dead = kwargs.get('dead_minion')
         if dead is not None and dead.race == Race.QUILBOAR:
@@ -4640,7 +4945,7 @@ class GetMagneticMechsScript:
         ]
         for _ in range(cls.N):
             if magnetic_ids:
-                game.queue_action(AddToHand(source.controller, random.choice(magnetic_ids)), source=source)
+                game.queue_action(AddToHand(source.controller, game.rng.choice(magnetic_ids)), source=source)
 
 
 class GetMagneticMechs3Script(GetMagneticMechsScript):
@@ -4886,15 +5191,15 @@ class OnSpellCastOnMinionBuffScript:
 
 
 class LorewalkerScrollLesserScript:
-    """Whenever you cast a spell on a minion, give it +2/+2."""
-    ATK = 2
-    HEALTH = 2
+    """Whenever you cast a spell on a minion, give it +4/+4."""
+    ATK = 4
+    HEALTH = 4
 
     @staticmethod
     def on_summon(source, game):
         from hsrl.core.events import SPELL_CAST_ON_MINION, EventListener
-        _atk = 2
-        _health = 2
+        _atk = 4
+        _health = 4
 
         class _BuffAction(Action):
             def __init__(self, trinket):
@@ -5212,7 +5517,7 @@ class ChromaticTearScript:
         from hsrl.core.events import BATTLECRY_TRIGGER, EventListener
         # Add 2 random Chromadrakes on equip
         for _ in range(2):
-            game.queue_action(AddToHand(source.controller, random.choice(CHROMADRAKE_IDS)), source=source)
+            game.queue_action(AddToHand(source.controller, game.rng.choice(CHROMADRAKE_IDS)), source=source)
         source.set_tag(GameTag.TRINKET_COUNTER, 3)
 
         class _ChromAction(Action):
@@ -5224,7 +5529,7 @@ class ChromaticTearScript:
                 if c <= 0:
                     self.t.set_tag(GameTag.TRINKET_COUNTER, 3)
                     for _ in range(2):
-                        g.queue_action(AddToHand(self.t.controller, random.choice(CHROMADRAKE_IDS)))
+                        g.queue_action(AddToHand(self.t.controller, g.rng.choice(CHROMADRAKE_IDS)))
                 else:
                     self.t.set_tag(GameTag.TRINKET_COUNTER, c)
 
@@ -5497,7 +5802,7 @@ class ElectrodeAttractorScript:
                     and not cid.startswith("EXAMPLE")
                 ]
                 if magnetic_ids:
-                    token = g.create_minion(random.choice(magnetic_ids))
+                    token = g.create_minion(game.rng.choice(magnetic_ids))
                     if token:
                         token.controller = self.player
                         token.zone = Zone.PLAY
@@ -5513,16 +5818,33 @@ class ElectrodeAttractorScript:
 # ════════════════ Phase 19h: Conductor Portrait — Get Howler Driver ════════════
 
 class ConductorPortraitScript:
-    """Get a Howler Driver. (On-discard Blood Gem play is TODO — needs discard system.)
+    """Get a Howler Driver. After you play a Blood Gem, play one on a random friendly.
 
     Formal spec:
       1. on_summon: add Howler Driver (BG30_402) to hand
+      2. Register BLOOD_GEM_PLAYED listener → bonus Blood Gem on random friendly
     """
     HOWLER_ID = "BG30_402"
 
     @classmethod
     def on_summon(cls, source, game):
         game.queue_action(AddToHand(source.controller, cls.HOWLER_ID), source=source)
+
+        from hsrl.core.events import BLOOD_GEM_PLAYED, EventListener
+
+        class _BonusBloodGem(Action):
+            def do(self, source_ent, game_ref, target=None):
+                board = _living_board(source.controller)
+                if not board:
+                    return
+                target = game.rng.choice(board)
+                game_ref.queue_action(PlayBloodGems(target, 1))
+
+        game.register_listener(source, EventListener(
+            event_name=BLOOD_GEM_PLAYED,
+            action=_BonusBloodGem(),
+            condition=lambda minion, player, count=1: player == source.controller,
+        ))
 
 
 # ════════════════ Phase 19g0: Innkeeper's Stein — Extra Higher Tier ════════════
@@ -5589,10 +5911,9 @@ class WarbandWhistleScript:
     def on_summon(source, game):
         # Add copies of board minions to tavern
         board = source.controller.get_board_minions()
-        import random as _random
         if board:
             slots = min(3, 7 - len(source.controller.tavern))
-            for m in _random.sample(board, min(slots, len(board))):
+            for m in game.rng.sample(board, min(slots, len(board))):
                 if len(source.controller.tavern) >= 7:
                     break
                 token = game.create_minion(m.get_tag(GameTag.CARD_ID))
@@ -5607,10 +5928,11 @@ class WarbandWhistleScript:
 
 class ImplicatorPortraitScript:
     """Get 2 False Implicators. Your demons always eat the highest-health
-    tavern minion (consume targeting is TODO).
+    tavern minion.
 
     Formal spec:
       1. on_summon: add 2x False Implicator (BG29_140) to hand
+      2. Set IMPLICATOR_CONSUME_HIGHEST flag → ConsumeTavernMinion uses max-health
     """
     IMP_ID = "BG29_140"
 
@@ -5618,6 +5940,7 @@ class ImplicatorPortraitScript:
     def on_summon(cls, source, game):
         for _ in range(2):
             game.queue_action(AddToHand(source.controller, cls.IMP_ID), source=source)
+        source.controller.set_tag(GameTag.IMPLICATOR_CONSUME_HIGHEST, True)
 
 
 # ════════════════ Phase 20b: Pilgrimp Sticker — Health-Cost Demon ══════════════
@@ -5668,16 +5991,31 @@ class TarecgosaStickerScript:
 
 class TideRaiserPortraitScript:
     """Get a Tidemistress Athissa. In combat, after you cast a spell, get a copy.
-    (Combat spell copy is TODO — needs in-combat spell tracking.)
 
     Formal spec:
       1. on_summon: add Tidemistress Athissa (BG23_013) to hand
+      2. Register TAVERN_SPELL_CAST listener → in combat → add copy to hand
     """
     CARD_ID = "BG23_013"
 
     @classmethod
     def on_summon(cls, source, game):
         game.queue_action(AddToHand(source.controller, cls.CARD_ID), source=source)
+
+        from hsrl.core.events import EventListener
+
+        class _GetCopyOnCombatSpell(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if not game_ref.in_combat:
+                    return
+                if len(source.controller.hand) < 10:
+                    game_ref.queue_action(AddToHand(source.controller, cls.CARD_ID))
+
+        game.register_listener(source, EventListener(
+            event_name="TAVERN_SPELL_CAST",
+            action=_GetCopyOnCombatSpell(),
+            condition=lambda spell, player: player == source.controller,
+        ))
 
 
 # ════════════════ Phase 20e: Mystery Cube — Discover Trinket Each Turn ══════════
@@ -5833,7 +6171,10 @@ class ReflectivePendantScript:
 class TokenOfTheOldGodsScript:
     """Spellcraft: Choose a minion to transform into one from a higher Tier."""
     # DEFERRED: Needs Spellcraft + Discover one-Tier-higher minion + Transform
-    pass
+
+    @staticmethod
+    def spellcraft(source, game):
+        return None  # DEFERRED
 
 
 class BobBleheadScript:
@@ -5903,9 +6244,17 @@ class FelbatPortraitScript:
 
 
 class CorruptedTomeScript:
-    """Get a Triple Prize. Triple Rewards become Triple Prizes instead."""
-    # DEFERRED: triple reward pool modification
-    pass
+    """Get a Triple Prize. Triple Rewards become Triple Prizes instead.
+
+    Formal spec:
+      1. on_summon: set TRIPLE_REWARD_PRIZE flag on player
+      2. Engine (_combine_triple) checks flag → DiscoverPrize instead of DiscoverMinion
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        source.controller.set_tag(GameTag.TRIPLE_REWARD_IS_PRIZE, True)
+        return None
 
 
 class DazzlingDaggerScript:
@@ -5956,7 +6305,8 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_416": TokenOfTheOldGodsScript,     # Token of the Old Gods (DEFERRED)
     "BG30_MagicItem_995": BronzeTimepieceScript,       # Bronze Timepiece
     "BG30_MagicItem_542": EmeraldDreamcatcherScript,   # Emerald Dreamcatcher
-    "BG30_MagicItem_991": FelbatPortraitScript,        # Felbat Portrait     "BG30_MagicItem_429": SpellcraftConsumeTavernMinionScript,  # Demonblood Gourd
+    "BG30_MagicItem_991": FelbatPortraitScript,        # Felbat Portrait
+    "BG30_MagicItem_429": SpellcraftConsumeTavernMinionScript,  # Demonblood Gourd
     "BG35_MagicItem_812": CorruptedTomeScript,         # Corrupted Tome (DEFERRED)
 
     # ── EoT ──
@@ -5991,7 +6341,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
 
     # ── SoT: Cast Spell ──
     "BG32_MagicItem_286": SoTCastSpellScript,             # Lavish Cape
-    "BG35_MagicItem_850": SoTCastSpellScript,             # Pocket Cyclone (Lesser): cast Easterly Winds
+    "BG35_MagicItem_850": PocketCycloneScript,            # Pocket Cyclone (Lesser): cast Easterly Winds once
     "BG35_MagicItem_850t": SoTCastSpellScript,            # Pocket Cyclone (Greater): cast Easterly Winds x2
 
     # ── SoT: Repeat Get (specific named minion) ──
@@ -6038,7 +6388,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG32_MagicItem_111": ToxicStingerScript,              # Toxic Stinger: +8/+8 and Venomous to random Murloc
     "BG32_MagicItem_832": EoTGetWindfallScript,           # Windfall Portrait (Lesser): get Windfall Tornado
     "BG32_MagicItem_832t": EoTGetWindfallScript,          # Windfall Portrait (Greater)
-    "BG35_MagicItem_752": EoTTriggerBattlecriesScript,    # Young Murk-Eye Sticker: trigger all BCs
+    "BG35_MagicItem_752": EoTTriggerBattlecriesScript,    # Young Murk-Eye Sticker: trigger L/R BCs
 
     # ── On Buy: Buff Two Random ──
     "BG30_MagicItem_414": OnBuyBuffTwoRandom1x1Script,    # Kodo Leather Pouch (Lesser)
@@ -6071,7 +6421,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     # ── Counter: Sell ──
     "BG30_MagicItem_710": CounterSellMurlocScript,          # Fungalmancer Sticker: sell 5 → random Murloc
     "BG30_MagicItem_951": CounterSellElementalScript,       # Lava Lamp: sell 5 → random Elemental
-    "BG35_MagicItem_863": CounterSellTokenScript,           # Avalanche Sticker: sell 5 → Mounting Avalanche (DEFERRED: token unknown)
+    "BG35_MagicItem_863": CounterSellTokenScript,           # Avalanche Sticker: sell 4 → Mounting Avalanche
 
     # ── Counter: Spell Cast ──
     "BG32_MagicItem_930": CounterSpellCastNagaScript,       # Archaic Scroll: cast 6 spells → random Naga
@@ -6083,7 +6433,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
 
     # ── Counter: Death ──
     "BG30_MagicItem_713": CounterDeathGetUndeadScript,       # Bleeding Heart: 9 friendly die → random Undead
-    "BG30_MagicItem_931": CounterDeathGetBeastScript,        # Lucky Tabby: 6 friendly die → random Beast
+    "BG30_MagicItem_931": CounterDeathGetBeastScript,        # Lucky Tabby: 7 friendly die → random Beast
     "BG35_MagicItem_302": CounterDeathGetMechScript,         # Stormcoil Sticker: 7 friendly die → random Mech
 
     # ── Counter: Spend Gold ──
@@ -6095,7 +6445,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
 
     # ── EoT: Buff Leftmost Variants (improve/repeat parts DEFERRED) ──
     "BG32_MagicItem_890": EoTBuffLeftmost3x2Script,         # Cliffdiver Sticker: EoT +3/+2 leftmost (improve DEFERRED)
-    "BG32_MagicItem_922": EoTBuffLeftmost2x2Script,         # Charming Panpipes: EoT +2/+2 leftmost (improve DEFERRED)
+    "BG32_MagicItem_922": EoTBuffLeftmost2x2Script,         # Charming Panpipes: EoT +3/+3 leftmost
     "BG32_MagicItem_954": EoTBuffLeftmost4x3Script,         # Auric Offering: EoT +4/+3 leftmost (repeat DEFERRED)
 
     # ── Phase 7: New registrations ──
@@ -6113,8 +6463,8 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG35_MagicItem_711": SoCGive4RandomPiratesDSScript,     # Protective Ring: SoC give 4 random Pirates DS
 
     # ── Phase 8: On Play Tribe ──
-    "BG30_MagicItem_544": OnPlayElementalTavernBuffScript,    # Nomi Sticker (Lesser): play Elemental → Elementals in Tavern +2/+1
-    "BG30_MagicItem_544t": OnPlayElementalTavernBuff4x4Script, # Nomi Sticker (Greater): play Elemental → +4/+4
+    "BG30_MagicItem_544": OnPlayElementalTavernBuffScript,    # Nomi Sticker (Lesser): play Elemental → Elementals in Tavern +2/+2
+    "BG30_MagicItem_544t": OnPlayElementalTavernBuff4x4Script, # Nomi Sticker (Greater): play Elemental → +5/+5
     "BG32_MagicItem_888": OnPlayElementalFreeRefreshScript,   # Recycling Sticker: play Elemental → free Refresh
     "BG35_MagicItem_851": OnPlayElementalGetTavernSpellScript, # Water Wheel: play Elemental → get random Tavern spell
 
@@ -6134,6 +6484,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG32_MagicItem_300": Every2TurnsCraftUndeadScript,          # Putricide Sticker: every 2 turns craft Undead
     "BG35_MagicItem_305": ConchPortraitScript,                   # Conch Portrait: every 2 turns get Cloning Conch
     "BG35_MagicItem_817": LensCaseGetScript,                     # Lens Case: every 2 turns get Duplicating Lens
+    "BG35_MagicItem_817t": DuplicatingLensScript,                # Duplicating Lens: copy of first summon each combat
 
     # ── Phase 11: Combat Events ──
 
@@ -6156,13 +6507,13 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_978": OnSummonMechGiveMechDSScript,        # Blingtron's Sunglasses: summon Mech → give friendly Mech DS
 
     # ── Phase 12: Blood Gem ──
-    "BG30_MagicItem_988": GreatBoarStickerLesserScript,        # Great Boar Sticker (Lesser): BG give +4 Atk
-    "BG30_MagicItem_988t": GreatBoarStickerGreaterScript,      # Great Boar Sticker (Greater): BG give +3/+3
+    "BG30_MagicItem_988": GreatBoarStickerLesserScript,        # Great Boar Sticker (Lesser): get 3 BG, BG give +2/+1
+    "BG30_MagicItem_988t": GreatBoarStickerGreaterScript,      # Great Boar Sticker (Greater): get 5 BG, BG give +3/+3
     "BG32_MagicItem_904": HogwashBasinScript,                  # Hogwash Basin: SoC play 3 BG on all
     "BG30_MagicItem_411": HoggyBankScript,                     # Hoggy Bank: SoC give Quilboar DR: get 2 BG
 
     # ── Phase 12: Magnetic ──
-    "BG35_MagicItem_300": OnMagnetizeBuffScript,               # Copper Coil (Lesser): Magnetize → +1/+1 (improves)
+    "BG35_MagicItem_300": OnMagnetizeBuffScript,               # Copper Coil (Lesser): Magnetize → +2/+1 (improves)
     "BG35_MagicItem_300t": OnMagnetizeBuff3x3ImproveScript,    # Copper Coil (Greater): Magnetize → +3/+3 (improves)
     "BG30_MagicItem_709t": DiscoverMagneticMechScript,         # Electromagnetic Device: Discover 2 Magnetic Mechs + on_magnetize buff 4/4
     "BG32_MagicItem_170": OnPlayMagneticGetSpellScript,        # Spell-powered Wrench: play Magnetic → get Tavern spell
@@ -6173,7 +6524,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_403": SoCTripleTribelessStatsScript,    "BG30_MagicItem_407": SoCSummonAndGetPirateAttackScript,    "BG30_MagicItem_410": AvengeImproveBG1HealthScript,
     "BG30_MagicItem_410t2": AvengeImproveBG1x1Script,
     "BG30_MagicItem_418": GetBrannAndRandomBCScript,    "BG30_MagicItem_419": EoTGetRandomMinionPerTribeScript,
-    "BG30_MagicItem_422": LorewalkerScrollLesserScript,  # Lorewalker Scroll (Lesser): cast spell on minion → +2/+2
+    "BG30_MagicItem_422": LorewalkerScrollLesserScript,  # Lorewalker Scroll (Lesser): cast spell on minion → +4/+4
     "BG30_MagicItem_422t": LorewalkerScrollGreaterScript, # Lorewalker Scroll (Greater): cast spell on minion → +8/+8
     "BG30_MagicItem_423": InnkeepersSteinScript,  # Innkeeper's Stein: refresh always offers extra higher-tier minion
     "BG30_MagicItem_427": OnFriendlyDamageBuffRandomScript,    "BG30_MagicItem_427t": OnFriendlyDamageBuffRandom4Script,    "BG30_MagicItem_431": GetLivingAzeriteElementalBonusScript,    "BG30_MagicItem_434": FirstSpellEachTurnExtraTimeScript,    "BG30_MagicItem_439": DesignerEyepatchScript,  # Designer Eyepatch: pirates only need 2 copies for golden
@@ -6189,7 +6540,7 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG30_MagicItem_921": GetSkyPirateFlagbearerAuraScript,    "BG30_MagicItem_923": CounterPirateAttackGainGoldScript,    "BG30_MagicItem_943": GetHotAirSurveyorBGBonusScript,    "BG30_MagicItem_944": GetRedeemerPortraitScript,    "BG30_MagicItem_952": SoCGiveElementalFrostlingDRScript,    "BG30_MagicItem_971": GetLightfangAllTypesScript,    "BG30_MagicItem_972": SoCSummonCopyLeftmostScript,    "BG30_MagicItem_979": OnPlayElementalDiscountNextSpellScript,    "BG30_MagicItem_986": First3SpellsFreeEachTurnScript,    "BG30_Trinket_1st": UITimerScript,  # UI timer: Lesser Trinket shop countdown (no gameplay effect)
     "BG30_Trinket_2nd": UITimerScript,  # UI timer: Greater Trinket shop countdown (no gameplay effect)
 
-    "BG32_MagicItem_172": GetDrBoomsMonsterRepeatScript,    "BG32_MagicItem_179": GetDrakkariMechElementalScript,    "BG32_MagicItem_204": GetArchlichKelThuzadScript,    "BG32_MagicItem_205": GetMawCasterDestroyCoinScript,    "BG32_MagicItem_230": CounterSpendGoldDoubleATKScript,    "BG32_MagicItem_270": AvengeImproveTavernSpellScript,    "BG32_MagicItem_270t": AvengeImproveTavernSpell1x1Script,    "BG32_MagicItem_271": DelayedGreaterTrinketGain3Script,  # Ornate Clock: gain 3 Gold (greater trinket timing defer)
+    "BG32_MagicItem_172": GetDrBoomsMonsterRepeatScript,    "BG32_MagicItem_179": GetDrakkariMechElementalScript,    "BG32_MagicItem_204": GetArchlichKelThuzadScript,    "BG32_MagicItem_205": GetMawCasterDestroyCoinScript,    "BG32_MagicItem_230": CounterSpendGoldDoubleATKScript,    "BG32_MagicItem_270": AvengeImproveTavernSpellScript,    "BG32_MagicItem_270t": AvengeImproveTavernSpell1x1Script,    "BG32_MagicItem_271": DelayedGreaterTrinketGain3Script,  # Ornate Clock: gain 2 Gold (greater trinket timing defer)
     "BG32_MagicItem_274": GetBristlebachScript,    "BG32_MagicItem_278": OnBuyGetMagneticSatelliteScript,    "BG32_MagicItem_279": EoTPlayBGOnMinionOfEachTypeScript,    "BG32_MagicItem_280": SoCBuffOnePerTribeImproveScript,    "BG32_MagicItem_282": GetMagneticMechsScript,   # Magneto-Mechinator (Lesser): get 2 Magnetic Mechs
     "BG32_MagicItem_283": GetChargingCzarinaHealthScript,    "BG32_MagicItem_284": EoTPlayBGOnEachTribeScript,
     "BG32_MagicItem_306": SoCTriggerAllFriendlyDRScript,    "BG32_MagicItem_362": DiscoverTier6MinionSetStatsScript,    "BG32_MagicItem_362t": DiscoverTwoTier6SetStatsScript,    "BG32_MagicItem_363": OnFriendlyDragonAttackGiveDSScript,    "BG32_MagicItem_364": GetTimewarpedPoetScript,    "BG32_MagicItem_366": GuidingCandleScript,  # Guiding Candle: first 2 refreshes only tier 6
@@ -6223,8 +6574,8 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG35_MagicItem_743": ElectrodeAttractorScript,  # Electrode Attractor: magnetic mechs cost (2) + refresh bonus magnetic
     "BG35_MagicItem_750": OnBuyBuffMurlocTeachSpellScript,    "BG35_MagicItem_754": SoCGiveMurlocsHandATKScript,    "BG35_MagicItem_801": ExtraHeroPowerGainGoldScript,  # Teron's Training: extra hero power each turn + gain 1 gold after use
     "BG35_MagicItem_815": GetTwoMinionsPerTier123Script,    "BG35_MagicItem_816": OrbOfTheUnknownScript,  # Orb of the Unknown: random lesser trinket (approx: free refresh + 2 gold)
-    "BG35_MagicItem_820": CastIceBlockGainGoldScript,    "BG35_MagicItem_821": DiscoverTier7LockScript,    "BG35_MagicItem_821t": DiscoverGoldenTier7LockScript,    "BG35_MagicItem_840": GetAllChromadrakesScript,    "BG35_MagicItem_840t": ChromaticTearScript,  # Chromatic Tear: get 2 Chromadrakes + repeat after 3 BC minions
-    "BG35_MagicItem_842": GetTwoEndtimesEggsScript,    "BG35_MagicItem_848t": EggOfTheEndtimesPortraitScript,  # Egg Portrait: get golden Egg, hatches next turn
+    "BG35_MagicItem_820": CastIceBlockGainGoldScript,    "BG35_MagicItem_821": DiscoverTier7LockScript,    "BG35_MagicItem_821t": DiscoverGoldenTier7LockScript,    "BG35_MagicItem_840": ChromaticTearLesserScript,    "BG35_MagicItem_840t": ChromaticTearScript,  # Chromatic Tear: get 2 Chromadrakes + repeat
+    "BG35_MagicItem_842": EggOfEndtimesPortraitLesserScript,    "BG35_MagicItem_848t": EggOfTheEndtimesPortraitScript,  # Egg Portrait: get golden Egg, hatches next turn
     "BG35_MagicItem_849": AvengeTransferATKScript,    "BG35_MagicItem_852": OnRefreshTransferHighestToLowestScript,    "BG35_MagicItem_861": GetTemperatureShiftScript,    "BG35_MagicItem_862": OnRefreshDoubleHighestHealthScript,    "BG35_MagicItem_870": GetTimewarpedLeapfroggerScript,    "BG35_MagicItem_871": OnSummonBeastBuff44Script,    "BG35_MagicItem_872": TrinketSpellcraftBeastBuffRebornScript,
     "BG35_MagicItem_920": BubbleCrownScript,  # Bubble Crown: after 6 spells → improve tavern spell buff +2/+4
     "BG35_MagicItem_922": TideRaiserPortraitScript,  # Tide Raiser Portrait: get Tidemistress (combat spell copy TODO)

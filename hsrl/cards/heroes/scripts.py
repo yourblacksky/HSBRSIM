@@ -26,7 +26,9 @@ from hsrl.core.actions import (
     GiveKeyword,
     Hit,
     PlayBloodGems,
+    Summon,
     TargetedAction,
+    Transform,
 )
 from hsrl.core.actions import TransferStats  # imported lazily in some places
 from hsrl.core.enums import GameTag, Race, Zone
@@ -44,7 +46,7 @@ class ExampleHeroPowerBuff:
         board = source.get_board_minions()
         if not board:
             return None
-        target = random.choice(board)
+        target = game.rng.choice(board)
         return Buff(target, atk=1, health=1)
 
 
@@ -115,7 +117,7 @@ class BloodboundScript:
         board = source.get_board_minions()
         if not board:
             return None
-        target = random.choice(board)
+        target = game.rng.choice(board)
         return Buff(target, atk=1, health=1)
 
 
@@ -194,7 +196,7 @@ class SeeTheLightScript:
         board = source.get_board_minions()
         if not board:
             return None
-        target = random.choice(board)
+        target = game.rng.choice(board)
         return Buff(target, atk=2, health=2)
 
 
@@ -210,7 +212,7 @@ class ConvictionScript:
         board = source.get_board_minions()
         if not board:
             return None
-        target = random.choice(board)
+        target = game.rng.choice(board)
         return Buff(target, atk=1, health=1)
 
 
@@ -266,7 +268,7 @@ class BoonOfLightScript:
         candidates = [m for m in board if not m.divine_shield]
         if not candidates:
             return None
-        target = random.choice(candidates)
+        target = game.rng.choice(candidates)
         return GainKeyword(target, GameTag.DIVINE_SHIELD)
 
 
@@ -283,7 +285,7 @@ class TinkerScript:
         targets = [m for m in board if m.race in (Race.MECH, Race.ALL)]
         if not targets:
             return None
-        target = random.choice(targets)
+        target = game.rng.choice(targets)
         return Buff(target, atk=1, health=1)
 
 
@@ -324,7 +326,7 @@ class BrickByBrickScript:
         board = source.get_board_minions()
         if not board:
             return None
-        target = random.choice(board)
+        target = game.rng.choice(board)
         return Buff(target, atk=0, health=3)
 
 
@@ -341,7 +343,7 @@ class QueenOfDragonsScript:
         targets = [m for m in board if m.race in (Race.DRAGON, Race.ALL)]
         if not targets:
             return None
-        target = random.choice(targets)
+        target = game.rng.choice(targets)
         return Buff(target, atk=1, health=1)
 
 
@@ -370,7 +372,7 @@ class BobsBurglesScript:
                           if m.get_tag(GameTag.CARDTYPE) == 1]  # MINION only
         if not tavern_minions:
             return None
-        target = random.choice(tavern_minions)
+        target = game.rng.choice(tavern_minions)
         from hsrl.core.actions import GetRandomMinion
         # Add a copy of the tavern minion to hand
         card_id = target.get_tag(GameTag.CARD_ID)
@@ -421,7 +423,7 @@ class LuckyRollScript:
 
     @staticmethod
     def hero_power(source, game):
-        roll = random.randint(1, 6)
+        roll = game.rng.randint(1, 6)
         return GainGold(source, roll)
 
 
@@ -476,7 +478,7 @@ class EmbraceYourRageScript:
         count = max(1, source.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0) // 3)
         actions = []
         for _ in range(count):
-            target = random.choice([m for m in board if not m.dead])
+            target = game.rng.choice([m for m in board if not m.dead])
             actions.append(Buff(target, atk=2, health=2))
         return actions
 
@@ -511,7 +513,7 @@ class SaturdayCThunsScript:
             # Counter stays where it is — no upgrade on empty board
             source.set_tag(GameTag.CTHUN_BUFF_COUNT, count)
             return None
-        target = random.choice(board)
+        target = game.rng.choice(board)
         source.set_tag(GameTag.CTHUN_BUFF_COUNT, count + 1)
         return Buff(target, atk=count, health=count)
 
@@ -735,7 +737,7 @@ class ThreeWishesScript:
         pairs = [cid for cid, cnt in counts.items() if cnt >= 2]
         if not pairs:
             return None
-        pair_id = random.choice(pairs)
+        pair_id = game.rng.choice(pairs)
         return DiscoverMinion(source, card_id_filter=pair_id)
 
 
@@ -807,7 +809,7 @@ class ExampleFreezeTavern:
                           if m.get_tag(GameTag.CARDTYPE, 0) == 1]
         if not tavern_minions:
             return None
-        target = random.choice(tavern_minions)
+        target = game.rng.choice(tavern_minions)
         return FreezeTavernMinion(target)
 
 
@@ -1015,7 +1017,7 @@ class ExampleDigCounter:
         if not candidates:
             source.set_tag(GameTag.DIG_COUNTER, 4)
             return None
-        chosen_id = random.choice(candidates)
+        chosen_id = game.rng.choice(candidates)
         minion = game.create_minion(chosen_id)
         minion.controller = source
         minion.zone = Zone.HAND
@@ -1136,7 +1138,7 @@ class BuriedTreasureScript:
         if not candidates:
             source.set_tag(GameTag.DIG_COUNTER, 4)
             return None
-        chosen_id = random.choice(candidates)
+        chosen_id = game.rng.choice(candidates)
         minion = game.create_minion(chosen_id)
         minion.controller = source
         minion.zone = Zone.HAND
@@ -1540,7 +1542,7 @@ class GoneFishingScript:
                         and not cid.startswith('BGDUO')
                     ]
                     if murloc_ids:
-                        chosen = random.choice(murloc_ids)
+                        chosen = game.rng.choice(murloc_ids)
                         AddToHand(self.hero, chosen).do(self.hero, game_ref)
 
         game.register_listener(source, EventListener(
@@ -1837,7 +1839,7 @@ class BlessingOfTheNineFrogsScript:
                   if cd.cardtype == CardType.SPELL and not cid.startswith("EXAMPLE")]
         if not spells:
             return None
-        chosen = _random.choice(spells)
+        chosen = game.rng.choice(spells)
         return AddToHand(source, chosen)
 
 
@@ -1934,7 +1936,7 @@ class MurlocKingScript:
     def _summon_murloc(source, game):
         from hsrl.core.actions import Summon
         token = game.create_minion("TOKEN_MURLOC_1_1")
-        return Summon(source.controller, token)
+        return Summon(_hp_player(source), token)
 
     @staticmethod
     def hero_power(source, game):
@@ -2010,7 +2012,7 @@ class DeadeyeScript:
                     target_e = max(enemies, key=lambda m: m.health)
                 else:
                     import random as _random
-                    target_e = _random.choice(enemies)
+                    target_e = game.rng.choice(enemies)
                 game_ref.queue_action(Hit(target_e, 99, source=self.player))
 
         return _DeadeyeAction
@@ -2028,7 +2030,7 @@ class DeadeyeScript:
                 break
         else:
             if not any(power_id.endswith(s) for s in DeadeyeScript._MODE_MAP):
-                mode = _random.choice(["left", "right", "low", "high"])
+                mode = game.rng.choice(["left", "right", "low", "high"])
         AimAction = DeadeyeScript._make_aim_action(mode)
         game.register_listener(source, EventListener(
             event_name=START_OF_COMBAT,
@@ -2065,7 +2067,7 @@ class EmbraceTheElementsScript:
             token = game.create_minion(TOKEN_ID)
             if token is None:
                 return None
-            return Summon(source.controller, token)
+            return Summon(_hp_player(source), token)
 
         return earth_dr
 
@@ -2084,7 +2086,7 @@ class EmbraceTheElementsScript:
                     return
                 if self.element == "earth":
                     import random as _random
-                    targets = _random.sample(living, min(4, len(living)))
+                    targets = game_ref.rng.sample(living, min(4, len(living)))
                     dr_fn = EmbraceTheElementsScript._make_earth_dr()
                     for m in targets:
                         game_ref.queue_action(GainDeathrattle(m, dr_fn))
@@ -2117,7 +2119,7 @@ class EmbraceTheElementsScript:
                 break
         else:
             if not any(power_id.endswith(s) for s in EmbraceTheElementsScript._ELEMENT_MAP):
-                element = _random.choice(["earth", "fire", "water", "lightning"])
+                element = game.rng.choice(["earth", "fire", "water", "lightning"])
         InvAction = EmbraceTheElementsScript._make_invocation(element)
         game.register_listener(source, EventListener(
             event_name=START_OF_COMBAT,
@@ -2187,7 +2189,7 @@ class FragrantPhylacteryScript:
         if source.controller is None:
             return None
         actions = []
-        for m in source.controller.get_board_minions():
+        for m in _hp_player(source).get_board_minions():
             if m is not source and not m.dead:
                 actions.append(Buff(m, atk=source.atk, health=source.max_health))
         return actions if actions else None
@@ -2372,7 +2374,7 @@ class GlaiveRicochetScript:
                 if self.tracker.buys >= 3:
                     self.tracker.triggered = True
                     import random as _random
-                    chosen_id = _random.choice(self.tracker.bought_ids)
+                    chosen_id = game.rng.choice(self.tracker.bought_ids)
                     game_ref.queue_action(AddToHand(self.tracker.hero, chosen_id))
 
         class _GlaiveResetAction(Action):
@@ -2437,8 +2439,8 @@ class WarpGateScript:
             protoss_ids = ["BG31_HERO_802pt"]  # fallback: Colossus
 
         # Pick 2 random, then pick 1
-        candidates = _random.sample(protoss_ids, min(2, len(protoss_ids)))
-        chosen = _random.choice(candidates)
+        candidates = game.rng.sample(protoss_ids, min(2, len(protoss_ids)))
+        chosen = game.rng.choice(candidates)
 
         class _WarpGateAction(Action):
             def __init__(self, hero, reward_id):
@@ -2696,6 +2698,2191 @@ class PiggyBankScript:
         return GainGold(source, counter)
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Generic Simple Hero Power Scripts
+# ═══════════════════════════════════════════════════════════════════════════════════
+
+def _hp_player(source):
+    """Get the Player from a hero power source. Works whether source is a
+    Player entity (from start_game) or a hero BaseEntity (from trinket events)."""
+    return source if source.controller is None else source.controller
+
+
+class StartWithMinionScript:
+    """Passive: Start with a specific minion token on board."""
+    MINION_ID = "EXAMPLE_VANILLA"
+
+    @staticmethod
+    def on_summon(source, game):
+        player = _hp_player(source)
+        minion = game.create_minion(source.data.scripts.MINION_ID)
+        if minion:
+            return Summon(player, minion)
+        return None
+
+
+class AmalgamStartScript(StartWithMinionScript):
+    MINION_ID = "BG30_102"  # One-Amalgam Tour Group
+
+
+class FishOfNZothStartScript(StartWithMinionScript):
+    MINION_ID = "BG30_200"  # Fish of N'Zoth
+
+
+class StartWithMoreHealthScript:
+    """Passive: Start with more health."""
+    BONUS_HEALTH = 15
+
+    @staticmethod
+    def on_summon(source, game):
+        p = _hp_player(source)
+        p.set_tag(GameTag.BASE_HEALTH, p.get_tag(GameTag.BASE_HEALTH, 30) + source.data.scripts.BONUS_HEALTH)
+        p.set_tag(GameTag.HEALTH, p.max_health)
+        return None
+
+
+class PatchwerkHealthScript(StartWithMoreHealthScript):
+    BONUS_HEALTH = 30  # 60 total (30 base + 30 extra)
+
+
+class MinionsCost2Script:
+    """Passive: Minions and Refresh cost (2) Gold. Upgrading the Tavern costs (1) more."""
+
+    @staticmethod
+    def on_summon(source, game):
+        p = source if source.controller is None else _hp_player(source)
+        p.set_tag(GameTag.TAVERN_MINION_COST_OVERRIDE, 2)
+        p.set_tag(GameTag.TAVERN_UPGRADE_COST,
+                  p.get_tag(GameTag.TAVERN_UPGRADE_COST, 5) + 1)
+        return None
+
+
+class SimpleBuffFriendlyScript:
+    """Active: Give a friendly minion +ATK/+HEALTH (and optional keyword)."""
+    ATK = 2; HEALTH = 2; KEYWORD = None
+
+    @staticmethod
+    def hero_power(player, game):
+        # Find the actual script class from the hero power data
+        hp_cls = player.data.scripts
+        atk = getattr(hp_cls, 'ATK', 2)
+        health = getattr(hp_cls, 'HEALTH', 2)
+        keyword = getattr(hp_cls, 'KEYWORD', None)
+
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        actions = [Buff(target, atk=atk, health=health)]
+        if keyword:
+            actions.append(GainKeyword(target, keyword))
+        return actions
+
+
+class BuffTavernHeroPowerScript:
+    """Active: Give minions in the Tavern +ATK/+HEALTH."""
+    ATK = 1; HEALTH = 1
+
+    @staticmethod
+    def hero_power(player, game):
+        hp_cls = player.data.scripts
+        atk = getattr(hp_cls, 'ATK', 1)
+        health = getattr(hp_cls, 'HEALTH', 1)
+        return BuffTavern(player, atk=atk, health=health)
+
+
+class DiscoverPrizeHeroPowerScript:
+    """Active: Discover a Darkmoon Prize."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import DiscoverPrize
+        return DiscoverPrize(player)
+
+
+class MakeMinionGoldenScript:
+    """Active: Make a friendly minion Golden (once per game)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead and not m.is_golden]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        target.set_tag(GameTag.GOLDEN, True)
+        target.set_tag(GameTag.BASE_ATK, target.get_tag(GameTag.BASE_ATK, 0) * 2)
+        target.set_tag(GameTag.BASE_HEALTH, target.get_tag(GameTag.BASE_HEALTH, 0) * 2)
+        target.set_tag(GameTag.HEALTH, target.max_health)
+        # Once per game: set cost to 999 to prevent re-use
+        player.set_tag(GameTag.HERO_POWER_COST, 999)
+        return None
+
+
+class AddTribeToTavernScript:
+    """Passive: After you Refresh, add a minion of a specific tribe to the tavern."""
+    TRIBE = Race.DRAGON
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_REFRESH, EventListener
+        tribe = AddTribeToTavernScript.TRIBE
+
+        class _AddAction(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if game_ref.minion_pool is None:
+                    return
+                drawn = game_ref.minion_pool.draw(
+                    _hp_player(source).tavern_tier, count=1,
+                    race_filter=tribe,
+                )
+                if drawn:
+                    for cid in drawn:
+                        m = game_ref.create_minion(cid)
+                        if m:
+                            m.controller = _hp_player(source)
+                            m.zone = Zone.TAVERN
+                            _hp_player(source).tavern.append(m)
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_REFRESH,
+            action=_AddAction(),
+            condition=lambda player: player == _hp_player(source),
+        ))
+
+
+class FirstRefreshFreeScript:
+    """Passive: Your first Refresh each turn costs (0)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        p = source if source.controller is None else _hp_player(source)
+        p.set_tag(GameTag.FREE_REFRESH_REMAINING,
+                  p.get_tag(GameTag.FREE_REFRESH_REMAINING, 0) + 1)
+        return None
+
+
+class ReplaceMinionSameTierScript:
+    """Active: Replace a friendly minion with a random one of the same tier."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        tier = target.tech_level
+        from hsrl.core.card_db import CARDS
+        pool = [cid for cid, data in CARDS._cards.items()
+                if data.cardtype == 4 and data.tech_level == tier
+                and not cid.startswith("EXAMPLE")]
+        if pool:
+            return Transform(target, game.rng.choice(pool))
+        return None
+
+
+class AddRandomMinionScript:
+    """Active: Add a random minion of a specific tier to your hand."""
+    TIER = 1
+    COUNT = 1
+
+    @staticmethod
+    def hero_power(player, game):
+        hp_cls = player.data.scripts
+        tier = getattr(hp_cls, 'TIER', 1)
+        count = getattr(hp_cls, 'COUNT', 1)
+        from hsrl.core.card_db import CARDS
+        pool = [cid for cid, data in CARDS._cards.items()
+                if data.cardtype == 4 and data.tech_level == tier
+                and not cid.startswith("EXAMPLE")]
+        if pool:
+            actions = []
+            for _ in range(count):
+                actions.append(AddToHand(player, game.rng.choice(pool)))
+            return actions
+        return None
+
+
+class YoggWheelHeroPowerScript:
+    """Active: Spin the Wheel of Yogg-Saron."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.cards.trinkets.scripts import SoTSpinYoggWheelScript
+        return SoTSpinYoggWheelScript._spin(player, game)
+
+
+class DiscoverTier7MinionScript:
+    """Active: Discover a Tier 7 minion."""
+
+    @staticmethod
+    def hero_power(player, game):
+        return DiscoverMinion(player, min_tier=7, max_tier=7)
+
+
+class BuffFriendlyMechScript:
+    """Active: Give a friendly Mech +2/+2."""
+
+    @staticmethod
+    def hero_power(player, game):
+        mechs = [m for m in player.board if not m.dead and m.race == Race.MECH]
+        if not mechs:
+            return None
+        target = game.rng.choice(mechs)
+        return Buff(target, atk=2, health=2)
+
+
+class RandomKeywordScript:
+    """Active: Give a friendly minion a random keyword (DS, Taunt, or Windfury)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        kw = game.rng.choice([GameTag.DIVINE_SHIELD, GameTag.TAUNT, GameTag.WINDFURY])
+        return GainKeyword(target, kw)
+
+
+class RandomMechScript(AddRandomMinionScript):
+    """Active: Get a random Mech (tier of tavern)."""
+    @staticmethod
+    def hero_power(player, game):
+        tier = player.tavern_tier
+        from hsrl.core.card_db import CARDS
+        pool = [cid for cid, data in CARDS._cards.items()
+                if data.cardtype == 4 and data.tech_level <= tier
+                and data.tags.get(GameTag.RACE) == Race.MECH
+                and not cid.startswith("EXAMPLE")]
+        if pool:
+            return AddToHand(player, game.rng.choice(pool))
+        return None
+
+
+class OnyxiaBroodmotherScript:
+    """Passive: Start of Combat: Summon two 2/1 Whelps."""
+
+    @staticmethod
+    def start_of_combat(source, game):
+        actions = []
+        for _ in range(2):
+            token = game.create_minion("BG22_305t")  # Onyxia Whelp
+            if token:
+                actions.append(Summon(_hp_player(source), token))
+        return actions if actions else None
+
+
+class DiscoverHeroPowerScript:
+    """Active: Discover a new Hero Power to replace your current one."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import DiscoverHeroPower
+        return DiscoverHeroPower(player)
+
+
+class DiscoverBuddyScript:
+    """Active: Discover a Buddy minion."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import DiscoverBuddy
+        return DiscoverBuddy(player)
+
+
+class EnableQuestsScript:
+    """Passive: Quests are enabled for this game."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.QUESTS_ENABLED, True)
+        return None
+
+
+class GainGoldPerTurnScript:
+    """Passive: Gain +1 Gold at the start of each turn."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _GainGold(Action):
+            def do(self, source_ent, game_ref, target=None):
+                game_ref.queue_action(GainGold(_hp_player(source), 1))
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_GainGold(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+
+
+class GalewingFlightPathScript:
+    """Active: Choose a flight path — free refresh, upgrade discount, or gold.
+
+    Uses ChooseOne action with 3 predefined options. Auto-selects randomly
+    in heuristic mode; RL agent selects via PendingChoice.
+    """
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import ChooseOne
+
+        choices = [
+            ("Free Refresh", GainFreeRefresh(player, 1)),
+            ("Upgrade -3", None),  # handled below
+            ("Gain 4 Gold", GainGold(player, 4)),
+        ]
+
+        # Upgrade discount is a side effect, not an action
+        cur = player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
+
+        def _apply_discount():
+            player.set_tag(GameTag.TAVERN_UPGRADE_COST, max(1, cur - 3))
+
+        # Wrap upgrade choice with the discount callback
+        class _UpgradeDiscountAction(Action):
+            def do(self, source_ent, game_ref, target=None):
+                _apply_discount()
+        choices[1] = ("Upgrade -3", _UpgradeDiscountAction())
+
+        return ChooseOne(choices)
+
+
+class SilasDarkmoonScript:
+    """Active: Discover a Darkmoon Prize. (2 uses!)"""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import DiscoverPrize
+        return DiscoverPrize(player)
+
+
+class SwapStatsHeroPowerScript:
+    """Active: Swap the Attack of two friendly minions (Vol'jin)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if len(board) < 2:
+            return None
+        a, b = game.rng.sample(board, 2)
+        from hsrl.core.actions import SwapStats
+        return SwapStats(a, b)
+
+
+class TriggerLastBattlecryScript:
+    """Active: Your last Battlecry triggers again (Shudderwock)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import TriggerBattlecry
+        board = [m for m in player.board if not m.dead and m.battlecry]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        return TriggerBattlecry(target)
+
+
+class DiscoverHigherTierScript:
+    """Active: Discover a minion from a higher Tavern Tier (Faelin)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        return DiscoverMinion(player, min_tier=player.tavern_tier + 1)
+
+
+class StatsByTierScript:
+    """Active: Give a minion stats equal to its Tier (Loh)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        tier = target.tech_level
+        return Buff(target, atk=tier, health=tier)
+
+
+class DevourFriendlyScript:
+    """Active: Destroy a friendly minion, gain its stats (Mutanus)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        atk = target.atk
+        health = target.max_health
+        # Find a random other friendly to gain the stats
+        others = [m for m in board if m != target]
+        if not others:
+            return None
+        receiver = game.rng.choice(others)
+        return [Destroy(target), Buff(receiver, atk=atk, health=health)]
+
+
+class ReplaceMinionLowerTierScript:
+    """Active: Remove a friendly minion, get a random one of a lower Tier (Hooktusk)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        tier = target.tech_level
+        if tier <= 1:
+            return None
+        from hsrl.core.card_db import CARDS
+        pool = [cid for cid, data in CARDS._cards.items()
+                if data.cardtype == 4 and data.tech_level == tier - 1
+                and not cid.startswith("EXAMPLE")]
+        if pool:
+            new_id = game.rng.choice(pool)
+            return [Destroy(target), AddToHand(player, new_id)]
+        return None
+
+
+class OnBuyBuffScript:
+    """Passive: After you buy a minion, give it +1/+1 (Deryl)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_BOUGHT, EventListener
+
+        class _BuffBought(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if target and not target.dead:
+                    game_ref.queue_action(Buff(target, atk=1, health=1))
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_BOUGHT,
+            action=_BuffBought(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class BattlecryDoubledScript:
+    """Passive: Your Battlecries trigger an extra time (Varden, Brann)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.BATTLECRY_DOUBLED, True)
+        return None
+
+
+class ImproveEachTurnScript:
+    """Active: Give +1/+1. Improves each turn (Voone)."""
+    BASE_ATK = 1
+    BASE_HEALTH = 1
+
+    @staticmethod
+    def hero_power(player, game):
+        cls = player.data.scripts
+        counter = player.get_tag(GameTag.IMPROVE_COUNTER, 0)
+        atk = getattr(cls, 'BASE_ATK', 1) + counter
+        health = getattr(cls, 'BASE_HEALTH', 1) + counter
+        player.set_tag(GameTag.IMPROVE_COUNTER, counter + 1)
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        return Buff(target, atk=atk, health=health)
+
+
+class ChenvaalaFreeRefreshScript:
+    """Passive: After playing 3 Elementals, next Refresh costs (0) (Chenvaala)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import ELEMENTAL_PLAYED, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CountElementals(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 3:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    _hp_player(source).set_tag(GameTag.FREE_REFRESH_REMAINING,
+                        _hp_player(source).get_tag(GameTag.FREE_REFRESH_REMAINING, 0) + 1)
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=ELEMENTAL_PLAYED,
+            action=_CountElementals(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class ArannaRefreshCounterScript:
+    """Passive: After 5 Refreshes, Bob always offers 7 minions (Aranna)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_REFRESH, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CountRefreshes(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+                if c >= 5:
+                    _hp_player(source).set_tag(GameTag.ARANNA_ALWAYS_7, True)
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_REFRESH,
+            action=_CountRefreshes(),
+            condition=lambda player: player == _hp_player(source),
+        ))
+
+
+class EoTDoubledScript:
+    """Passive: Your End of Turn effects trigger twice (Clocksworth, Drakkari)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.END_OF_TURN_DOUBLED, True)
+        return None
+
+
+class IniStormcoilScript:
+    """Passive: After 9 friendly minions die, get a random Mech (Ini Stormcoil)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import DEATH, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CountDeaths(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 9:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    from hsrl.core.card_db import CARDS
+                    mechs = [cid for cid, data in CARDS._cards.items()
+                             if data.cardtype == 4 and data.tags.get(GameTag.RACE) == Race.MECH
+                             and not cid.startswith("EXAMPLE")]
+                    if mechs and len(_hp_player(source).hand) < 10:
+                        game_ref.queue_action(AddToHand(_hp_player(source), game.rng.choice(mechs)))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=DEATH,
+            action=_CountDeaths(),
+            condition=lambda m, killer=None: m.controller == _hp_player(source),
+        ))
+
+
+class EnhanceOMechanoScript:
+    """Passive: After each Refresh, give a minion in the Tavern a random Keyword (Enhance-o)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_REFRESH, EventListener
+
+        class _BuffTavern(Action):
+            def do(self, source_ent, game_ref, target=None):
+                minions = [m for m in _hp_player(source).tavern
+                           if not m.dead and m.get_tag(GameTag.CARDTYPE, 0) == 1]
+                if not minions:
+                    return
+                target = game.rng.choice(minions)
+                kw = game.rng.choice([GameTag.DIVINE_SHIELD, GameTag.TAUNT,
+                                       GameTag.WINDFURY, GameTag.REBORN])
+                game_ref.queue_action(GainKeyword(target, kw))
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_REFRESH,
+            action=_BuffTavern(),
+            condition=lambda player: player == _hp_player(source),
+        ))
+
+
+class GreyboughCombatBuffScript:
+    """Passive: Give +1/+2 and Taunt to minions you summon during combat (Greybough)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import SUMMON, EventListener
+
+        class _BuffCombatSummon(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if not game_ref.in_combat:
+                    return
+                if target is None or target.dead:
+                    return
+                if target.controller != _hp_player(source):
+                    return
+                game_ref.queue_action(Buff(target, atk=1, health=2))
+                game_ref.queue_action(GainKeyword(target, GameTag.TAUNT))
+
+        game.register_listener(source, EventListener(
+            event_name=SUMMON,
+            action=_BuffCombatSummon(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class ChenvaalaUpgradeScript:
+    """Passive: After you play 3 Elementals, reduce Upgrade cost by (3) (Chenvaala)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import ELEMENTAL_PLAYED, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CountElementals(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 3:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    cur = _hp_player(source).get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
+                    _hp_player(source).set_tag(GameTag.TAVERN_UPGRADE_COST, max(1, cur - 3))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=ELEMENTAL_PLAYED,
+            action=_CountElementals(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class VoljinTempSwapScript:
+    """Active: Choose 2 minions. They gain each other's Attack until next turn (Vol'jin)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if len(board) < 2:
+            return None
+        a, b = game.rng.sample(board, 2)
+        a_atk, b_atk = a.atk, b.atk
+        # Apply temporary buffs: a gets b's attack, b gets a's attack
+        # Buff(a, atk=b_atk - a_atk) — diff gives the swap
+        return [
+            Buff(a, atk=b_atk - a_atk, health=0, temporary=True),
+            Buff(b, atk=a_atk - b_atk, health=0, temporary=True),
+        ]
+
+
+class MutanusSellScript:
+    """Active: Sell a friendly minion. Give its stats to another (Mutanus)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if len(board) < 2:
+            return None
+        target = game.rng.choice(board)
+        others = [m for m in board if m != target]
+        receiver = game.rng.choice(others)
+        atk = target.atk
+        health = target.max_health
+        # Sell: remove from board, gain 1 gold, give stats to receiver
+        game.remove_from_board(target)
+        target.zone = Zone.GRAVEYARD
+        return [GainGold(player, 1), Buff(receiver, atk=atk, health=health)]
+
+
+class ArannaFirstFreeScript:
+    """Passive: The first minion you buy each turn is free (Aranna)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+        from hsrl.core.events import TURN_BEGIN, MINION_BOUGHT, EventListener
+
+        class _ResetFlag(Action):
+            def do(self, source_ent, game_ref, target=None):
+                _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _TrackBuy(Action):
+            def do(self, source_ent, game_ref, target=None):
+                _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 1)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN, action=_ResetFlag(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+        game.register_listener(source, EventListener(
+            event_name=MINION_BOUGHT, action=_TrackBuy(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+        # Set first minion cost to 0
+        _hp_player(source).set_tag(GameTag.TAVERN_MINION_COST_OVERRIDE, 0)
+
+
+class VooneCopyScript:
+    """Passive: At the end of every 3 turns, get a copy of left-most card in hand (Voone)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+        from hsrl.core.events import TURN_END, EventListener
+
+        class _CopyLeftmost(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 3:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    hand = _hp_player(source).hand
+                    if hand and len(hand) < 10:
+                        leftmost = hand[0]
+                        cid = leftmost.get_tag(GameTag.CARD_ID)
+                        if cid:
+                            game_ref.queue_action(AddToHand(_hp_player(source), cid))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_END,
+            action=_CopyLeftmost(),
+            condition=lambda turn: True,
+        ))
+
+
+class TickatusPrizeScript:
+    """Passive: Every 4 turns, Discover a Darkmoon Prize (Tickatus)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+        from hsrl.core.events import TURN_END, EventListener
+
+        class _DiscoverPrize(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 4:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    from hsrl.core.actions import DiscoverPrize
+                    game_ref.queue_action(DiscoverPrize(_hp_player(source)))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_END,
+            action=_DiscoverPrize(),
+            condition=lambda turn: True,
+        ))
+
+
+class SneedShredderScript:
+    """Passive: Start with a 2/1 Shredder (Sneed)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        token = game.create_minion("BG21_030t")  # Sneed's Shredder
+        if token is None:
+            token = game.create_minion("EXAMPLE_VANILLA")
+            if token:
+                token.set_tag(GameTag.BASE_ATK, 2)
+                token.set_tag(GameTag.BASE_HEALTH, 1)
+                token.set_tag(GameTag.HEALTH, 1)
+        if token and len(_hp_player(source).board) < 7:
+            return Summon(_hp_player(source), token)
+        return None
+
+
+class GalewingSpellScript:
+    """Passive: In 1 turn, get a random 1-Cost Tavern spell (Galewing)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _get_spell(g, t):
+            p = _hp_player(source)
+            if not p.is_alive:
+                return
+            from hsrl.core.card_db import CARDS
+            spells = [cid for cid, data in CARDS._cards.items()
+                      if data.cardtype == 3 and data.tech_level == 1
+                      and not cid.startswith("EXAMPLE")]
+            if spells and len(p.hand) < 10:
+                g.queue_action(AddToHand(p, game.rng.choice(spells)))
+            # Schedule again for next turn
+            g.schedule_turn_action(g.turn + 1,
+                lambda g2, t2: _get_spell(g2, t2))
+
+        game.schedule_turn_action(2, _get_spell)
+        return None
+
+
+class DrekTharCombatScript:
+    """Passive: In combat when space, summon copy of highest-Attack minion. T7 (Drek'Thar)."""
+
+    @staticmethod
+    def start_of_combat(source, game):
+        if game.turn < 7:
+            return None
+        board = [m for m in _hp_player(source).board if not m.dead]
+        if not board or len(board) >= 7:
+            return None
+        highest = max(board, key=lambda m: m.atk)
+        copy_minion = game.create_minion(highest.get_tag(GameTag.CARD_ID))
+        if copy_minion:
+            return Summon(_hp_player(source), copy_minion)
+        return None
+
+
+class VanndarCombatScript:
+    """Passive: In combat when space, summon copy of highest-Health minion. T7 (Vanndar)."""
+
+    @staticmethod
+    def start_of_combat(source, game):
+        if game.turn < 7:
+            return None
+        board = [m for m in _hp_player(source).board if not m.dead]
+        if not board or len(board) >= 7:
+            return None
+        highest = max(board, key=lambda m: m.max_health)
+        copy_minion = game.create_minion(highest.get_tag(GameTag.CARD_ID))
+        if copy_minion:
+            return Summon(_hp_player(source), copy_minion)
+        return None
+
+
+class OnyxiaAvengeScript:
+    """Passive: Avenge (4): Summon a 1/1 Whelp that attacks immediately (Onyxia)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import AVENGE_TRIGGER, EventListener
+
+        class _SummonWhelp(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if len(_hp_player(source).board) >= 7:
+                    return
+                token = game_ref.create_minion("BG22_305t")  # Onyxia Whelp
+                if token is None:
+                    token = game_ref.create_minion("EXAMPLE_VANILLA")
+                    if token:
+                        token.set_tag(GameTag.BASE_ATK, 1)
+                        token.set_tag(GameTag.BASE_HEALTH, 1)
+                if token:
+                    game_ref.queue_action(Summon(_hp_player(source), token))
+
+        game.register_listener(source, EventListener(
+            event_name=AVENGE_TRIGGER,
+            action=_SummonWhelp(),
+        ))
+
+
+class CookiePotScript:
+    """Active: Throw a minion in your pot. At 3, Discover from their types (Cookie)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        # Remove target and track its type
+        tribe = target.race
+        game.remove_from_board(target)
+        target.zone = Zone.GRAVEYARD
+        # Count pot
+        c = player.get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+        if c >= 3:
+            player.set_tag(GameTag.IMPROVE_COUNTER, 0)
+            from hsrl.core.actions import DiscoverMinion
+            return DiscoverMinion(player, race=tribe if tribe not in (Race.NONE, Race.ALL) else None)
+        player.set_tag(GameTag.IMPROVE_COUNTER, c)
+        return None
+
+
+class MarinTrinketScript:
+    """Passive: On Turn 5, choose a Lesser Trinket to buy (Marin)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _on_turn5(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                from hsrl.core.actions import DiscoverTrinket
+                g.queue_action(DiscoverTrinket(p, lesser_only=True))
+
+        game.schedule_turn_action(5, _on_turn5)
+        return None
+
+
+class TeronMarkScript:
+    """Active: Choose a friendly minion. SoC: Destroy it, resummon when space (Teron)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        target._teron_marked = True
+        target._teron_cid = target.get_tag(GameTag.CARD_ID)
+        return None
+
+    @staticmethod
+    def start_of_combat(source, game):
+        board = [m for m in _hp_player(source).board
+                 if not m.dead and getattr(m, '_teron_marked', False)]
+        if not board:
+            return None
+        target = board[0]
+        cid = getattr(target, '_teron_cid', None)
+        target._teron_marked = False
+        actions = [Destroy(target)]
+        if cid:
+            copy_minion = game.create_minion(cid)
+            if copy_minion:
+                actions.append(Summon(_hp_player(source), copy_minion))
+        return actions
+
+
+class MaievLockScript:
+    """Active: Choose a card in the Tavern to lock in hand. After 2 turns, unlock (Maiev)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        cards = [m for m in player.tavern if not m.dead]
+        if not cards:
+            return None
+        target = game.rng.choice(cards)
+        cid = target.get_tag(GameTag.CARD_ID)
+        # Remove from tavern, store for later
+        player.tavern.remove(target)
+        target.zone = Zone.GRAVEYARD
+        player.set_tag(GameTag.IMPROVE_COUNTER, 2)  # 2 turns remaining
+        player._maiev_card = cid
+        return None
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _CheckMaiev(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0)
+                if c <= 0:
+                    return
+                c -= 1
+                if c <= 0:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    cid = getattr(_hp_player(source), '_maiev_card', None)
+                    if cid and len(_hp_player(source).hand) < 10:
+                        game_ref.queue_action(AddToHand(_hp_player(source), cid))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_CheckMaiev(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+
+
+class ThorimGoldScript:
+    """Passive: Start: Discover T7. Get after spending 60 Gold (Thorim)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.actions import DiscoverMinion
+        from hsrl.core.events import GOLD_SPENT, EventListener
+
+        p = _hp_player(source)
+        p.set_tag(GameTag.IMPROVE_COUNTER, 0)
+        game.queue_action(DiscoverMinion(p, min_tier=7, max_tier=7))
+        # Store amount in a mutable container for the closure
+        _last_amount = [0]
+
+        class _TrackGold(Action):
+            def do(self, source_ent, game_ref, target=None):
+                spent = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0)
+                spent += _last_amount[0]
+                if spent >= 60:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    game_ref.queue_action(DiscoverMinion(_hp_player(source), min_tier=7, max_tier=7))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, spent)
+
+        def _condition(player, amount):
+            _last_amount[0] = amount
+            return player == _hp_player(source)
+
+        game.register_listener(source, EventListener(
+            event_name=GOLD_SPENT,
+            action=_TrackGold(),
+            condition=_condition,
+        ))
+
+
+class JimRaynorScript:
+    """Passive: Start with 2/2 Battlecruiser. Refresh→add Upgrade (Jim Raynor)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_REFRESH, EventListener
+
+        # Summon Battlecruiser
+        token = game.create_minion("BG31_801t")
+        if token is None:
+            token = game.create_minion("EXAMPLE_VANILLA")
+            if token:
+                token.set_tag(GameTag.BASE_ATK, 2)
+                token.set_tag(GameTag.BASE_HEALTH, 2)
+        if token and len(_hp_player(source).board) < 7:
+            game.queue_action(Summon(_hp_player(source), token))
+
+        class _AddUpgrade(Action):
+            def do(self, source_ent, game_ref, target=None):
+                from hsrl.core.card_db import CARDS
+                spells = [cid for cid, data in CARDS._cards.items()
+                          if data.cardtype == 3 and not cid.startswith("EXAMPLE")]
+                if spells and len(_hp_player(source).hand) < 10:
+                    game_ref.queue_action(AddToHand(_hp_player(source), game.rng.choice(spells)))
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_REFRESH,
+            action=_AddUpgrade(),
+            condition=lambda player: player == _hp_player(source),
+        ))
+
+
+class ClocksworthGoldenScript:
+    """Passive: 2 copies→Golden. Golden give Coins instead of Triple Rewards (Clocksworth)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.PIRATES_NEED_2_COPIES, True)
+        return None
+
+
+class DerylHatScript:
+    """Passive: When you play a minion, give it +1/+1. Hat passes when sold (Deryl)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_PLAYED, MINION_SOLD, EventListener
+
+        class _GiveHat(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if target is None or target.dead:
+                    return
+                target.set_tag(GameTag.IMPROVE_COUNTER,
+                               target.get_tag(GameTag.IMPROVE_COUNTER, 0) + 1)
+                game_ref.queue_action(Buff(target, atk=1, health=1))
+
+        class _PassHat(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if target is None:
+                    return
+                hat_count = target.get_tag(GameTag.IMPROVE_COUNTER, 0)
+                if hat_count <= 0:
+                    return
+                board = [m for m in _hp_player(source).board if not m.dead]
+                if not board:
+                    return
+                receiver = game.rng.choice(board)
+                receiver.set_tag(GameTag.IMPROVE_COUNTER,
+                                 receiver.get_tag(GameTag.IMPROVE_COUNTER, 0) + hat_count)
+                game_ref.queue_action(Buff(receiver, atk=hat_count, health=hat_count))
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_PLAYED,
+            action=_GiveHat(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+        game.register_listener(source, EventListener(
+            event_name=MINION_SOLD,
+            action=_PassHat(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class AlexstraszaDragonScript:
+    """Active: Discover a Dragon. (Unlocks at Tier 4.) (Alexstrasza)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.HERO_POWER_COST, 99)
+        from hsrl.core.events import TAVERN_UPGRADED, EventListener
+
+        class _UnlockAtT4(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if _hp_player(source).tavern_tier >= 4:
+                    _hp_player(source).set_tag(GameTag.HERO_POWER_COST, 0)
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_UPGRADED,
+            action=_UnlockAtT4(),
+            condition=lambda player: player == _hp_player(source),
+        ))
+
+    @staticmethod
+    def hero_power(player, game):
+        return DiscoverMinion(player, race=Race.DRAGON, max_tier=player.tavern_tier)
+
+
+class FaelinDiscoverScript:
+    """Active: Discover a minion from a higher Tavern Tier (Faelin)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        return DiscoverMinion(player, min_tier=player.tavern_tier + 1)
+
+
+class BigglesworthDiscoverScript:
+    """Passive: After another hero dies, Discover from their warband (Mr. Bigglesworth)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import PLAYER_DEFEATED, EventListener
+
+        class _DiscoverFromDead(Action):
+            def do(self, source_ent, game_ref, target=None):
+                dead = target
+                if dead is None or not hasattr(dead, 'board'):
+                    return
+                board = [m for m in dead.board if not m.dead]
+                if not board:
+                    return
+                pool = [m.get_tag(GameTag.CARD_ID) for m in board if m.get_tag(GameTag.CARD_ID)]
+                if not pool:
+                    return
+                from hsrl.core.actions import DiscoverMinion
+                game_ref.queue_action(DiscoverMinion(_hp_player(source),
+                                       card_id_filter=pool))
+
+        game.register_listener(source, EventListener(
+            event_name=PLAYER_DEFEATED,
+            action=_DiscoverFromDead(),
+        ))
+
+
+class ZerekCloneScript:
+    """Active: Once per game, summon an exact copy of a friendly minion (Zerek)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board or len(board) >= 7:
+            return None
+        target = game.rng.choice(board)
+        cid = target.get_tag(GameTag.CARD_ID)
+        copy_minion = game.create_minion(cid)
+        if copy_minion:
+            copy_minion.set_tag(GameTag.BASE_ATK, target.atk)
+            copy_minion.set_tag(GameTag.BASE_HEALTH, target.max_health)
+            copy_minion.set_tag(GameTag.HEALTH, target.health)
+            if target.golden:
+                copy_minion.set_tag(GameTag.GOLDEN, True)
+            # Once per game: set cost to 999
+            player.set_tag(GameTag.HERO_POWER_COST, 999)
+            return Summon(player, copy_minion)
+        return None
+
+
+class AFKayScript:
+    """Passive: Skip first 2 turns. Turn 3: Discover T3 and T4 (A.F. Kay)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _on_turn3(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                g.queue_action(DiscoverMinion(p, min_tier=3, max_tier=3))
+                g.queue_action(DiscoverMinion(p, min_tier=4, max_tier=4))
+
+        game.schedule_turn_action(3, _on_turn3)
+        return None
+
+
+class LohStatsByTierScript:
+    """Active: Give a friendly minion stats equal to its Tier (Loh)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        tier = target.tech_level
+        return Buff(target, atk=tier, health=tier)
+
+
+class OzumatTentacleScript:
+    """Passive: When space in combat, summon 2/2 Tentacle with Taunt. +1/+1 on sell (Ozumat)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+        from hsrl.core.events import MINION_SOLD, EventListener
+
+        class _ImproveTentacle(Action):
+            def do(self, source_ent, game_ref, target=None):
+                _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER,
+                    _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1)
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_SOLD,
+            action=_ImproveTentacle(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+    @staticmethod
+    def start_of_combat(source, game):
+        if len(_hp_player(source).board) >= 7:
+            return None
+        bonus = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0)
+        token = game.create_minion("EXAMPLE_VANILLA")
+        if token:
+            token.set_tag(GameTag.BASE_ATK, 2 + bonus)
+            token.set_tag(GameTag.BASE_HEALTH, 2 + bonus)
+            token.set_tag(GameTag.HEALTH, 2 + bonus)
+            token.set_tag(GameTag.TAUNT, True)
+            return Summon(_hp_player(source), token)
+        return None
+
+
+class RakanishuSpellBuffScript:
+    """Passive: Tavern spells give extra +1/+1. Improves every 4 turns (Rakanishu)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+        from hsrl.core.events import TURN_END, EventListener
+
+        class _ImproveEvery4(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 4:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    cur = _hp_player(source).get_tag(GameTag.TAVERN_SPELL_ATK_BONUS, 0)
+                    _hp_player(source).set_tag(GameTag.TAVERN_SPELL_ATK_BONUS, cur + 1)
+                    _hp_player(source).set_tag(GameTag.TAVERN_SPELL_HEALTH_BONUS,
+                        _hp_player(source).get_tag(GameTag.TAVERN_SPELL_HEALTH_BONUS, 0) + 1)
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_END,
+            action=_ImproveEvery4(),
+            condition=lambda turn: True,
+        ))
+        _hp_player(source).set_tag(GameTag.TAVERN_SPELL_ATK_BONUS, 1)
+        _hp_player(source).set_tag(GameTag.TAVERN_SPELL_HEALTH_BONUS, 1)
+
+
+class NobundoHandScript:
+    """Active: Replace your hand with random minions from a higher Tier (Nobundo)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.card_db import CARDS
+        count = len(player.hand)
+        for m in list(player.hand):
+            player.hand.remove(m)
+            m.zone = Zone.GRAVEYARD
+        tier = min(player.tavern_tier + 1, 7)
+        pool = [cid for cid, data in CARDS._cards.items()
+                if data.cardtype == 4 and data.tech_level == tier
+                and not cid.startswith("EXAMPLE")]
+        if not pool:
+            return None
+        actions = []
+        for _ in range(min(count, 10)):
+            actions.append(AddToHand(player, game.rng.choice(pool)))
+        return actions if actions else None
+
+
+class LordBarovGuessScript:
+    """Active: Guess which player wins next combat. Correct→3 Gold (Lord Barov)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        opponents = [p for p in game.players if p != player and p.is_alive]
+        if not opponents:
+            return None
+        guess = game.rng.choice(opponents)
+        player._barov_guess_id = id(guess)
+        # Check after combat via listener
+        return None
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import COMBAT_END, EventListener
+
+        class _CheckGuess(Action):
+            def do(self, source_ent, game_ref, target=None):
+                p = _hp_player(source)
+                guess_id = getattr(p, '_barov_guess_id', None)
+                if guess_id is None:
+                    return
+                p._barov_guess_id = None
+                # Check if guessed player won their combat
+                # Use last combat results
+                if hasattr(game_ref, '_last_combat_winner'):
+                    winner = game_ref._last_combat_winner
+                    if winner is not None and id(winner) == guess_id:
+                        game_ref.queue_action(GainGold(p, 3))
+
+        game.register_listener(source, EventListener(
+            event_name=COMBAT_END,
+            action=_CheckGuess(),
+        ))
+
+
+class ETCDiscoverBuddyScript:
+    """Active: Discover a Buddy (E.T.C.)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import DiscoverBuddy
+        return DiscoverBuddy(player)
+
+
+class AkazamzarakSecretScript:
+    """Active: Choose a Secret. Put it into the battlefield (Akazamzarak).
+
+    Secrets are represented as random spells from a curated pool.
+    """
+
+    SECRET_IDS = ["BG28_503", "BG28_504", "BG28_512"]  # Fortify, Recruit, Lasso
+
+    @staticmethod
+    def hero_power(player, game):
+        cid = game.rng.choice(AkazamzarakSecretScript.SECRET_IDS)
+        spell = game.create_spell(cid)
+        if spell:
+            spell.controller = player
+            spell.zone = Zone.HAND
+            player.hand.append(spell)
+            # Auto-cast if it targets
+            on_play = spell.on_play
+            if on_play:
+                if isinstance(on_play, (list, tuple)):
+                    return list(on_play)
+                return on_play
+        return None
+
+
+class MurozondTimewarpScript:
+    """Passive: On Turn 8, visit the Major Timewarp (Murozond)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _on_turn8(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                from hsrl.core.actions import DiscoverTrinket
+                g.queue_action(DiscoverTrinket(p, greater_only=True))
+
+        game.schedule_turn_action(8, _on_turn8)
+        return None
+
+
+class MorchieTimewarpScript:
+    """Passive: On Turn 5, visit the Minor Timewarp (Morchie)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _on_turn5(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                from hsrl.core.actions import DiscoverTrinket
+                g.queue_action(DiscoverTrinket(p, lesser_only=True))
+
+        game.schedule_turn_action(5, _on_turn5)
+        return None
+
+
+class SilasTicketScript:
+    """Passive: Darkmoon Tickets in Tavern. Get 3→Discover minion of your Tier (Silas)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_REFRESH, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _AddTicket(Action):
+            def do(self, source_ent, game_ref, target=None):
+                # Add a Ticket as a special spell in tavern
+                ticket = game_ref.create_spell("BG28_503")  # Fortify as ticket proxy
+                if ticket and len(_hp_player(source).tavern) < 7:
+                    ticket.controller = _hp_player(source)
+                    ticket.zone = Zone.TAVERN
+                    _hp_player(source).tavern.append(ticket)
+
+        class _CollectTickets(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 3:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    game_ref.queue_action(
+                        DiscoverMinion(_hp_player(source),
+                                       max_tier=_hp_player(source).tavern_tier))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_REFRESH,
+            action=_AddTicket(),
+            condition=lambda player: player == _hp_player(source),
+        ))
+        # Ticket "collection" happens when buying/playing the ticket spell
+        from hsrl.core.events import TAVERN_SPELL_CAST
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_SPELL_CAST,
+            action=_CollectTickets(),
+            condition=lambda spell, player: player == _hp_player(source),
+        ))
+
+
+class AzsharaAttackTrackerScript:
+    """Passive: When warband reaches 30 total Attack, begin Naga Conquest (Azshara)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_PLAYED, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CheckAttack(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) >= 1:
+                    return  # Already triggered
+                total_atk = sum(m.atk for m in _hp_player(source).board if not m.dead)
+                if total_atk >= 30:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 1)
+                    # Naga Conquest: buff all minions
+                    for m in _hp_player(source).board:
+                        if not m.dead:
+                            game_ref.queue_action(Buff(m, atk=5, health=5))
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_PLAYED,
+            action=_CheckAttack(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class DenathriusQuestScript:
+    """Passive: At start of game, choose one of two Quests (Sire Denathrius)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        _hp_player(source).set_tag(GameTag.QUESTS_ENABLED, True)
+        # Quest selection: auto-pick first available
+        from hsrl.core.actions import DiscoverReward
+        game.queue_action(DiscoverReward(_hp_player(source)))
+
+
+class PutricideCraftScript:
+    """Active: Discover an Undead minion (Putricide — Build-An-Undead)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.card_db import CARDS
+        undead = [cid for cid, data in CARDS._cards.items()
+                  if data.cardtype == 4 and data.tags.get(GameTag.RACE) == Race.UNDEAD
+                  and not cid.startswith("EXAMPLE")]
+        if undead:
+            return DiscoverMinion(player, card_id_filter=undead)
+        return None
+
+
+class KerriganZergScript:
+    """Passive: Your minions can transform into higher-Tier Zerg (Kerrigan)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _BuffZerg(Action):
+            def do(self, source_ent, game_ref, target=None):
+                for m in _hp_player(source).board:
+                    if not m.dead and m.get_tag(GameTag.IMPROVE_COUNTER, 0) < 3:
+                        game_ref.queue_action(Buff(m, atk=1, health=1))
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_BuffZerg(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+
+
+class ButtonsTrinketScript:
+    """Passive: On Turn 8, choose a Greater Trinket to buy (Buttons)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _on_turn8(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                from hsrl.core.actions import DiscoverTrinket
+                g.queue_action(DiscoverTrinket(p, greater_only=True))
+
+        game.schedule_turn_action(8, _on_turn8)
+        return None
+
+
+class JandiceSwapScript:
+    """Active: Swap a friendly non-Golden minion with a random one in the Tavern (Jandice)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead and not m.is_golden]
+        tavern = [m for m in player.tavern
+                  if not m.dead and m.get_tag(GameTag.CARDTYPE, 0) == 1]
+        if not board or not tavern:
+            return None
+        friendly = game.rng.choice(board)
+        tavern_m = game.rng.choice(tavern)
+        player.board.remove(friendly)
+        player.tavern.remove(tavern_m)
+        friendly.zone = Zone.TAVERN
+        tavern_m.zone = Zone.PLAY
+        player.tavern.append(friendly)
+        player.board.append(tavern_m)
+        tavern_m.set_tag(GameTag.FROZEN, True)
+        friendly.set_tag(GameTag.FROZEN, True)
+        return None
+
+
+class HooktuskDiscoverScript:
+    """Active: Remove a friendly minion. Discover one from a Tier lower (Hooktusk)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        tier = target.tech_level
+        if tier <= 1:
+            return None
+        game.remove_from_board(target)
+        target.zone = Zone.GRAVEYARD
+        return DiscoverMinion(player, max_tier=tier - 1, min_tier=1)
+
+
+class SirFinleyDiscoverScript:
+    """Passive: At the start of the game, Discover a Hero Power (Sir Finley)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.actions import DiscoverHeroPower
+
+        def _on_start(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                g.queue_action(DiscoverHeroPower(p))
+
+        game.schedule_turn_action(1, _on_start)
+        return None
+
+
+class GennTurn4DiscoverScript:
+    """Passive: On turn 4, Discover 2 Hero Powers to replace this one (Genn)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.actions import DiscoverHeroPower
+
+        def _on_turn4(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                g.queue_action(DiscoverHeroPower(p, count=2))
+
+        game.schedule_turn_action(4, _on_turn4)
+        return None
+
+
+class SimpleBuffTargetedScript:
+    """Active: Give a friendly minion +ATK/+HEALTH (Drek'Thar, Vanndar)."""
+    ATK = 2; HEALTH = 2
+
+    @staticmethod
+    def hero_power(player, game):
+        cls = player.data.scripts
+        atk = getattr(cls, 'ATK', 2)
+        health = getattr(cls, 'HEALTH', 2)
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        return Buff(game.rng.choice(board), atk=atk, health=health)
+
+
+class MurozondFreeHPScript:
+    """Passive: Your first Hero Power each turn costs (0) (Murozond)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _ResetHP(Action):
+            def do(self, source_ent, game_ref, target=None):
+                _hp_player(source).set_tag(GameTag.HERO_POWER_COST, 0)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_ResetHP(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+
+
+class MorchieTypeBuffScript:
+    """Passive: After you play a minion, give minions of that type +1/+1 (Morchie)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_PLAYED, EventListener
+
+        class _BuffSameType(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if target is None or target.dead:
+                    return
+                t_race = target.race
+                if t_race in (Race.NONE, Race.ALL, Race.INVALID):
+                    return
+                for m in _hp_player(source).board:
+                    if not m.dead and m.race == t_race:
+                        game_ref.queue_action(Buff(m, atk=1, health=1))
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_PLAYED,
+            action=_BuffSameType(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class ButtonsCoinScript:
+    """Passive: Start with a Coin. After 4 buys, get another Coin (Buttons)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_BOUGHT, EventListener
+        game.queue_action(GainGold(_hp_player(source), 1))
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CountBuys(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 4:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    game_ref.queue_action(GainGold(_hp_player(source), 1))
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_BOUGHT,
+            action=_CountBuys(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class ZerekCopyScript:
+    """Passive: After you play a minion, add a copy to your hand (Zerek)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_PLAYED, EventListener
+
+        class _AddCopy(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if target is None or target.dead:
+                    return
+                if len(_hp_player(source).hand) < 10:
+                    cid = target.get_tag(GameTag.CARD_ID)
+                    game_ref.queue_action(AddToHand(_hp_player(source), cid))
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_PLAYED,
+            action=_AddCopy(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class KerriganZergScript:
+    """Passive: Start of Turn: Summon two 2/2 Zerglings (Kerrigan)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _SummonZergs(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if len(_hp_player(source).board) >= 7:
+                    return
+                for _ in range(2):
+                    if len(_hp_player(source).board) < 7:
+                        token = game_ref.create_minion("BG31_811t")
+                        if token is None:
+                            token = game_ref.create_minion("EXAMPLE_VANILLA")
+                            if token:
+                                token.set_tag(GameTag.BASE_ATK, 2)
+                                token.set_tag(GameTag.BASE_HEALTH, 2)
+                        if token:
+                            game_ref.queue_action(Summon(_hp_player(source), token))
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_SummonZergs(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+
+
+class BigglesworthCopyScript:
+    """Passive: When an opponent dies, get a copy of their last minion (Mr. Bigglesworth)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import PLAYER_DEFEATED, EventListener
+
+        class _CopyLastMinion(Action):
+            def do(self, source_ent, game_ref, target=None):
+                dead_player = target
+                if dead_player is None or not hasattr(dead_player, 'board'):
+                    return
+                board = [m for m in dead_player.board if not m.dead]
+                if not board and hasattr(dead_player, 'graveyard'):
+                    board = dead_player.graveyard[-1:] if dead_player.graveyard else []
+                if board:
+                    last = board[-1]
+                    cid = last.get_tag(GameTag.CARD_ID)
+                    if cid and len(_hp_player(source).hand) < 10:
+                        game_ref.queue_action(AddToHand(_hp_player(source), cid))
+
+        game.register_listener(source, EventListener(
+            event_name=PLAYER_DEFEATED,
+            action=_CopyLastMinion(),
+        ))
+
+
+class SneedLegendaryScript:
+    """Active: Summon a random Legendary minion (T5+) (Sneed)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.card_db import CARDS
+        pool = [cid for cid, data in CARDS._cards.items()
+                if data.cardtype == 4 and data.tech_level >= 5
+                and not cid.startswith("EXAMPLE")]
+        if not pool:
+            return None
+        chosen = game.rng.choice(pool)
+        minion = game.create_minion(chosen)
+        if minion and len(player.board) < 7:
+            return Summon(player, minion)
+        return None
+
+
+class NobundoHandReplaceScript:
+    """Active: Replace your hand with random minions from a higher Tier (Nobundo)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.card_db import CARDS
+        count = len(player.hand)
+        # Clear hand
+        for m in list(player.hand):
+            player.hand.remove(m)
+            m.zone = Zone.GRAVEYARD
+        # Add random higher-tier minions
+        tier = player.tavern_tier + 1
+        pool = [cid for cid, data in CARDS._cards.items()
+                if data.cardtype == 4 and data.tech_level == tier
+                and not cid.startswith("EXAMPLE")]
+        if not pool:
+            pool = [cid for cid, data in CARDS._cards.items()
+                    if data.cardtype == 4 and data.tech_level >= tier
+                    and not cid.startswith("EXAMPLE")]
+        if not pool:
+            return None
+        actions = []
+        for _ in range(min(count, 10)):
+            actions.append(AddToHand(player, game.rng.choice(pool)))
+        return actions if actions else None
+
+
+class JandiceSwapScript:
+    """Active: Swap a friendly minion with a random minion in the Tavern (Jandice)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        tavern_minions = [m for m in player.tavern
+                          if not m.dead and m.get_tag(GameTag.CARDTYPE, 0) == 1]
+        if not board or not tavern_minions:
+            return None
+        friendly = game.rng.choice(board)
+        tavern_m = game.rng.choice(tavern_minions)
+        # Swap: remove friendly from board, add tavern to board, add friendly to tavern
+        player.board.remove(friendly)
+        player.tavern.remove(tavern_m)
+        friendly.zone = Zone.TAVERN
+        tavern_m.zone = Zone.PLAY
+        player.tavern.append(friendly)
+        player.board.append(tavern_m)
+        friendly.controller = player
+        tavern_m.controller = player
+        return None
+
+
+class TeronResummonScript:
+    """Passive: SoC: Destroy lowest-Health minion, resummon exact copy (Teron)."""
+
+    @staticmethod
+    def start_of_combat(source, game):
+        board = [m for m in _hp_player(source).board if not m.dead]
+        if not board:
+            return None
+        target = min(board, key=lambda m: m.health)
+        cid = target.get_tag(GameTag.CARD_ID)
+        atk = target.atk
+        health = target.health
+        actions = [Destroy(target)]
+        copy_minion = game.create_minion(cid)
+        if copy_minion:
+            copy_minion.set_tag(GameTag.BASE_ATK, atk)
+            copy_minion.set_tag(GameTag.BASE_HEALTH, health)
+            copy_minion.set_tag(GameTag.HEALTH, health)
+            if target.golden:
+                copy_minion.set_tag(GameTag.GOLDEN, True)
+            actions.append(Summon(_hp_player(source), copy_minion))
+        return actions
+
+
+class AzsharaNagaTransformScript:
+    """Passive: After you have 3 Naga, transform this HP (Azshara)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import MINION_PLAYED, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CountNaga(Action):
+            def do(self, source_ent, game_ref, target=None):
+                if target is None or target.race != Race.NAGA:
+                    return
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+                if c >= 3:
+                    # Transform: give all Naga +2/+2
+                    for m in _hp_player(source).board:
+                        if not m.dead and m.race == Race.NAGA:
+                            game_ref.queue_action(Buff(m, atk=2, health=2))
+
+        game.register_listener(source, EventListener(
+            event_name=MINION_PLAYED,
+            action=_CountNaga(),
+            condition=lambda minion, player: player == _hp_player(source),
+        ))
+
+
+class MarinTreasureScript:
+    """Passive: Gain a random Treasure at start of turn (Marin)."""
+
+    TREASURES = ["BG28_503", "BG28_503", "BG28_504"]  # Fortify, Recruit a Trainee
+    # Treasures are similar to small spells/gold bonuses
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _GetTreasure(Action):
+            def do(self, source_ent, game_ref, target=None):
+                from hsrl.core.card_db import CARDS
+                # Pick random spell as treasure proxy
+                spells = [cid for cid, data in CARDS._cards.items()
+                          if data.cardtype == 3 and data.tech_level <= 3
+                          and not cid.startswith("EXAMPLE")]
+                if spells and len(_hp_player(source).hand) < 10:
+                    game_ref.queue_action(AddToHand(_hp_player(source),
+                                          game.rng.choice(spells)))
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_GetTreasure(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+
+
+class AkazamzarakSecretScript:
+    """Active: Cast a random Secret (Akazamzarak).
+
+    Secrets are represented as random spell casts from a small pool.
+    """
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.card_db import CARDS
+        spells = [cid for cid, data in CARDS._cards.items()
+                  if data.cardtype == 3 and data.tech_level <= 2
+                  and not cid.startswith("EXAMPLE")]
+        if spells:
+            spell_id = game.rng.choice(spells)
+            spell = game.create_spell(spell_id)
+            if spell:
+                spell.controller = player
+                return spell.on_play
+        return None
+
+
+class AFKaySkipScript:
+    """Passive: Skip first 2 turns. Turn 3: Discover T3 and T4 (A.F. Kay)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _on_turn3(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                g.queue_action(DiscoverMinion(p, min_tier=3, max_tier=3))
+                g.queue_action(DiscoverMinion(p, min_tier=4, max_tier=4))
+
+        game.schedule_turn_action(3, _on_turn3)
+        return None
+
+
+class ShudderwockBattlecryScript:
+    """Active: Trigger a friendly minion's Battlecry. Unlocks on Turn 3 (Shudderwock)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        # Set high cost to prevent use before turn 3
+        _hp_player(source).set_tag(GameTag.HERO_POWER_COST, 99)
+
+        def _unlock_on_turn3(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                p.set_tag(GameTag.HERO_POWER_COST, 0)
+
+        game.schedule_turn_action(3, _unlock_on_turn3)
+        return None
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead and m.battlecry]
+        if not board:
+            return None
+        from hsrl.core.actions import TriggerBattlecry
+        target = game.rng.choice(board)
+        return TriggerBattlecry(target)
+
+
+class VardenRefreshCopyScript:
+    """Passive: After the Tavern is Refreshed, copy its highest-Tier minion
+    and Freeze them both (Varden — Twice as Nice)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_REFRESH, EventListener
+
+        class _CopyHighest(Action):
+            def do(self, source_ent, game_ref, target=None):
+                tavern = _hp_player(source).tavern
+                minions = [m for m in tavern if not m.dead
+                           and m.get_tag(GameTag.CARDTYPE, 0) == 1]
+                if not minions:
+                    return
+                highest = max(minions, key=lambda m: m.tech_level)
+                cid = highest.get_tag(GameTag.CARD_ID)
+                if cid and len(tavern) < 7:
+                    copy = game_ref.create_minion(cid)
+                    if copy:
+                        copy.controller = _hp_player(source)
+                        copy.zone = Zone.TAVERN
+                        tavern.append(copy)
+                        highest.set_tag(GameTag.FROZEN, True)
+                        copy.set_tag(GameTag.FROZEN, True)
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_REFRESH,
+            action=_CopyHighest(),
+            condition=lambda player: player == _hp_player(source),
+        ))
+
+
+class TaethelanRelicScript:
+    """Passive: Every 4th Tavern spell you buy costs (0) (Tae'thelan)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_SPELL_CAST, EventListener
+        _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+
+        class _CountSpells(Action):
+            def do(self, source_ent, game_ref, target=None):
+                c = _hp_player(source).get_tag(GameTag.IMPROVE_COUNTER, 0) + 1
+                if c >= 4:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, 0)
+                    _hp_player(source).set_tag(GameTag.NEXT_SPELL_COST_REDUCTION, 999)
+                else:
+                    _hp_player(source).set_tag(GameTag.IMPROVE_COUNTER, c)
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_SPELL_CAST,
+            action=_CountSpells(),
+            condition=lambda spell, player: player == _hp_player(source),
+        ))
+
+
+class OthaarArcaneScript:
+    """Passive: The next Tavern spell you buy costs (1) less. Unlocks Turn 3 (Othaar)."""
+
+    @staticmethod
+    def on_summon(source, game):
+        def _unlock_on_turn3(g, t):
+            p = _hp_player(source)
+            if p.is_alive:
+                p.set_tag(GameTag.NEXT_SPELL_COST_REDUCTION, 1)
+
+        game.schedule_turn_action(3, _unlock_on_turn3)
+        return None
+
+
+class ChromieSpellTavernScript:
+    """Active: Refresh the Tavern with Tavern spells instead of minions (Chromie)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        if game.spell_pool is None:
+            return None
+        player.tavern.clear()
+        tier = player.tavern_tier
+        count = {1: 3, 2: 4, 3: 4, 4: 5, 5: 5, 6: 6, 7: 6}.get(tier, 6)
+        drawn = game.spell_pool.draw(tier, count=count)
+        for card_id in drawn:
+            spell = game.create_spell(card_id)
+            if spell:
+                spell.controller = player
+                spell.zone = Zone.TAVERN
+                player.tavern.append(spell)
+        return None
+
+
+class LordBarovGuessScript:
+    """Active: Guess which player wins next combat. Correct → 3 Gold (Lord Barov)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        opponents = [p for p in game.players if p != player and p.is_alive]
+        if len(opponents) < 1:
+            return None
+        # Auto-guess: pick a random opponent (in RL, this becomes a PendingChoice)
+        guess = game.rng.choice(opponents)
+        player._barov_guess = guess
+        # Result checked in _check_barov_guess after combat
+        return None
+
+
+class MurlocHolmesGuessScript:
+    """Active: Guess which minion your next opponent has. Correct → Coin (Holmes)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.actions import GuessMinion
+        return GuessMinion(player)
+
+
+class MaievDormantScript:
+    """Active: Make a minion in the Tavern Dormant. Awakens in 2 turns with +3/+3 (Maiev)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        tavern_minions = [m for m in player.tavern
+                          if not m.dead and not m.get_tag(GameTag.MAIEV_DORMANT, False)
+                          and m.get_tag(GameTag.CARDTYPE, 0) == 1]
+        if not tavern_minions:
+            return None
+        target = game.rng.choice(tavern_minions)
+        target.set_tag(GameTag.MAIEV_DORMANT, True)
+        target.set_tag(GameTag.MAIEV_DORMANT_TURNS, 2)
+        return None
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _CheckDormant(Action):
+            def do(self, source_ent, game_ref, target=None):
+                for m in list(_hp_player(source).tavern):
+                    if m.get_tag(GameTag.MAIEV_DORMANT, False):
+                        turns = m.get_tag(GameTag.MAIEV_DORMANT_TURNS, 0) - 1
+                        if turns <= 0:
+                            m.set_tag(GameTag.MAIEV_DORMANT, False)
+                            m.set_tag(GameTag.MAIEV_DORMANT_TURNS, 0)
+                            # Awaken with +3/+3
+                            game_ref.queue_action(Buff(m, atk=3, health=3))
+                        else:
+                            m.set_tag(GameTag.MAIEV_DORMANT_TURNS, turns)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_CheckDormant(),
+            condition=lambda p: p == _hp_player(source),
+        ))
+
+
+class PutricideCraftScript:
+    """Active: Discover an Undead minion (Putricide — Build-An-Undead).
+
+    Crafting = Discover an Undead minion and add it to your hand.
+    """
+
+    @staticmethod
+    def hero_power(player, game):
+        from hsrl.core.card_db import CARDS
+        undead_pool = [cid for cid, data in CARDS._cards.items()
+                       if data.cardtype == 4 and data.tags.get(GameTag.RACE) == Race.UNDEAD
+                       and not cid.startswith("EXAMPLE")]
+        if undead_pool:
+            return DiscoverMinion(player, card_id_filter=undead_pool)
+        return None
+
+
+class GreyboughBuffScript:
+    """Active: Give a friendly minion +1/+2 and Taunt (Greybough)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        target = game.rng.choice(board)
+        return [Buff(target, atk=1, health=2), GainKeyword(target, GameTag.TAUNT)]
+
+
+class OzumatAdjacentBuffScript:
+    """Active: Give a friendly +1/+2 and adjacent minions +1/+1 (Ozumat)."""
+
+    @staticmethod
+    def hero_power(player, game):
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+        idx = game.rng.randrange(len(board))
+        target = board[idx]
+        actions = [Buff(target, atk=1, health=2)]
+        if idx > 0:
+            actions.append(Buff(board[idx - 1], atk=1, health=1))
+        if idx < len(board) - 1:
+            actions.append(Buff(board[idx + 1], atk=1, health=1))
+        return actions
+
+
+def _make_buff_hp(atk, health, keyword=None):
+    """Factory: create a SimpleBuffFriendlyScript subclass with given stats."""
+    class _Buff(SimpleBuffFriendlyScript):
+        ATK = atk
+        HEALTH = health
+        KEYWORD = keyword
+    _Buff.__name__ = f"_BuffHP_{atk}_{health}"
+    return _Buff
+
+
+# ── Registry ──
+
 HERO_POWER_SCRIPT_REGISTRY = {
     # Example hero powers
     "EXAMPLE_HERO_POWER_BUFF": ExampleHeroPowerBuff,
@@ -2804,4 +4991,66 @@ HERO_POWER_SCRIPT_REGISTRY = {
     "TB_BaconShop_HP_041i": _make_king_script(Race.QUILBOAR, "Quilboar"),
     "TB_BaconShop_HP_041j": _make_king_script(Race.NAGA, "Naga"),
     "TB_BaconShop_HP_041k": _make_king_script(Race.UNDEAD, "Undead"),
+    # ── Verified against official data (hsbattlegrounds.help) ──
+    "BG23_HERO_303p2": MurlocHolmesGuessScript,            # Holmes: Look at 2 minions, guess
+    "BG34_HERO_001p": ChromieSpellTavernScript,           # Chromie: Refresh with spells
+    "TB_BaconShop_HP_063": FirstRefreshFreeScript,       # Nozdormu: 1st refresh free
+    "TB_BaconShop_HP_062": AddTribeToTavernScript,       # Ysera: Extra Dragon on refresh
+    "TB_BaconShop_HP_046": MakeMinionGoldenScript,       # Reno: Golden once per game
+    "TB_BaconShop_HP_035": PatchwerkHealthScript,        # Patchwerk: +30 HP
+    "TB_BaconShop_HP_033": AmalgamStartScript,           # Curator: Start with Amalgam
+    "TB_BaconShop_HP_105": FishOfNZothStartScript,       # N'Zoth: Start with Fish
+    "BG35_HERO_001p": GennTurn4DiscoverScript,            # Genn: Turn 4 Discover 2 HPs
+    "TB_BaconShop_HP_054": MinionsCost2Script,           # Millhouse: Minions cost (2)
+    "TB_BaconShop_HP_022": ShudderwockBattlecryScript,     # Shudderwock: Trigger BC (T3)
+    "BG22_HERO_004p": VardenRefreshCopyScript,            # Varden: Refresh→copy highest+freeze
+    "BG31_HERO_006p": OthaarArcaneScript,                 # Othaar: Next spell -1 (T3)
+    "BG28_HERO_800p": TaethelanRelicScript,               # Tae'thelan: Every 4th spell free
+    "BG22_HERO_200p": IniStormcoilScript,                 # Ini: 9 deaths → random Mech
+    "BG24_HERO_204p": EnhanceOMechanoScript,              # Enhance-o: Refresh→keyword tavern
+    "TB_BaconShop_HP_107": GreyboughCombatBuffScript,     # Greybough: Combat summon +1/+2 Taunt
+    "TB_BaconShop_HP_088": ChenvaalaUpgradeScript,         # Chenvaala: 3 Elementals→upgrade -3
+    "BG20_HERO_201p": VoljinTempSwapScript,               # Vol'jin: Temp swap Attack
+    "BG20_HERO_301p": MutanusSellScript,                   # Mutanus: Sell, spit stats
+    "TB_BaconShop_HP_065": ArannaFirstFreeScript,          # Aranna: First buy free
+    "BG26_HERO_104p": VooneCopyScript,                     # Voone: Every 3 turns copy leftmost
+    "TB_BaconShop_HP_106": TickatusPrizeScript,            # Tickatus: Every 4 turns Prize
+    "TB_BaconShop_HP_057": SirFinleyDiscoverScript,        # Sir Finley: Start of game Discover HP
+    "BG21_HERO_030p": SneedShredderScript,                 # Sneed: Start with 2/1 Shredder
+    "BG20_HERO_283p": GalewingSpellScript,                 # Galewing: Every turn 1-Cost spell
+    "BG22_HERO_002p": DrekTharCombatScript,                # Drek'Thar: SoC copy highest-ATK (T7)
+    "BG22_HERO_003p": VanndarCombatScript,                 # Vanndar: SoC copy highest-HP (T7)
+    "BG22_HERO_305p": OnyxiaAvengeScript,                 # Onyxia: Avenge(4) summon Whelp
+    "BG21_HERO_020p": CookiePotScript,                     # Cookie: Pot collection→discover
+    "BG30_HERO_304p": MarinTrinketScript,                  # Marin: Turn 5 Lesser Trinket
+    "BG25_HERO_103p": TeronMarkScript,                     # Teron: Mark→SoC destroy+resummon
+    "TB_BaconShop_HP_068": MaievLockScript,                # Maiev: Lock tavern card 2 turns
+    "BG27_HERO_801p2": ThorimGoldScript,                   # Thorim: T7 discover, after 60G
+    "BG31_HERO_801p": JimRaynorScript,                     # Jim Raynor: Battlecruiser+Upgrades
+    "BG34_HERO_002p": ClocksworthGoldenScript,             # Clocksworth: 2 copies=Golden
+    "TB_BaconShop_HP_042": DerylHatScript,                 # Deryl: Hat on play, passes on sell
+    "BG22_HERO_201p": FaelinDiscoverScript,                # Faelin: Discover higher tier
+    "TB_BaconShop_HP_080": BigglesworthDiscoverScript,     # Mr. Bigglesworth: Discover from dead
+    "TB_BaconShop_HP_052": ReplaceMinionSameTierScript,    # Malygos: Replace same tier (2x/turn)
+    "TB_BaconShop_HP_084": JandiceSwapScript,              # Jandice: Swap with tavern minion
+    "TB_BaconShop_HP_075": HooktuskDiscoverScript,         # Hooktusk: Remove, Discover lower tier
+    "BG20_HERO_202p": DiscoverHeroPowerScript,             # Master Nguyen: Discover new HP
+    "BG31_HERO_005p": ZerekCloneScript,                   # Zerek: Once per game clone
+    "BG32_HERO_002p": ButtonsTrinketScript,                # Buttons: Turn 8 Greater Trinket
+    "TB_BaconShop_HP_044": AFKayScript,                   # A.F. Kay: Skip 2 turns, T3 discover
+    "BG33_HERO_001p_ALT": LohStatsByTierScript,            # Loh: Stats = Tier
+    "BG23_HERO_201p": OzumatTentacleScript,               # Ozumat: SoC Tentacle + on_sell scale
+    "TB_BaconShop_HP_085t": RakanishuSpellBuffScript,      # Rakanishu: Spell buff + every 4 turns improve
+    "BG31_HERO_003p": NobundoHandScript,                   # Nobundo: Replace hand higher tier
+    "TB_BaconShop_HP_039t": YoggWheelHeroPowerScript,      # Yogg: Spin the Wheel (original impl)
+    "TB_BaconShop_HP_081": LordBarovGuessScript,            # Lord Barov: Guess winner→3 Gold
+    "BG25_HERO_105p": ETCDiscoverBuddyScript,              # E.T.C.: Discover a Buddy
+    "TB_BaconShop_HP_020": AkazamzarakSecretScript,         # Akazamzarak: Choose Secret
+    "BG34_HERO_000p": MurozondTimewarpScript,              # Murozond: Turn 8 Major Timewarp
+    "BG34_HERO_004p": MorchieTimewarpScript,               # Morchie: Turn 5 Minor Timewarp
+    "TB_BaconShop_HP_101": SilasTicketScript,              # Silas: Tickets→Discover
+    "BG22_HERO_007p": AzsharaAttackTrackerScript,           # Azshara: 30 Attack→Naga Conquest
+    "BG24_HERO_100p": DenathriusQuestScript,               # Denathrius: Choose Quest
+    "BG25_HERO_100p": PutricideCraftScript,                 # Putricide: Discover Undead
+    "BG31_HERO_811p": KerriganZergScript,                   # Kerrigan: Zerg buffs
 }

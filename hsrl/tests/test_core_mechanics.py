@@ -32,7 +32,7 @@ class TestVanillaMinion(unittest.TestCase):
     """Standard Example: Vanilla minion with no abilities."""
 
     def test_creation(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_VANILLA")
         self.assertEqual(m.get_tag(GameTag.NAME), "Vanilla Test Minion")
@@ -47,7 +47,7 @@ class TestCombatDamage(unittest.TestCase):
     """Standard Example: Basic attack and damage."""
 
     def test_hit_reduces_health(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_VANILLA")
         game.queue_action(Hit(m, 1))
@@ -55,7 +55,7 @@ class TestCombatDamage(unittest.TestCase):
         self.assertEqual(m.health, 2)
 
     def test_attack_exchanges_damage(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         a = game.create_minion("EXAMPLE_VANILLA")  # 2/3
         b = game.create_minion("EXAMPLE_VANILLA")  # 2/3
@@ -70,7 +70,7 @@ class TestTaunt(unittest.TestCase):
     """Standard Example: Taunt forces targeting."""
 
     def test_taunt_priority(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         taunt = game.create_minion("EXAMPLE_TAUNT")
         vanilla = game.create_minion("EXAMPLE_VANILLA")
@@ -78,7 +78,7 @@ class TestTaunt(unittest.TestCase):
         self.assertIs(target, taunt)
 
     def test_no_taunt_random_target(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         a = game.create_minion("EXAMPLE_VANILLA")
         b = game.create_minion("EXAMPLE_VANILLA")
@@ -90,7 +90,7 @@ class TestDivineShield(unittest.TestCase):
     """Standard Example: Divine Shield blocks first damage."""
 
     def test_shield_blocks_damage(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_DIVINE_SHIELD")  # 3/1 with shield
         game.queue_action(Hit(m, 5))
@@ -99,7 +99,7 @@ class TestDivineShield(unittest.TestCase):
         self.assertFalse(m.divine_shield)
 
     def test_second_damage_applies(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_DIVINE_SHIELD")
         game.queue_action(Hit(m, 5))
@@ -109,7 +109,7 @@ class TestDivineShield(unittest.TestCase):
 
     def test_shield_blocks_poisonous(self):
         """Poisonous does NOT kill through Divine Shield."""
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         shield = game.create_minion("EXAMPLE_DIVINE_SHIELD")
         poison = game.create_minion("EXAMPLE_POISONOUS")
@@ -123,7 +123,7 @@ class TestPoisonous(unittest.TestCase):
     """Standard Example: Poisonous kills any minion damaged."""
 
     def test_poisonous_kills_immediately(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         poison = game.create_minion("EXAMPLE_POISONOUS")  # 1/1 Poisonous
         big = game.create_minion("EXAMPLE_TAUNT")         # 2/4
@@ -136,7 +136,7 @@ class TestReborn(unittest.TestCase):
     """Standard Example: Reborn resummons with 1 health."""
 
     def test_reborn_resummons(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_REBORN")  # 2/2 Reborn
         p = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
@@ -157,7 +157,7 @@ class TestWindfury(unittest.TestCase):
     """Standard Example: Windfury allows two attacks."""
 
     def test_windfury_two_attacks(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         wf = game.create_minion("EXAMPLE_WINDFURY")  # 2/4 Windfury
         self.assertTrue(wf.can_attack)
@@ -171,7 +171,7 @@ class TestCleave(unittest.TestCase):
     """Standard Example: Cleave damages adjacent minions."""
 
     def test_cleave_hits_adjacent(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         cleave = game.create_minion("EXAMPLE_CLEAVE")  # 3/6 Cleave
         mid = game.create_minion("EXAMPLE_VANILLA")     # 2/3
@@ -197,7 +197,7 @@ class TestBuff(unittest.TestCase):
     """Standard Example: Buff action adds stats."""
 
     def test_buff_increases_stats(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_VANILLA")  # 2/3
         game.queue_action(Buff(m, atk=2, health=3))
@@ -210,7 +210,7 @@ class TestHeal(unittest.TestCase):
     """Standard Example: Heal restores health."""
 
     def test_heal_restores_health(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_VANILLA")  # 2/3
         m.health = 1
@@ -223,7 +223,7 @@ class TestPlayerDamage(unittest.TestCase):
     """Combat damage to player is calculated correctly."""
 
     def test_damage_calculation(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         winner = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
         loser = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
@@ -238,7 +238,7 @@ class TestPlayerDamage(unittest.TestCase):
         self.assertEqual(loser.health, 25)
 
     def test_damage_to_loser(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         winner = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
         loser = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
@@ -255,7 +255,7 @@ class TestDamageCap(unittest.TestCase):
     """Damage cap limits combat damage in early turns."""
 
     def test_turn_1_cap(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.turn = 1
         # Need >4 players for cap to apply
         for _ in range(5):
@@ -264,7 +264,7 @@ class TestDamageCap(unittest.TestCase):
         self.assertEqual(game._get_damage_cap(), 5)
 
     def test_turn_5_cap(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.turn = 5
         for _ in range(5):
             p = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
@@ -272,7 +272,7 @@ class TestDamageCap(unittest.TestCase):
         self.assertEqual(game._get_damage_cap(), 10)
 
     def test_turn_9_cap(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.turn = 9
         for _ in range(5):
             p = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
@@ -280,7 +280,7 @@ class TestDamageCap(unittest.TestCase):
         self.assertEqual(game._get_damage_cap(), 15)
 
     def test_top_4_no_cap(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.turn = 1
         # 4 players alive -> no cap
         for _ in range(4):
@@ -293,7 +293,7 @@ class TestAvenge(unittest.TestCase):
     """Standard Example: Avenge triggers after X friendly deaths."""
 
     def test_avenge_counter_increments(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         p = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
         game.players.append(p)
@@ -310,7 +310,7 @@ class TestAvenge(unittest.TestCase):
         self.assertEqual(avenge.get_tag(GameTag.AVENGE_COUNTER), 1)
 
     def test_avenge_triggers_at_threshold(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         p = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
         game.players.append(p)
@@ -331,7 +331,7 @@ class TestVenomous(unittest.TestCase):
     """Standard Example: Venomous kills if the source survives."""
 
     def test_venomous_kills_when_surviving(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         venom = game.create_minion("EXAMPLE_VENOMOUS")  # 2/2 Venomous
         weak = game.create_minion("EXAMPLE_VANILLA")    # 2/3
@@ -342,7 +342,7 @@ class TestVenomous(unittest.TestCase):
         # Let me use a weaker target
 
     def test_venomous_kills_weak_target(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         venom = game.create_minion("EXAMPLE_VENOMOUS")  # 2/2
         # Create a 1/1 to guarantee venom survives
@@ -360,7 +360,7 @@ class TestGolden(unittest.TestCase):
     """Standard Example: Golden minion flag."""
 
     def test_golden_tag(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         m = game.create_minion("EXAMPLE_GOLDEN")
         self.assertTrue(m.is_golden)
@@ -372,7 +372,7 @@ class TestCombatFlow(unittest.TestCase):
     """Integration test: a simple 1v1 combat."""
 
     def test_basic_combat(self):
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
         p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
@@ -403,7 +403,7 @@ class TestDeathrattle(unittest.TestCase):
     """Standard Example: Deathrattle summons a token when the minion dies."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -463,7 +463,7 @@ class TestDeathrattleSummonCards(unittest.TestCase):
     """Real cards: Deathrattle summons specific tokens."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -564,7 +564,7 @@ class TestDeathrattleBuffCards(unittest.TestCase):
     """Real cards: Deathrattle that buff, deal damage, or grant keywords."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -764,7 +764,7 @@ class TestDeathrattleSummonMoreCards(unittest.TestCase):
     """More real cards: Deathrattle that summon specific minions (chaining)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -786,7 +786,7 @@ class TestDeathrattleSummonMoreCards(unittest.TestCase):
         self.assertIn("Eternal Summoner", names)
         knight = [m for m in self.player.board if m.get_tag(GameTag.NAME) == "Eternal Knight"][0]
         self.assertEqual(knight.atk, 4)
-        self.assertEqual(knight.health, 2)
+        self.assertEqual(knight.health, 2)  # Eternal Knight is 4/2
 
     # ── BG34_630 Twilight Hatchling ─────────────────────────────────────
     # DR: Summon a 3/3 Twilight Whelp
@@ -866,7 +866,7 @@ class TestRally(unittest.TestCase):
     """Standard Example and real cards: Rally triggers when attack declared, before damage."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -980,7 +980,7 @@ class TestRally(unittest.TestCase):
         self.assertTrue(murloc.venomous)
 
     # ── BG33_840 Stomping Stegodon ─────────────────────────────────────
-    # Rally: Give your other Beasts +{0} Attack (Rally propagation DEFERRED)
+    # Rally: Give your other Beasts +3 Attack and this Rally.
 
     def test_stomping_stegodon_buffs_beasts(self):
         stego = self.game.create_minion("BG33_840")  # Beast
@@ -993,7 +993,7 @@ class TestRally(unittest.TestCase):
         self.game.queue_action(Attack(stego, target))
         self.game.resolve_queue()
 
-        self.assertEqual(beast.atk, 3)  # 2 + 1
+        self.assertEqual(beast.atk, 5)  # 2 + 3
 
     # ── BG33_840 Rally propagation ────────────────────────────────────
 
@@ -1026,17 +1026,17 @@ class TestRally(unittest.TestCase):
         self.game.summon(self.p2, target1)
         self.game.summon(self.p2, target2)
 
-        # Stegodon attacks → beast1 gets Rally and +1 ATK
+        # Stegodon attacks → beast1 gets Rally and +3 ATK
         self.game.queue_action(Attack(stego, target1))
         self.game.resolve_queue()
-        self.assertEqual(beast1.atk, 3)  # 2 + 1
+        self.assertEqual(beast1.atk, 5)  # 2 + 3
         self.assertTrue(beast1.has_tag(GameTag.RALLY))
 
         # beast1 (now with Rally) attacks → beast2 should be buffed
         original_beast2_atk = beast2.atk  # 2 (haven't been buffed yet)
         self.game.queue_action(Attack(beast1, target2))
         self.game.resolve_queue()
-        self.assertEqual(beast2.atk, original_beast2_atk + 1)  # 2 + 1 = 3
+        self.assertEqual(beast2.atk, original_beast2_atk + 3)  # 2 + 3 = 5
         self.assertTrue(beast2.has_tag(GameTag.RALLY),
                         "beast2 should gain RALLY from beast1's propagated Rally")
 
@@ -1061,7 +1061,7 @@ class TestBattlecryCards(unittest.TestCase):
     """Real cards: Battlecry effects — self-buff, gold, buff by race."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -1167,7 +1167,7 @@ class TestBloodGem(unittest.TestCase):
     """Standard Example: Blood Gem gives +1/+1 (plus bonuses)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -1213,7 +1213,7 @@ class TestDiscover(unittest.TestCase):
     """Standard Example: Discover adds a minion to hand."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -1241,7 +1241,7 @@ class TestSpellcraftAddToHand(unittest.TestCase):
     """Standard Example: Spellcraft adds a specific card to hand."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -1269,7 +1269,7 @@ class TestGlobalAura(unittest.TestCase):
     """Global Aura system: persistent stat bonuses applied to all matching minions."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.player]
@@ -1403,7 +1403,7 @@ class TestTavernBuff(unittest.TestCase):
     """Tavern Buff subsystem: Give minions in Bob's Tavern +X/+Y this game."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         from hsrl.core.minion_pool import MinionPool
         self.game.minion_pool = MinionPool(CARDS)
@@ -1515,7 +1515,7 @@ class TestCombatSummon(unittest.TestCase):
     """SummonFromHandForCombat / ReturnCombatSummons subsystem."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.player]
@@ -1626,7 +1626,7 @@ class TestNerubianDeathswarmer(unittest.TestCase):
     """BG25_011: Battlecry: Your Undead have +1 Attack this game."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.player]
@@ -1684,7 +1684,7 @@ class TestPlaguerunner(unittest.TestCase):
     Outside-combat deaths give only +1 ATK and do not increment the scale."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.player]
@@ -1765,7 +1765,7 @@ class TestBloodGemImprove(unittest.TestCase):
     """Test Blood Gem improver cards that increment BLOOD_GEM_BONUS_*."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -1832,7 +1832,7 @@ class TestBloodGemMultiTarget(unittest.TestCase):
     """Test cards that play Blood Gems on multiple targets."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -1909,7 +1909,7 @@ class TestGlowgulletWarlord(unittest.TestCase):
     """Test BG32_430: DR summons 1/1 Quilboar and plays Blood Gem on them."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -1974,7 +1974,7 @@ class TestShellCollector(unittest.TestCase):
     """BG23_002: 'Get a Tavern Coin' → TAVERN_COIN card added to hand."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2006,7 +2006,7 @@ class TestGetBloodGem(unittest.TestCase):
     """Test 'Get Blood Gem' cards — Blood Gems go to HAND for later play."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2093,7 +2093,7 @@ class TestHuntingTigerShark(unittest.TestCase):
     """BG34_523: 'Discover a Beast' → random Beast added to hand."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2123,7 +2123,7 @@ class TestPrimalfinLookout(unittest.TestCase):
     """BGS_020: 'If you control another Murloc, Discover a Murloc.'"""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2169,7 +2169,7 @@ class TestEternalTycoon(unittest.TestCase):
     """BG34_403: 'Avenge ({0}): Summon an Eternal Knight.'"""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2198,7 +2198,7 @@ class TestAutoAssembler(unittest.TestCase):
     """BG32_172: 'Deathrattle: Summon an Ancestral Automaton.'"""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2222,7 +2222,7 @@ class TestNightbane(unittest.TestCase):
     """BG29_815: 'Deathrattle: Give X different friendly minions this Attack.'"""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2276,7 +2276,7 @@ class TestTavernTempest(unittest.TestCase):
     """BGS_123: 'Get a random Elemental' → random Elemental added to hand."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2306,7 +2306,7 @@ class TestKangorsApprentice(unittest.TestCase):
     """BGS_012: 'Deathrattle: Summon plain copies of your first 2 Mechs that died this combat.'"""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -2371,7 +2371,7 @@ class TestStitchedSalvager(unittest.TestCase):
     """BG31_999: SoC destroys left minion; DR summons an exact copy of it."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2420,7 +2420,7 @@ class TestRylakMetalhead(unittest.TestCase):
     """BG26_801: 'Deathrattle: Trigger the Battlecry of an adjacent minion.'"""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2462,7 +2462,7 @@ class TestSouthseaBusker(unittest.TestCase):
     """BG26_135: 'Battlecry: Gain 1 Gold next turn' — deferred gold gain."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2510,7 +2510,7 @@ class TestShipMasterEudora(unittest.TestCase):
     """BG33_828: 'Deathrattle: Give your minions +X/+Y.'"""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -2543,7 +2543,7 @@ class TestAttackImmediately(unittest.TestCase):
     """AttackImmediately: minion attacks outside normal turn order during combat."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -2616,7 +2616,7 @@ class TestEndOfTurn(unittest.TestCase):
     """End of Turn: trigger effects at end of Recruit phase."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -2641,7 +2641,7 @@ class TestStartOfTurn(unittest.TestCase):
     """Start of Turn: trigger effects at beginning of Recruit phase."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -2667,7 +2667,7 @@ class TestOnSell(unittest.TestCase):
     """On Sell: trigger effects when a minion is sold from the board."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -2694,7 +2694,7 @@ class TestMinionPool(unittest.TestCase):
     """Shared MinionPool: drawing, returning, pool limits."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.init_pool()
         self.pool = self.game.minion_pool
@@ -2744,7 +2744,7 @@ class TestTransform(unittest.TestCase):
     """Transform: replace a minion with another, preserving buffs and position."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_TAUNT"), game=self.game)
@@ -2802,7 +2802,7 @@ class TestFodderConsume(unittest.TestCase):
     """Fodder: consume a minion from hand to gain its stats."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -2859,7 +2859,7 @@ class TestSpellcraft(unittest.TestCase):
     """Spellcraft: generate temporary spells at start of Recruit phase."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -2952,7 +2952,7 @@ class TestImprove(unittest.TestCase):
     """Improves after X: permanent counter scaling via event listeners."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_TAUNT"), game=self.game)
@@ -3084,7 +3084,7 @@ class TestAfterRefresh(unittest.TestCase):
     """After the Tavern is Refreshed: persistent event-triggered tavern buff."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         from hsrl.core.minion_pool import MinionPool
         self.game.minion_pool = MinionPool(CARDS)
@@ -3161,7 +3161,7 @@ class TestBattlecryTrigger(unittest.TestCase):
     """After Battlecry Trigger: event-listener-based battlecry tracking."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_TAUNT"), game=self.game)
@@ -3242,7 +3242,7 @@ class TestTavernSpellCast(unittest.TestCase):
     """Test TAVERN_SPELL_CAST event: listener registration, broadcast, self-buff, controller filter."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         from hsrl.core.player import Player
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -3303,7 +3303,7 @@ class TestTavernSpellSystem(unittest.TestCase):
     """Test tavern spell pool, refresh, buy, play, and discount mechanics."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.init_pool()  # Initializes both minion_pool and spell_pool
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -3539,7 +3539,7 @@ class TestPlayMinion(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -3606,7 +3606,7 @@ class TestTripleSystem(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -3758,7 +3758,7 @@ class TestTripleReward(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -3814,7 +3814,7 @@ class TestCaptainSanders(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -3873,7 +3873,7 @@ class TestPickyEater(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -3918,7 +3918,7 @@ class TestDisguisedGraverobber(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -3973,7 +3973,7 @@ class TestBrann(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -4045,7 +4045,7 @@ class TestDrakkari(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -4083,7 +4083,7 @@ class TestFloatingWatcher(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -4139,7 +4139,7 @@ class TestShipMasterEudora(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -4208,7 +4208,7 @@ class TestTemporaryBuff(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -4253,7 +4253,7 @@ class TestPerCardTrackers(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         from hsrl.core.minion_pool import MinionPool
         self.game.minion_pool = MinionPool(CARDS)
@@ -4408,7 +4408,7 @@ class TestMagnetic(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         from hsrl.core.minion_pool import MinionPool
         self.game.minion_pool = MinionPool(CARDS)
@@ -4524,8 +4524,8 @@ class TestMagnetic(unittest.TestCase):
         self.assertIn(mag, self.p1.board, "Magnetic should be on board")
         self.assertTrue(mag.taunt, "Should still have its own Taunt keyword")
 
-    def test_magnetic_non_mech_target_still_attaches(self):
-        """Magnetic attachment works even if target is not a Mech (game allows it)."""
+    def test_magnetic_rejects_non_mech_target(self):
+        """Magnetic must reject attachment if target is not a Mech."""
         host = self.game.create_minion("EXAMPLE_VANILLA")
         # host is Race.BEAST by default
         self.game.summon(self.p1, host)
@@ -4538,8 +4538,45 @@ class TestMagnetic(unittest.TestCase):
 
         self.game.play_minion(self.p1, mag, magnetic_target=host)
 
-        self.assertEqual(host.atk, old_atk + mag.get_tag(GameTag.BASE_ATK, 0))
-        self.assertTrue(host.taunt)
+        # Target is Beast, not Mech — attachment should be REJECTED
+        self.assertEqual(host.atk, old_atk)
+        self.assertFalse(host.taunt)
+        # Magnetic minion should still be in hand (not consumed)
+        self.assertIn(mag, self.p1.hand)
+
+    def test_technical_element_attaches_to_elemental(self):
+        """Technical Element can magnetize to Elementals as well as Mechs."""
+        host = self.game.create_minion("EXAMPLE_VANILLA")
+        host.set_tag(GameTag.RACE, Race.ELEMENTAL)
+        self.game.summon(self.p1, host)
+        old_atk = host.atk
+
+        tech = self.game.create_minion("BG31_859")
+        tech.controller = self.p1
+        tech.zone = Zone.HAND
+        self.p1.hand.append(tech)
+
+        self.game.play_minion(self.p1, tech, magnetic_target=host)
+
+        self.assertGreater(host.atk, old_atk)
+        self.assertNotIn(tech, self.p1.hand)
+
+    def test_technical_element_rejects_beast(self):
+        """Technical Element rejects non-Mech/non-Elemental targets."""
+        host = self.game.create_minion("EXAMPLE_VANILLA")
+        # host is Race.BEAST by default
+        self.game.summon(self.p1, host)
+        old_atk = host.atk
+
+        tech = self.game.create_minion("BG31_859")
+        tech.controller = self.p1
+        tech.zone = Zone.HAND
+        self.p1.hand.append(tech)
+
+        self.game.play_minion(self.p1, tech, magnetic_target=host)
+
+        self.assertEqual(host.atk, old_atk)
+        self.assertIn(tech, self.p1.hand)
 
     def test_magnetic_dead_target_noop(self):
         """Magnetic attachment on a dead host does nothing."""
@@ -4558,7 +4595,7 @@ class TestMagnetic(unittest.TestCase):
         self.game.play_minion(self.p1, mag, magnetic_target=host)
 
         self.assertEqual(host.atk, old_atk, "Dead host stats should not change")
-        self.assertNotIn(mag, self.p1.hand, "Magnetic should be consumed")
+        self.assertIn(mag, self.p1.hand, "Magnetic should stay in hand on dead target")
 
 
 class TestConsumeTavernMinion(unittest.TestCase):
@@ -4566,7 +4603,7 @@ class TestConsumeTavernMinion(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         from hsrl.core.minion_pool import MinionPool
         self.game.minion_pool = MinionPool(CARDS)
@@ -4722,7 +4759,7 @@ class TestHeroArmor(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -4797,7 +4834,7 @@ class TestSilence(unittest.TestCase):
 
     def setUp(self):
         from hsrl.core.player import Player
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_TAUNT"), game=self.game)
@@ -4952,7 +4989,7 @@ class TestVenomousConsumed(unittest.TestCase):
     """Bug 1: Venomous key word should be consumed after triggering."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -4995,7 +5032,7 @@ class TestGoldCapDefault(unittest.TestCase):
     """Bug 2: Gold cap default should be 99, not 10."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -5020,7 +5057,7 @@ class TestHandSizeLimit(unittest.TestCase):
     """Bug 3: Hand size must be capped at MAX_HAND_SIZE (10)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
@@ -5080,7 +5117,7 @@ class TestCombatSnapshot(unittest.TestCase):
     """Bug 4: Combat must run on board snapshots, preserving originals."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -5159,7 +5196,7 @@ class TestSpellEffects(unittest.TestCase):
     """Phase 14B: Tavern spell on_play effects."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -5330,7 +5367,7 @@ class TestTrinkets(unittest.TestCase):
     """Phase 15A: Trinket system tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -5513,7 +5550,7 @@ class TestQuests(unittest.TestCase):
     """Phase 15B: Quest/Reward system tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -5683,7 +5720,7 @@ class TestAnomalies(unittest.TestCase):
     """Phase 15C: Anomaly system tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -5784,7 +5821,7 @@ class TestHealthCostPurchase(unittest.TestCase):
     """Phase 21A: Health-as-cost purchase system (Pilgrimp Sticker, Bazaar Sticker)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -5814,7 +5851,7 @@ class TestExtraHeroPower(unittest.TestCase):
     """Phase 21B: Extra hero power uses (Teron's Training trinket)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -5844,7 +5881,7 @@ class TestNextPurchaseGolden(unittest.TestCase):
     """Phase 21C: Auto-golden next purchase (Gold-plated Compass)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -5884,7 +5921,7 @@ class TestDesignerEyepatch(unittest.TestCase):
     """Phase 21D: 2 copies for golden pirates (Designer Eyepatch)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -5900,7 +5937,7 @@ class TestMagneticCostOverride(unittest.TestCase):
     """Phase 21E: Magnetic cost override (Electrode Attractor)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -5917,7 +5954,7 @@ class TestCombatPersistence(unittest.TestCase):
     """Phase 21F: Combat stats persistence (Tarecgosa Sticker)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -5969,7 +6006,7 @@ class TestGuidingCandle(unittest.TestCase):
     """Phase 21G: Guiding Candle refresh modification."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -5986,7 +6023,7 @@ class TestCombatTracking(unittest.TestCase):
     """Phase 21H: Combat death/summon tracking."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -6023,7 +6060,7 @@ class TestSpellCraftExtraCasts(unittest.TestCase):
     """Phase 21I: Extra spellcraft casts (Spitescale Sushi Roll)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -6039,7 +6076,7 @@ class TestFreeRefresh(unittest.TestCase):
     """Phase 21J: Free refresh system."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -6055,7 +6092,7 @@ class TestTrinketEventSubsystems(unittest.TestCase):
     """Phase 21K: Trinket event listener integration tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
@@ -6110,15 +6147,10 @@ class TestTrinketEventSubsystems(unittest.TestCase):
         result = trinket.data.scripts.on_summon(trinket, self.game)
         self.assertIsNone(result)
 
-    def test_trinket_tarecgosa_persist_tag(self):
-        """Tarecgosa Sticker sets COMBAT_PERSIST_DRAGONS on controller."""
+    def test_trinket_tarecgosa_removed_in_patch_35_4_2(self):
+        """Tarecgosa Sticker was removed from the active trinket pool."""
         data = self.game.card_db.get("BG32_MagicItem_417")
-        self.assertEqual(data.name, "Tarecgosa Sticker")
-        trinket = self.game.card_db.create_trinket("BG32_MagicItem_417", game=self.game)
-        trinket.controller = self.p1
-        if trinket.data.scripts and hasattr(trinket.data.scripts, 'on_summon'):
-            trinket.data.scripts.on_summon(trinket, self.game)
-        self.assertTrue(self.p1.get_tag(GameTag.COMBAT_PERSIST_DRAGONS))
+        self.assertIsNone(data)
 
     def test_trinket_implicator_adds_imps(self):
         """Implicator Portrait adds 2 False Implicators to hand."""

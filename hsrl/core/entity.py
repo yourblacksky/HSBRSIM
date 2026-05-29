@@ -49,6 +49,27 @@ class BaseEntity:
         self.tags[GameTag.ZONE] = Zone.INVALID
         self.tags[GameTag.ZONE_POSITION] = 0
 
+    # ── Deep copy for MCTS / search ──
+
+    def snapshot(self) -> dict:
+        """Return a deep snapshot of mutable entity state for search restore.
+
+        Only copies tags, buffs, and script overrides — NOT controller/game
+        references (those are re-wired during restore).
+        """
+        import copy
+        return {
+            "tags": copy.deepcopy(self.tags),
+            "_buffs": copy.deepcopy(self._buffs),
+            "_script_overrides": copy.deepcopy(self._script_overrides),
+        }
+
+    def restore_snapshot(self, snap: dict) -> None:
+        """Restore entity state from a snapshot."""
+        self.tags = snap["tags"]
+        self._buffs = snap["_buffs"]
+        self._script_overrides = snap["_script_overrides"]
+
     # ── Tag access helpers ──
 
     def get_tag(self, tag: GameTag, default: Any = 0) -> Any:
@@ -143,6 +164,13 @@ class BaseEntity:
         # Anomaly health bonus (Prudence of Amitus)
         if self.controller is not None:
             base += self.controller.get_tag(GameTag.ANOMALY_MINION_HEALTH_BONUS, 0)
+        # Script-defined health override (e.g. Automaton, Falling Sky Golem)
+        if self.data.scripts is not None:
+            health_fn = getattr(self.data.scripts, "health", None)
+            if callable(health_fn):
+                result = health_fn(self)
+                if result is not None:
+                    return max(1, result)
         return max(1, base)
 
     @max_health.setter

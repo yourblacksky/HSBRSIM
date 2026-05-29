@@ -1,11 +1,13 @@
 """
-Demo: Run a complete 8-player Battlegrounds game with ALL heuristic agents.
+Demo: Run a complete 8-player Battlegrounds game with ALL SearchAgents.
 
-Every player uses the greedy Q-score heuristic (_auto_player_turn).
+Every player uses the SearchAgent (greedy or beam) for recruit-phase decisions.
 Full turn-by-turn log with board states, actions, combat results, and standings.
 
 Usage:
-  python -m hsrl.agents.heuristic_demo --seed 42 [--max-turns 15] [--output path/to/file.md]
+  python -m hsrl.agents.self_play_demo --seed 42 --max-turns 15 [--output path/to/file.md]
+      [--game-value checkpoints/game_value_v3_clean.pt]
+      [--board-eval checkpoints/board_eval_v3_clean.pt]
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ import numpy as np
 from hsrl.core.card_db import CARDS
 from hsrl.core.enums import CardType, GameTag, State
 from hsrl.core.game import Game
+from hsrl.env.action import END_TURN, decode_action
 
 
 def _format_minion(m) -> str:
@@ -39,7 +42,7 @@ def _format_minion(m) -> str:
         keywords.append("WF")
     if m.cleave:
         keywords.append("Cleave")
-    if m.has_tag(GameTag.GOLDEN):
+    if m.is_golden:
         keywords.append("G")
     if keywords:
         parts.append("[" + ",".join(keywords) + "]")
@@ -62,15 +65,19 @@ def _hero_name(p):
     return p.data.name if hasattr(p.data, "name") else f"Hero_{p.entity_id}"
 
 
-def run_heuristic_demo(
+def run_self_play_demo(
     seed: int = 42,
     max_turns: int = 15,
     output_path: str = None,
+    game_value_path: str = "checkpoints/game_value_v3_clean.pt",
+    board_eval_path: str = "checkpoints/board_eval_v3_clean.pt",
+    beam_width: int = 0,
+    beam_depth: int = 3,
 ):
     random.seed(seed)
     np.random.seed(seed)
 
-    # Card module imports (registrations)
+    # Card module imports
     import hsrl.cards.minions.pool as _mp  # noqa
     import hsrl.cards.minions.scripts as _ms  # noqa
     import hsrl.cards.minions.tokens as _mt  # noqa
@@ -79,6 +86,9 @@ def run_heuristic_demo(
     import hsrl.cards.trinkets.scripts as _ts  # noqa
     import hsrl.cards.rewards.scripts as _rs  # noqa
     import hsrl.cards.anomalies.scripts as _as  # noqa
+
+    # Create SearchAgent (shared model, each player gets separate agent for RNG)
+    from hsrl.agents.search_agent import SearchAgent
 
     hero_ids = [
         cid
@@ -97,20 +107,34 @@ def run_heuristic_demo(
     game.active_anomaly = True
     game.start_game()
 
+    # One agent per player (each with different RNG seed)
+    agents = {}
+    for i, p in enumerate(players):
+        agents[p.entity_id] = SearchAgent(
+            game_value_path=game_value_path,
+            board_eval_path=board_eval_path,
+            beam_width=beam_width,
+            beam_depth=beam_depth,
+            seed=seed + i * 1000,
+        )
+
+    mode = f"beam(w={beam_width}, d={beam_depth})" if beam_width > 0 else "greedy"
+
     # Capture output
     lines = []
     def out(s=""):
         lines.append(s)
 
     # Header
-    out("# 8-Player Battlegrounds — All Heuristic Demo")
+    out("# 8-Player Battlegrounds — All SearchAgent Self-Play Demo")
     out()
-    out(f"**Seed**: {seed}  |  **Max Turns**: {max_turns}  |  **Agents**: 8× Greedy Q-Score Heuristic")
+    out(f"**Seed**: {seed}  |  **Max Turns**: {max_turns}  |  **Agents**: 8× SearchAgent ({mode})")
     out()
-    out("> ⚠ **Audit note**: This demo uses a simplified auto-play strategy that does NOT use")
-    out("> hero powers, spells, freezes, or positioning. It is an engine smoke test, not a")
-    out("> faithful recreation of real player behavior. Combat logs show actual engine combat.")
-    out("> No anomaly is active in this game. Trinkets are offered on Turns 6 and 9.")
+    out(f"**Game Value**: `{game_value_path}`  |  **Board Eval**: `{board_eval_path}`")
+    out()
+    out("> Each player uses the SearchAgent with GameValueNetwork to evaluate")
+    out("> POMDP states and select the best action greedily. No beam search")
+    out("> means one-step lookahead only. All 8 agents share the same model weights.")
     out()
     out()
     out("## Players")
@@ -134,10 +158,11 @@ def run_heuristic_demo(
         out(f"### Turn {turn_count}")
         out()
 
-        # Process each alive player
+        # ── Recruit phase: each alive player takes their turn ──
         alive_players = [p for p in players if p.is_alive]
         for p in alive_players:
             game.active_player = p
+            agent = agents[p.entity_id]
 
             # Snapshot before
             board_before = [_format_minion(m) for m in p.board if not m.dead]
@@ -145,6 +170,8 @@ def run_heuristic_demo(
             armor_before = p.armor
             gold_before = p.gold
             tier_before = p.tavern_tier
+            hand_before = len(p.hand)
+            trinkets_before = len(p.trinkets)
 
             # Format tavern
             tavern_strs = [_format_tavern_item(e) for e in p.tavern]
@@ -159,15 +186,25 @@ def run_heuristic_demo(
             out(f"  Tavern: {' | '.join(tavern_strs)}")
             out()
 
-            # Run the heuristic turn
-            board_before_entities = list(p.board)
-            gold_before_auto = p.gold
-            hand_before = len(p.hand)
-            trinkets_before = len(p.trinkets)
-            game._auto_player_turn(p)
-            game.resolve_queue()
-            while game._pending_targeted_queue:
-                game.auto_resolve_pending_target()
+            # Run agent actions (act() handles trinkets/choices internally)
+            actions_taken = []
+            for _ in range(50):  # safety limit
+                action = agent.act(game, p)
+                if action == END_TURN:
+                    break
+                actions_taken.append(action)
+                gold_before = p.gold
+                board_before = len([m for m in p.board if not m.dead])
+                decode_action(action, game, p)
+                game.resolve_queue()
+                while game._pending_targeted_queue:
+                    game.auto_resolve_pending_target()
+                # Detect stuck: if action didn't change gold or board, break
+                gold_after = p.gold
+                board_after = len([m for m in p.board if not m.dead])
+                if gold_before == gold_after and board_before == board_after:
+                    # Action had no effect — avoid infinite loop
+                    break
 
             # Snapshot after
             board_after = [_format_minion(m) for m in p.board if not m.dead]
@@ -178,68 +215,65 @@ def run_heuristic_demo(
 
             # Summarize changes
             changes = []
-            # Infer actions from state changes
-            board_added = set(m.get_tag(GameTag.CARD_ID) for m in p.board if not m.dead) - \
-                         set(m.get_tag(GameTag.CARD_ID) for m in board_before_entities if not m.dead)
-            board_lost = set(m.get_tag(GameTag.CARD_ID) for m in board_before_entities if not m.dead) - \
-                        set(m.get_tag(GameTag.CARD_ID) for m in p.board if not m.dead)
             if tier_after != tier_before:
-                changes.append(f"⬆ Upgrade T{tier_before}→T{tier_after}")
-            if board_added:
-                changes.append(f"Bought")
-            if board_lost:
-                changes.append(f"Sold")
-            if len(p.trinkets) > trinkets_before:
-                changes.append(f"💍 Got trinket: {p.trinkets[-1].get_tag(GameTag.NAME) or '?'}")
+                changes.append(f"Upgrade T{tier_before}→T{tier_after}")
             if gold_after != gold_before:
                 changes.append(f"Gold: {gold_before}→{gold_after}")
             if hp_after != hp_before:
                 changes.append(f"HP: {hp_before}→{hp_after}")
             if armor_after != armor_before:
                 changes.append(f"Armor: {armor_before}→{armor_after}")
+            if len(p.trinkets) > trinkets_before:
+                t_name = p.trinkets[-1].get_tag(GameTag.NAME) or "?"
+                changes.append(f"Trinket: {t_name}")
+            if len(p.hand) != hand_before:
+                changes.append(f"Hand: {hand_before}→{len(p.hand)}")
 
             if board_after != board_before:
-                out(f"  → Board after: {', '.join(board_after)}")
+                out(f"  → Board: {', '.join(board_after)}")
             if changes:
                 out(f"  → {' | '.join(changes)}")
+            if actions_taken:
+                from hsrl.env.action import get_action_name
+                action_names = [get_action_name(a) for a in actions_taken]
+                out(f"  → Actions ({len(actions_taken)}): {', '.join(action_names)}")
             out()
 
-        # End recruit phase (combat)
+        # ── Combat phase ──
         game.end_recruit_phase()
 
-        out(f"**⚔ Combat Phase**")
+        out(f"**Combat Phase**")
         out()
 
-        # Print combat event log
         combat_events = game._combat_event_log
         for evt in combat_events:
             if evt['event'] == 'combat_start':
-                out(f"  ⚡ {evt['p1']} vs {evt['p2']} (first: {evt['first_attacker']})")
+                out(f"  {evt['p1']} vs {evt['p2']} (first: {evt['first_attacker']})")
                 out(f"     {evt['p1']}: [{', '.join(evt['p1_board'])}]")
                 out(f"     {evt['p2']}: [{', '.join(evt['p2_board'])}]")
             elif evt['event'] == 'attack':
                 atk = f"{evt['attacker']} {evt['atk_before']}→{evt['atk_after']}"
-                if evt['atk_dead']: atk += " 💀"
+                if evt['atk_dead']: atk += " DEAD"
                 df = f"{evt['defender']} {evt['def_before']}→{evt['def_after']}"
-                if evt['def_dead']: df += " 💀"
-                out(f"     ⚔ {atk}  🛡 {df}")
+                if evt['def_dead']: df += " DEAD"
+                out(f"     {atk}  |  {df}")
             elif evt['event'] == 'combat_end':
-                out(f"     🏁 survivors: {evt['survivors_p1']} vs {evt['survivors_p2']} — winner: {evt['winner']}")
+                out(f"     Result: survivors {evt['survivors_p1']} vs {evt['survivors_p2']} — winner: {evt['winner']}")
         game._combat_event_log.clear()
         out()
 
-        # Report damage taken
+        # Report damage
         for p in alive_players:
             if p not in eliminated and not p.is_alive:
                 eliminated[p] = turn_count
-                out(f"  💀 **{_hero_name(p)} eliminated!** (HP=0, Turn {turn_count})")
+                out(f"  **{_hero_name(p)} eliminated!** (HP=0, Turn {turn_count})")
 
-        # Show remaining alive
+        # Standings
         still_alive = [p for p in players if p.is_alive]
         if len(still_alive) > 1:
             standings = sorted(still_alive, key=lambda p: p.health, reverse=True)
             out(f"  Alive: {len(still_alive)}/8")
-            out(f"  HP standings: " + " | ".join(
+            out(f"  HP: " + " | ".join(
                 f"{_hero_name(p)} (HP={p.health}, Armor={p.armor}, Tier={p.tavern_tier})"
                 for p in standings
             ))
@@ -271,17 +305,17 @@ def run_heuristic_demo(
     out()
     out("---")
     out()
-    out("## Heuristic Strategy")
+    out("## Agent Strategy")
     out()
-    out("The Q-score heuristic evaluates each affordable tavern minion by:")
+    out(f"**SearchAgent ({mode})** with GameValueNetwork evaluates each legal action by:")
     out()
-    out("1. **Buy & Play**: Score = current_board_score + minion.atk + minion.health + aura_bonus")
-    out("2. **Sell & Replace**: If board full, replace weakest minion if net score change > 0")
-    out("3. **Upgrade**: If no beneficial buy is available and gold ≥ upgrade_cost, upgrade tavern tier")
-    out("4. **Refresh**: If no other action is possible, refresh the tavern for 1 gold")
+    out("1. Simulate action forward (buy, sell, play, upgrade, refresh, freeze, hero power)")
+    out("2. Encode resulting POMDP state (61-dim: board embedding + own stats + opponent stats)")
+    out("3. Evaluate V(s') with GameValueNetwork (MSE-trained to predict expected placement)")
+    out("4. Choose action with highest V(s'); end turn if no action improves baseline")
     out()
-    out("This is a greedy one-step heuristic — no lookahead, no opponent modeling, no combat simulation.")
-    out(f"Average rank in self-play: ~4.5 (random among identical strategies)")
+    out("This is a one-step greedy lookahead using learned value function —")
+    out("no multi-step planning, no opponent modeling, no combat simulation at decision time.")
 
     result = "\n".join(lines)
     if output_path:
@@ -292,17 +326,27 @@ def run_heuristic_demo(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="All-heuristic Battlegrounds demo")
+    parser = argparse.ArgumentParser(description="Self-play SearchAgent Battlegrounds demo")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-turns", type=int, default=15)
     parser.add_argument("--output", type=str, default=None,
                         help="Output markdown file (default: print to stdout)")
+    parser.add_argument("--game-value", type=str,
+                        default="checkpoints/game_value_v3_clean.pt")
+    parser.add_argument("--board-eval", type=str,
+                        default="checkpoints/board_eval_v3_clean.pt")
+    parser.add_argument("--beam-width", type=int, default=0)
+    parser.add_argument("--beam-depth", type=int, default=3)
     args = parser.parse_args()
 
-    run_heuristic_demo(
+    run_self_play_demo(
         seed=args.seed,
         max_turns=args.max_turns,
         output_path=args.output,
+        game_value_path=args.game_value,
+        board_eval_path=args.board_eval,
+        beam_width=args.beam_width,
+        beam_depth=args.beam_depth,
     )
 
 

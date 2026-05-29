@@ -53,6 +53,7 @@ class HandSlot:
 
 @dataclass
 class BoardSlot:
+    card_id: str = ""
     atk: int = 0
     health: int = 0
     max_health: int = 0

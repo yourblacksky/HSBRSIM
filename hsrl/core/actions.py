@@ -159,12 +159,16 @@ class AttackImmediately(Action):
         if self.attacker.dead or self.attacker.atk <= 0:
             return
 
-        # Find enemy player
+        # Find the enemy player for this combat pair. During full lobby combat,
+        # other players' boards still exist and must not become target candidates.
         enemy = None
-        for p in game.players:
-            if p is not self.attacker.controller and p.board:
-                enemy = p
-                break
+        if hasattr(game, "get_current_combat_opponent"):
+            enemy = game.get_current_combat_opponent(self.attacker.controller)
+        if enemy is None:
+            for p in game.players:
+                if p is not self.attacker.controller and p.board:
+                    enemy = p
+                    break
         if enemy is None:
             return
 
@@ -174,9 +178,9 @@ class AttackImmediately(Action):
             return
         taunts = [m for m in living if m.taunt]
         if taunts:
-            target = random.choice(taunts)
+            target = game.rng.choice(taunts)
         else:
-            target = random.choice(living)
+            target = game.rng.choice(living)
 
         # Perform the attack via the standard Attack action
         game.queue_action(Attack(self.attacker, target))
@@ -240,6 +244,7 @@ class Hit(Action):
                 self.target.health = 0
                 game.broadcast("VENOM_KILL", self.target, self.source)
                 self.source.set_tag(GameTag.VENOMOUS, False)
+                game.broadcast("KEYWORD_LOST", self.source, GameTag.VENOMOUS)
 
         game.broadcast("AFTER_HIT", self.target, actual_damage, self.source)
 
@@ -461,7 +466,7 @@ class DealDamageToRandomEnemy(Action):
         for _ in range(self.count):
             if not enemies:
                 break
-            victim = random.choice(enemies)
+            victim = game.rng.choice(enemies)
             game.queue_action(Hit(victim, self.amount, source=source))
             enemies = [e for e in enemies if not e.dead]
 
@@ -630,7 +635,7 @@ class UpgradeTavern(Action):
     """Player upgrades their tavern tier."""
 
     # Base gold cost to reach each tier (key = tier you are GOING TO)
-    _BASE_COST = {2: 5, 3: 7, 4: 8, 5: 9, 6: 10}
+    _BASE_COST = {2: 5, 3: 7, 4: 8, 5: 9, 6: 10, 7: 11}
 
     def __init__(self, player: Player):
         super().__init__()
@@ -766,6 +771,8 @@ class GetBloodGem(Action):
         }
         card_id = card_ids[self.variant]
         for _ in range(self.count):
+            if len(self.player.hand) >= MAX_HAND_SIZE:
+                return  # Hand full — further gems are lost (standard BG rule)
             spell = game.create_minion(card_id)
             spell.controller = self.player
             spell.zone = Zone.HAND
@@ -775,9 +782,38 @@ class GetBloodGem(Action):
 
 # ── Discover Actions ──
 
+class PendingChoice:
+    """A discovery choice awaiting player (or RL agent) selection.
+
+    The game engine pauses when a pending choice exists. Only a choice
+    resolution action is valid until the choice is made.
+    """
+
+    def __init__(self, choice_type: str, options: list, source: "BaseEntity",
+                 player: "Player", callback):
+        self.choice_type = choice_type   # "minion", "spell", "reward", "trinket"
+        self.options = options           # list of (card_id, name) tuples
+        self.source = source            # entity that triggered the discover
+        self.player = player            # player making the choice
+        self.callback = callback        # fn(chosen_index) -> Action or list[Action]
+
+    def resolve(self, index: int, game: "Game"):
+        if index < 0 or index >= len(self.options):
+            return
+        result = self.callback(index)
+        if result is not None:
+            if isinstance(result, (list, tuple)):
+                for a in result:
+                    game.queue_action(a, source=self.source)
+            else:
+                game.queue_action(result, source=self.source)
+
+
 class DiscoverMinion(Action):
     """Discover a minion and add it to the player's hand.
-    In RL environments this is simplified to a random valid choice.
+
+    Creates a PendingChoice state so the player or RL agent can choose.
+    Heuristic/auto-play resolves with a random choice for backward compatibility.
     """
 
     def __init__(
@@ -798,7 +834,6 @@ class DiscoverMinion(Action):
         self.card_id_filter = card_id_filter
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
-        import random
         candidates = []
         for card_id, data in game.card_db._cards.items():
             if self.card_type is not None and data.cardtype != self.card_type:
@@ -812,17 +847,32 @@ class DiscoverMinion(Action):
             if self.card_id_filter is not None and card_id != self.card_id_filter:
                 continue
             candidates.append(card_id)
-        if candidates:
-            if len(self.player.hand) >= MAX_HAND_SIZE:
-                return
-            chosen_id = random.choice(candidates)
+        if not candidates:
+            return
+        if len(self.player.hand) >= MAX_HAND_SIZE:
+            return
+
+        import random
+        # Limit to discover pool size (3 in real BG, but we show all valid)
+        pool = game.rng.sample(candidates, min(3, len(candidates)))
+        options = [(cid, game.card_db.get(cid).name) for cid in pool]
+
+        def _on_choice(index):
+            chosen_id = pool[index]
             minion = game.create_minion(chosen_id)
+            if minion is None:
+                return None
             minion.controller = self.player
             minion.zone = Zone.HAND
             self.player.hand.append(minion)
             game._last_discovered_id = chosen_id
             game.broadcast("DISCOVER", self.player, chosen_id)
             game._check_for_triple(self.player, minion)
+            return None
+
+        game._pending_choice = PendingChoice(
+            "minion", options, source, self.player, _on_choice,
+        )
 
 
 class DiscoverSpell(Action):
@@ -842,7 +892,6 @@ class DiscoverSpell(Action):
         self.spell_school = spell_school
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
-        import random
         from hsrl.core.enums import CardType
         candidates = []
         for card_id, data in game.card_db._cards.items():
@@ -853,15 +902,29 @@ class DiscoverSpell(Action):
             if self.max_tier is not None and data.tech_level > self.max_tier:
                 continue
             candidates.append(card_id)
-        if candidates:
-            if len(self.player.hand) >= MAX_HAND_SIZE:
-                return
-            chosen_id = random.choice(candidates)
+        if not candidates:
+            return
+        if len(self.player.hand) >= MAX_HAND_SIZE:
+            return
+
+        import random
+        pool = game.rng.sample(candidates, min(3, len(candidates)))
+        options = [(cid, game.card_db.get(cid).name) for cid in pool]
+
+        def _on_choice(index):
+            chosen_id = pool[index]
             spell = game.create_spell(chosen_id)
+            if spell is None:
+                return None
             spell.controller = self.player
             spell.zone = Zone.HAND
             self.player.hand.append(spell)
             game.broadcast("DISCOVER_SPELL", self.player, chosen_id)
+            return None
+
+        game._pending_choice = PendingChoice(
+            "spell", options, source, self.player, _on_choice,
+        )
 
 
 class FreezeTavernMinion(Action):
@@ -900,7 +963,7 @@ class UpgradeTavernMinionTier(Action):
         if not candidates:
             return
         import random
-        chosen_id = random.choice(candidates)
+        chosen_id = game.rng.choice(candidates)
         # Remove old minion from tavern
         if self.minion in self.player.tavern:
             self.player.tavern.remove(self.minion)
@@ -967,7 +1030,7 @@ class RotateRatKingType(Action):
         candidates = [r for r in self.RAT_KING_RACES if r != current]
         if not candidates:
             return
-        new_type = random.choice(candidates)
+        new_type = game.rng.choice(candidates)
         self.player.set_tag(GameTag.RAT_KING_TYPE, new_type)
         game.broadcast("RAT_KING_TYPE_ROTATED", self.player, new_type)
 
@@ -1009,7 +1072,7 @@ class GetRandomMinion(Action):
         if candidates:
             if len(self.player.hand) >= MAX_HAND_SIZE:
                 return
-            chosen_id = random.choice(candidates)
+            chosen_id = game.rng.choice(candidates)
             minion = game.create_minion(chosen_id)
             minion.controller = self.player
             minion.zone = Zone.HAND
@@ -1039,7 +1102,7 @@ class GetRandomBounty(Action):
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
         import random
-        cid = random.choice(self.BOUNTY_SPELLS)
+        cid = game.rng.choice(self.BOUNTY_SPELLS)
         spell = game.create_minion(cid)
         if spell is None:
             return
@@ -1118,6 +1181,27 @@ class TransferStats(Action):
         hp = self.source_ent.max_health
         Destroy(self.source_ent).do(self.source_ent, game)
         Buff(self.target_ent, atk=atk, health=hp).do(self.target_ent, game)
+
+
+# ── Stat Swap Action ──
+
+class SwapStats(Action):
+    """Swap the Attack of two minions (Vol'jin hero power)."""
+
+    def __init__(self, minion_a: BaseEntity, minion_b: BaseEntity):
+        super().__init__()
+        self.minion_a = minion_a
+        self.minion_b = minion_b
+
+    def do(self, source: BaseEntity, game: Game, target=None) -> None:
+        if self.minion_a.dead or self.minion_b.dead:
+            return
+        a_atk = self.minion_a.atk
+        b_atk = self.minion_b.atk
+        self.minion_a.set_tag(GameTag.BASE_ATK, b_atk)
+        self.minion_b.set_tag(GameTag.BASE_ATK, a_atk)
+        self.minion_a.set_tag(GameTag.HEALTH, self.minion_a.max_health)
+        self.minion_b.set_tag(GameTag.HEALTH, self.minion_b.max_health)
 
 
 # ── Trigger / Scheduling Actions ──
@@ -1269,10 +1353,16 @@ class ConsumeTavernMinion(Action):
         if not candidates:
             return
 
-        if self.mode == "highest_health":
+        # Implicator Portrait: override to highest-health targeting
+        actual_mode = "highest_health" if (
+            self.mode == "highest_health"
+            or self.player.get_tag(GameTag.IMPLICATOR_CONSUME_HIGHEST, False)
+        ) else self.mode
+
+        if actual_mode == "highest_health":
             chosen = max(candidates, key=lambda m: m.health)
         else:
-            chosen = random.choice(candidates)
+            chosen = game.rng.choice(candidates)
 
         atk_gain = chosen.atk
         health_gain = chosen.max_health
@@ -1319,7 +1409,7 @@ class CopyTavernMinion(Action):
         ]
         if not candidates:
             return
-        original = random.choice(candidates)
+        original = game.rng.choice(candidates)
         copy_card_id = original.get_tag(GameTag.CARD_ID)
         if copy_card_id:
             copy_minion = game.create_minion(copy_card_id)
@@ -1571,7 +1661,7 @@ class TargetedAction(Action):
                 return
             if game.in_combat:
                 import random
-                self._target = random.choice(candidates)
+                self._target = game.rng.choice(candidates)
             else:
                 # RECRUIT phase — pause for player selection
                 game._pending_targeted_queue.append(self)
@@ -1582,7 +1672,8 @@ class TargetedAction(Action):
         source_ct = source.get_tag(GameTag.CARDTYPE, CardType.INVALID) if source else CardType.INVALID
         target_ct = self._target.get_tag(GameTag.CARDTYPE, CardType.INVALID) if self._target else CardType.INVALID
         if source_ct == CardType.SPELL and target_ct == CardType.MINION:
-            game.broadcast(SPELL_CAST_ON_MINION, source, self._target)
+            # Convention: args[0] = target (minion), args[1] = source (spell)
+            game.broadcast(SPELL_CAST_ON_MINION, self._target, source)
 
         result = self.action_factory(self._target)
         if result is not None:
@@ -1619,9 +1710,9 @@ class CastSpellOnTarget(Action):
         if on_play and hasattr(on_play, '_target'):
             on_play._target = self.target_minion
             game.queue_action(on_play, source=spell)
-        # Broadcast for trinket listeners
-        from hsrl.core.events import SPELL_CAST_ON_MINION
-        game.broadcast(SPELL_CAST_ON_MINION, spell, self.target_minion)
+        # SPELL_CAST_ON_MINION is broadcast by TargetedAction.do() when the
+        # spell effect actually executes; do NOT broadcast here to avoid
+        # double-triggering trinket listeners.
 
 
 class CastSpellOnAll(Action):
@@ -1665,7 +1756,7 @@ class ChooseOne(Action):
         if not self.choices:
             return
         import random
-        idx = self.index if self.index is not None else random.randrange(len(self.choices))
+        idx = self.index if self.index is not None else game.rng.randrange(len(self.choices))
         _, action_or_list = self.choices[idx]
         if isinstance(action_or_list, (list, tuple)):
             for a in action_or_list:
@@ -1808,7 +1899,7 @@ class BuffRandomTavernMinion(Action):
         candidates = [m for m in tavern if not m.dead]
         if not candidates:
             return
-        t = random.choice(candidates)
+        t = game.rng.choice(candidates)
         Buff(t, atk=self.atk, health=self.health).do(source, game)
 
 
@@ -1839,7 +1930,7 @@ class AddFodderToRandomTavernMinion(Action):
         if not tavern_minions:
             return
 
-        chosen = random.choice(tavern_minions)
+        chosen = game.rng.choice(tavern_minions)
         GainKeyword(chosen, GameTag.FODDER).do(source, game)
 
 
@@ -1909,7 +2000,7 @@ class CastYoggWheel(Action):
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
         import random
-        effect = random.choice(self.YOGG_EFFECTS)
+        effect = game.rng.choice(self.YOGG_EFFECTS)
 
         if effect == "deal_3_to_random_enemy":
             DealDamageToRandomEnemy(self.player, amount=3, count=1).do(source, game)
@@ -1932,7 +2023,7 @@ class CastYoggWheel(Action):
             pool = [cid for cid, data in CARDS._cards.items()
                     if data.cardtype == 4 and not cid.startswith("EXAMPLE")]
             if pool:
-                token = game.create_minion(random.choice(pool))
+                token = game.create_minion(game.rng.choice(pool))
                 if token:
                     game.summon(self.player, token)
         elif effect == "deal_1_to_all_enemies":
@@ -1948,11 +2039,203 @@ class CastYoggWheel(Action):
         # "nothing" — no effect
 
 
+# ── Darkmoon Prize pool ────────────────────────────────────────────────
+
+# Darkmoon Prize effects: (display_name, action_factory(player) → Action)
+_PRIZE_POOL = [
+    ("Give your minions +2/+2", lambda p: _buff_all_friendly(p, 2, 2)),
+    ("Gain 4 Gold", lambda p: GainGold(p, 4)),
+    ("Give a random friendly +5/+5 and Taunt",
+     lambda p: (_buff_random_friendly(p, 5, 5, GameTag.TAUNT))),
+    ("Your next Refresh costs (0)", lambda p: GainFreeRefresh(p, 1)),
+    ("Your next Tavern upgrade costs (3) less",
+     lambda p: _set_tag(p, GameTag.TAVERN_UPGRADE_COST,
+                        max(0, p.get_tag(GameTag.TAVERN_UPGRADE_COST, 5) - 3))),
+    ("Get a plain copy of a minion from last opponent",
+     lambda p: _copy_from_last_opponent(p)),
+    ("Discover a minion of your most common type",
+     lambda p: _discover_majority_tribe(p)),
+]
+
+
+def _buff_all_friendly(player, atk, health):
+    actions = []
+    for m in player.board:
+        if not m.dead:
+            actions.append(Buff(m, atk=atk, health=health))
+    return actions if actions else None
+
+
+def _buff_random_friendly(player, atk, health, keyword=None):
+    board = [m for m in player.board if not m.dead]
+    if not board:
+        return None
+    target = player.game.rng.choice(board)
+    actions = [Buff(target, atk=atk, health=health)]
+    if keyword:
+        actions.append(GainKeyword(target, keyword))
+    return actions
+
+
+def _set_tag(player, tag, value):
+    player.set_tag(tag, value)
+    return None
+
+
+def _copy_from_last_opponent(player):
+    game = player.game
+    opponents = [p for p in game.players if p != player and p.is_alive]
+    if not opponents:
+        return None
+    opp = game.rng.choice(opponents)
+    board = [m for m in opp.board if not m.dead]
+    if not board:
+        return None
+    target = game.rng.choice(board)
+    return AddToHand(player, target.get_tag(GameTag.CARD_ID))
+
+
+def _discover_majority_tribe(player):
+    from collections import Counter
+    tribes = Counter()
+    for m in player.board:
+        if not m.dead and m.race not in (Race.NONE, Race.ALL, Race.INVALID):
+            tribes[m.race] += 1
+    if not tribes:
+        return DiscoverMinion(player)
+    majority = tribes.most_common(1)[0][0]
+    return DiscoverMinion(player, race=majority)
+
+
+class DiscoverPrize(Action):
+    """Discover a Darkmoon Prize from a pool of 8 effects."""
+
+    def __init__(self, player: Player):
+        super().__init__()
+        self.player = player
+
+    def do(self, source: BaseEntity, game: Game, target=None) -> None:
+        pool = list(_PRIZE_POOL)
+        choices = game.rng.sample(pool, min(3, len(pool)))
+        options = [(f"prize_{i}", name) for i, (name, _) in enumerate(choices)]
+
+        def callback(index):
+            _, factory = choices[index]
+            return factory(self.player)
+
+        game._pending_choice = PendingChoice(
+            choice_type="discover_prize",
+            options=options,
+            source=source,
+            player=self.player,
+            callback=callback,
+        )
+
+
+class DiscoverHeroPower(Action):
+    """Discover a new Hero Power to replace your current one.
+
+    Picks `count` random hero powers from the registered pool (excluding
+    the player's current one). Replaces HERO_POWER tag and script.
+    Default count is 3 (Sir Finley, Master Nguyen). Genn uses count=2.
+    """
+
+    def __init__(self, player: Player, count: int = 3):
+        super().__init__()
+        self.player = player
+        self.count = count
+
+    def do(self, source: BaseEntity, game: Game, target=None) -> None:
+        from hsrl.core.card_db import CARDS
+        current_hp_id = self.player.get_tag(GameTag.HERO_POWER)
+
+        # Collect all active hero powers except the current one
+        hp_pool = []
+        for cid, data in CARDS._cards.items():
+            if data.cardtype == CardType.HERO_POWER and not cid.startswith("EXAMPLE"):
+                if cid != current_hp_id:
+                    hp_pool.append((cid, data.name, data.scripts))
+
+        if len(hp_pool) < self.count:
+            return
+
+        choices = game.rng.sample(hp_pool, self.count)
+        options = [(cid, name) for cid, name, _ in choices]
+
+        def callback(index):
+            new_hp_id, new_name, new_script = choices[index]
+            # Replace hero power on the player's hero data
+            self.player.set_tag(GameTag.HERO_POWER, new_hp_id)
+            if new_script is not None:
+                self.player.data.scripts = new_script
+            return None
+
+        game._pending_choice = PendingChoice(
+            choice_type="discover_hero_power",
+            options=options,
+            source=source,
+            player=self.player,
+            callback=callback,
+        )
+
+
+class DiscoverBuddy(Action):
+    """Discover a Buddy minion.
+
+    Picks 3 random non-golden Buddy minions and adds the chosen
+    one to the player's hand.
+    """
+
+    def __init__(self, player: Player):
+        super().__init__()
+        self.player = player
+
+    def do(self, source: BaseEntity, game: Game, target=None) -> None:
+        import json
+        from pathlib import Path
+
+        # Load buddy card IDs from bg_cards.json
+        data_dir = Path(__file__).parent.parent.parent / "data"
+        with open(data_dir / "bg_cards.json") as f:
+            all_cards = json.load(f)
+
+        # Filter for non-golden buddy minions
+        buddy_pool = []
+        for c in all_cards:
+            cid = c["id"]
+            if "Buddy" not in cid:
+                continue
+            if cid.endswith("_G") or cid.endswith("_e"):
+                continue
+            buddy_pool.append((cid, c.get("name", cid)))
+
+        if len(buddy_pool) < 3:
+            return
+
+        choices = game.rng.sample(buddy_pool, 3)
+        options = [(cid, name) for cid, name in choices]
+
+        def callback(index):
+            chosen_id, _ = choices[index]
+            # Auto-register the buddy card if needed, then add to hand
+            if game.card_db:
+                game._auto_register_card(chosen_id)
+            return AddToHand(self.player, chosen_id)
+
+        game._pending_choice = PendingChoice(
+            choice_type="discover_buddy",
+            options=options,
+            source=source,
+            player=self.player,
+            callback=callback,
+        )
+
+
 class DiscoverReward(Action):
     """Discover a new quest reward from the reward pool and apply it.
 
-    Picks 2 random rewards from the registry, auto-selects one, and
-    triggers its on_unlock effect for the player.
+    Creates a PendingChoice so the player/RL agent can choose.
+    Heuristic mode auto-resolves with the first option.
     """
 
     def __init__(self, player: Player):
@@ -1961,39 +2244,38 @@ class DiscoverReward(Action):
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
         from hsrl.cards.rewards.scripts import REWARD_SCRIPT_REGISTRY
-        import random
 
-        # Pool of available reward card IDs
         pool = list(REWARD_SCRIPT_REGISTRY.keys())
         if not pool:
             return
 
-        # Pick 2, auto-select first
-        choices = random.sample(pool, min(2, len(pool)))
-        chosen_id = choices[0]
+        # Pick 2 options, create PendingChoice
+        choices = game.rng.sample(pool, min(2, len(pool)))
+        options = [(cid, game.card_db.get(cid).name if game.card_db.get(cid) else cid)
+                    for cid in choices]
 
-        # Create the reward and apply its on_unlock
-        reward_data = game.card_db.get(chosen_id)
-        if reward_data is None:
-            return
-        from hsrl.core.quest import QuestReward
-        reward = QuestReward(reward_data, game=game)
-        reward.controller = self.player
-        self.player.rewards.append(reward)
+        def _on_choice(index):
+            chosen_id = choices[index]
+            reward_data = game.card_db.get(chosen_id)
+            if reward_data is None:
+                return None
+            from hsrl.core.quest import QuestReward
+            reward = QuestReward(reward_data, game=game)
+            reward.controller = self.player
+            self.player.rewards.append(reward)
+            if reward.data.scripts:
+                fn = getattr(reward.data.scripts, 'on_unlock', None)
+                if fn and callable(fn):
+                    result = fn(reward, game)
+                    if result:
+                        if isinstance(result, (list, tuple)):
+                            return list(result)
+                        return result
+            return None
 
-        if reward.data.scripts:
-            fn = getattr(reward.data.scripts, 'on_unlock', None)
-            if fn and callable(fn):
-                result = fn(reward, game)
-                if result:
-                    if isinstance(result, (list, tuple)):
-                        for action in result:
-                            game.queue_action(action, source=reward)
-                    else:
-                        game.queue_action(result, source=reward)
-            on_summon = getattr(reward.data.scripts, 'on_summon', None)
-            if on_summon and callable(on_summon):
-                on_summon(reward, game)
+        game._pending_choice = PendingChoice(
+            "reward", options, source, self.player, _on_choice,
+        )
 
 
 class DiscoverTrinket(Action):
@@ -2035,7 +2317,7 @@ class DiscoverTrinket(Action):
             return
 
         # Pick 2, auto-select first
-        choices = random.sample(pool, min(2, len(pool)))
+        choices = game.rng.sample(pool, min(2, len(pool)))
         chosen_id = choices[0]
 
         trinket_data = game.card_db.get(chosen_id)
@@ -2052,11 +2334,17 @@ class DiscoverTrinket(Action):
 
         self.player.trinkets.append(trinket)
 
-        # Trigger on_summon
+        # Trigger on_summon and queue returned actions
         if trinket_data.scripts:
             fn = getattr(trinket_data.scripts, 'on_summon', None)
             if fn and callable(fn):
-                fn(trinket, game)
+                result = fn(trinket, game)
+                if result is not None:
+                    if isinstance(result, (list, tuple)):
+                        for a in result:
+                            game.queue_action(a, source=trinket)
+                    elif isinstance(result, Action):
+                        game.queue_action(result, source=trinket)
 
 
 class GuessMinion(Action):
@@ -2082,7 +2370,7 @@ class GuessMinion(Action):
         enemies = [p for p in game.players if p != self.player and p.is_alive]
         if not enemies:
             return
-        opponent = random.choice(enemies)
+        opponent = game.rng.choice(enemies)
 
         # Get opponent's last combat board (or current board as fallback)
         opp_board = getattr(opponent, 'last_opponent_board', None)
@@ -2092,7 +2380,7 @@ class GuessMinion(Action):
             return
 
         # Pick a real minion from opponent's board
-        real_minion = random.choice(opp_board)
+        real_minion = game.rng.choice(opp_board)
 
         # Pick a random minion from the card pool as the decoy
         from hsrl.core.card_db import CARDS
@@ -2105,6 +2393,8 @@ class GuessMinion(Action):
         if random.random() < 0.5:
             # Correct guess → gain 1 Gold (a Coin)
             GainGold(self.player, 1).do(source, game)
-            game.broadcast("GUESS_CORRECT", self.player, real_minion.card_id)
+            game.broadcast("GUESS_CORRECT", self.player,
+                          real_minion.get_tag(GameTag.CARD_ID))
         else:
-            game.broadcast("GUESS_WRONG", self.player, real_minion.card_id)
+            game.broadcast("GUESS_WRONG", self.player,
+                          real_minion.get_tag(GameTag.CARD_ID))

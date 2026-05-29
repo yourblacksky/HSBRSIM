@@ -16,11 +16,12 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Optional
 
-from hsrl.core.enums import GameTag, Race, Zone
+from hsrl.core.enums import CardType, GameTag, Race, Zone
 from hsrl.core.actions import (
     Action, Buff, GainGold, AddToHand, DiscoverMinion, DiscoverSpell,
     GainFreeRefresh, GainKeyword,
 )
+from hsrl.core.card_db import register_card
 
 if TYPE_CHECKING:
     from hsrl.core.game import Game
@@ -34,7 +35,7 @@ def _living(player: Player):
 
 def _random_friendly(player: Player) -> Optional[BaseEntity]:
     living = _living(player)
-    return random.choice(living) if living else None
+    return player.game.rng.choice(living) if living else None
 
 
 def _buff_all(player, atk=0, health=0):
@@ -334,7 +335,7 @@ class SoTGet3SpellsScript:
         actions = []
         for _ in range(3):
             if pool:
-                actions.append(AddToHand(source.controller, random.choice(pool)))
+                actions.append(AddToHand(source.controller, game.rng.choice(pool)))
         return actions if actions else None
 
 
@@ -356,7 +357,7 @@ class SoTGet2RandomMinionsScript:
         actions = []
         for _ in range(2):
             if pool:
-                actions.append(AddToHand(source.controller, random.choice(pool)))
+                actions.append(AddToHand(source.controller, game.rng.choice(pool)))
         return actions if actions else None
 
 
@@ -386,7 +387,7 @@ class AfterRefreshBuffTavernScript:
             def do(self, s, g, target=None):
                 tavern = self.player.tavern
                 if tavern:
-                    m = random.choice(tavern)
+                    m = game.rng.choice(tavern)
                     g.queue_action(Buff(m, atk=6, health=6))
                     g.queue_action(GainKeyword(m, GameTag.DIVINE_SHIELD))
 
@@ -431,7 +432,7 @@ class AfterSellTransferScript:
                 self.player = player
             def do(self, s, g, target=None):
                 if target and self.player.tavern:
-                    t = random.choice(self.player.tavern)
+                    t = game.rng.choice(self.player.tavern)
                     g.queue_action(Buff(t, atk=target.atk, health=target.max_health))
 
         game.register_listener(source, EventListener(
@@ -686,7 +687,7 @@ class SoTHandMinion12x12Script:
                         if m.get_tag(GameTag.CARDTYPE) == 1]  # CardType.MINION
         if not hand_minions:
             return None
-        target = random.choice(hand_minions)
+        target = game.rng.choice(hand_minions)
         return Buff(target, atk=12, health=12)
 
 
@@ -763,7 +764,7 @@ class AfterBuyTransferStatsScript:
                     return
                 living = [m for m in target.controller.board if not m.dead and m != target]
                 if living:
-                    t = random.choice(living)
+                    t = game.rng.choice(living)
                     g.queue_action(Buff(t, atk=target.atk, health=target.max_health))
 
         game.register_listener(source, EventListener(
@@ -960,7 +961,7 @@ class BloodGemImproveAndGetScript:
             return None
         import random
         from hsrl.core.actions import PlayBloodGems
-        target = random.choice(living)
+        target = game.rng.choice(living)
         return PlayBloodGems(target, 2)
 
 
@@ -1045,7 +1046,7 @@ class EoTTriggerBattlecriesScript:
                       if not m.dead and m.battlecry is not None]
         if not candidates:
             return None
-        targets = random.sample(candidates, min(2, len(candidates)))
+        targets = game.rng.sample(candidates, min(2, len(candidates)))
         actions = []
         for m in targets:
             actions.append(TriggerBattlecry(m))
@@ -1394,7 +1395,7 @@ class UsefulRefreshScript:
                     self.reward.set_tag(GameTag.TRINKET_COUNTER, 4)
                     tavern = target.tavern
                     if tavern:
-                        m = random.choice(tavern)
+                        m = game.rng.choice(tavern)
                         g.queue_action(Buff(m, atk=6, health=6))
                         g.queue_action(GainKeyword(m, GameTag.DIVINE_SHIELD))
                 else:
@@ -1436,12 +1437,23 @@ class Avenge7Summon50x50Script:
                     self.reward.set_tag(GameTag.TRINKET_COUNTER, 0)
                     player = self.reward.controller
                     if len(player.board) < 7:
-                        token = g.create_minion("EXAMPLE_VANILLA")
+                        token_id = "REWARD_AVENGE_AMALGAM"
+                        # Auto-register the amalgam token if not already registered
+                        if g.card_db and not g.card_db.get(token_id):
+                            from hsrl.core.card_db import register_card
+                            register_card(
+                                card_id=token_id,
+                                name="Amalgam",
+                                cardtype=CardType.MINION,
+                                race=Race.ALL,
+                                tech_level=0,  # Token — not in pool
+                                tags={
+                                    GameTag.BASE_ATK: 50,
+                                    GameTag.BASE_HEALTH: 50,
+                                },
+                            )
+                        token = g.create_minion(token_id)
                         if token:
-                            token.set_tag(GameTag.BASE_ATK, 50)
-                            token.set_tag(GameTag.BASE_HEALTH, 50)
-                            token.set_tag(GameTag.ATK, 50)
-                            token.set_tag(GameTag.HEALTH, 50)
                             from hsrl.core.actions import Summon
                             g.queue_action(Summon(player, token))
                 else:
@@ -1483,7 +1495,7 @@ class RefreshAlwaysOffers2Script:
                         if data.cardtype == 4 and not cid.startswith("EXAMPLE")]
                 for _ in range(2):
                     if pool and len(self.player.tavern) < 7:
-                        token = g.create_minion(random.choice(pool))
+                        token = g.create_minion(game.rng.choice(pool))
                         if token:
                             token.controller = self.player
                             token.zone = Zone.TAVERN
@@ -1662,7 +1674,7 @@ class SoTGetTier7CopyScript:
                    if data.cardtype == 4 and data.tech_level == 7
                    and not cid.startswith("EXAMPLE")]
         if t7_pool:
-            return AddToHand(source.controller, random.choice(t7_pool))
+            return AddToHand(source.controller, game.rng.choice(t7_pool))
         return None
 
 
@@ -1871,14 +1883,22 @@ class SoTGetMurlocTeachSpellScript:
     @classmethod
     def start_of_turn(cls, source, game):
         # Create 1/1 Murloc token
-        token = game.create_minion("EXAMPLE_VANILLA")
+        token_id = "REWARD_MURLOC_TOKEN"
+        if game.card_db and not game.card_db.get(token_id):
+            register_card(
+                card_id=token_id,
+                name="Murloc",
+                cardtype=CardType.MINION,
+                race=Race.MURLOC,
+                tech_level=0,  # Token — not in pool
+                tags={
+                    GameTag.BASE_ATK: 1,
+                    GameTag.BASE_HEALTH: 1,
+                },
+            )
+        token = game.create_minion(token_id)
         if token is None:
             return None
-        token.set_tag(GameTag.BASE_ATK, 1)
-        token.set_tag(GameTag.BASE_HEALTH, 1)
-        token.set_tag(GameTag.ATK, 1)
-        token.set_tag(GameTag.HEALTH, 1)
-        token.set_tag(GameTag.RACE, Race.MURLOC)
         token.controller = source.controller
         token.zone = Zone.HAND
         source.controller.hand.append(token)
@@ -1888,7 +1908,7 @@ class SoTGetMurlocTeachSpellScript:
         spell_pool = [cid for cid, data in CARDS._cards.items()
                       if data.cardtype == 42 and not cid.startswith("EXAMPLE")]
         if spell_pool:
-            chosen = random.choice(spell_pool)
+            chosen = game.rng.choice(spell_pool)
             token.set_tag(GameTag.TAUGHT_SPELL_ID, chosen)
             # Give spell to hand
             game.queue_action(AddToHand(source.controller, chosen))
@@ -1982,7 +2002,7 @@ class SoTDiscoverBuddyScript:
                       and not cid.startswith("EXAMPLE")]
         if buddy_pool:
             import random
-            return AddToHand(source.controller, random.choice(buddy_pool))
+            return AddToHand(source.controller, game.rng.choice(buddy_pool))
         return None
 
 
@@ -2159,7 +2179,7 @@ class AfterCombatDiscoverEnchantedScript:
                 candidates = [m for m in opp_board if not m.has_tag(GameTag.GOLDEN)]
                 if not candidates:
                     return
-                source_minion = random.choice(candidates)
+                source_minion = game.rng.choice(candidates)
                 token = g.create_minion(source_minion.get_tag(GameTag.CARD_ID))
                 if token is None:
                     return

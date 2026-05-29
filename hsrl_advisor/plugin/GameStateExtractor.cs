@@ -184,7 +184,11 @@ namespace HrSRLAdviser
             }
 
             int tavernTier = ent.GetTag(GameTag.PLAYER_TECH_LEVEL);
-            int upgradeCost = 5 + Math.Max(tavernTier, 1);
+            // HSRL engine base costs: {2:5, 3:7, 4:8, 5:9, 6:10, 7:11}
+            // Try reading real tag first; fallback to lookup table.
+            int upgradeCost = ent.GetTag((GameTag)189);  // TAVERN_UPGRADE_COST
+            if (upgradeCost == 0)
+                upgradeCost = tavernTier switch { 1 => 5, 2 => 7, 3 => 8, 4 => 9, 5 => 10, _ => 11 };
 
             bool hpUsed = ent.GetTag(GameTag.EXHAUSTED) > 0;
 
@@ -333,6 +337,7 @@ namespace HrSRLAdviser
 
             return new BoardSlot
             {
+                card_id = e.CardId ?? "",
                 atk = e.GetTag(GameTag.ATK),
                 health = health,
                 max_health = health + damage,
@@ -577,6 +582,7 @@ namespace HrSRLAdviser
 
     public class BoardSlot
     {
+        public string card_id;
         public int atk, health, max_health, tier;
         public bool taunt, divine_shield, divine_shield_intact, poisonous,
                     venomous, reborn, windfury, cleave, golden, exhausted;

@@ -62,7 +62,7 @@ class BaseTokenTest(unittest.TestCase):
     """Base class providing game setup helpers."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.in_combat = True  # Auto-resolve TargetedActions (no player to select)
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -1753,7 +1753,7 @@ class TestBlueChromadrake(unittest.TestCase):
     """Blue Chromadrake (BG34_634t): BC — Get a random 3-Cost Tavern spell."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -1808,7 +1808,7 @@ class TestRefreshingAnomaly(unittest.TestCase):
     """Refreshing Anomaly (BGS_116): BC — Gain 2 free Refreshes."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -1849,7 +1849,7 @@ class TestAlertAlarmist(unittest.TestCase):
     """Alert Alarmist (BG35_340): DR — Next Tavern spell costs (2) less."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -1887,7 +1887,7 @@ class TestBlackChromadrake(unittest.TestCase):
     """Black Chromadrake (BG34_635t): BC — +1 Health to future Tavern spells."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -1930,7 +1930,7 @@ class TestRedChromadrake(unittest.TestCase):
     """Red Chromadrake (BG34_638t): BC — +1 Attack to future Tavern spells."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -1973,7 +1973,7 @@ class TestFriendlyGeist(unittest.TestCase):
     """Friendly Geist (BG32_880): DR — +1 Attack to future Tavern spells."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2017,7 +2017,7 @@ class TestTranquilMeditative(unittest.TestCase):
     """Tranquil Meditative (BG32_835): Spellcraft — gives Meditation spell token."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.minion_pool = None
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -2059,7 +2059,7 @@ class TestMeditationSpell(unittest.TestCase):
     """Meditation Spell (BG32_835t): on_play — +1/+1 to future Tavern spell buffs."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2087,7 +2087,7 @@ class TestTavernSpellModifier(unittest.TestCase):
     """Integration tests: spell modifiers affect actual buff spell values."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.in_combat = True  # Auto-resolve TargetedActions
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
@@ -2187,7 +2187,7 @@ class TestSunBaconRelaxer(unittest.TestCase):
     """BG20_301: When you sell this, get 2 Blood Gems."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2211,7 +2211,7 @@ class TestTad(unittest.TestCase):
     """BG22_202: When you sell this, get a random Murloc."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2232,7 +2232,7 @@ class TestSellemental(unittest.TestCase):
     """BGS_115: When you sell this, get a 3/3 Elemental (Water Droplet)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2258,7 +2258,7 @@ class TestRiverSkipper(unittest.TestCase):
     """BG33_140: When you sell this, get a random Tier 1 minion."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2283,7 +2283,7 @@ class TestShoalfinMystic(unittest.TestCase):
     """BG32_860: When you sell this, improve Tavern spell buffs +1/+1."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2305,7 +2305,7 @@ class TestFireBaller(unittest.TestCase):
     """BG31_816: When you sell this, give minions +{0} ATK. Improve future Ballers."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2372,7 +2372,7 @@ class TestSnowBaller(unittest.TestCase):
     """BG31_818: When you sell this, give minions +{0} Health. Improve future Ballers."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2433,7 +2433,7 @@ class TestIgnitionSpecialist(unittest.TestCase):
     """BG28_595: At the end of your turn, get 2 random Tavern spells."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2459,7 +2459,7 @@ class TestMarqueeTicker(unittest.TestCase):
     """BG31_178: At the end of your turn, get a random Tavern spell."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2482,7 +2482,7 @@ class TestCousinErrgl(unittest.TestCase):
     """BG35_142: At the end of your turn, get a Mama or Papa Mrrglton."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2506,7 +2506,7 @@ class TestFelfireConjurer(unittest.TestCase):
     """BG32_821: At the end of your turn, improve Tavern spell buffs +1/+1."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2540,7 +2540,7 @@ class TestSurfingSylvar(unittest.TestCase):
     """BG32_235: At EOT, give adjacent minions +{0} ATK per friendly Golden."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2600,7 +2600,7 @@ class TestWoodlandDefiler(unittest.TestCase):
     """BG35_151: At EOT, add a Fodder to your next 3 Refreshes."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         from hsrl.core.minion_pool import MinionPool
         self.game.minion_pool = MinionPool(CARDS)
@@ -2642,7 +2642,7 @@ class TestExampleOnSellBaller(unittest.TestCase):
     """EXAMPLE_ON_SELL_BALLER: standard example for per-card-ID counter pattern."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2694,7 +2694,7 @@ class TestEventBroadcasts(unittest.TestCase):
     """Verify TURN_BEGIN, TURN_END, END_OF_COMBAT events fire at correct times."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 10
@@ -2740,7 +2740,7 @@ class TestAccordOTron(unittest.TestCase):
     """BG26_147: At the start of your turn, gain 1 Gold."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.player.gold = 5

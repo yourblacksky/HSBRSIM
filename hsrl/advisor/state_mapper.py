@@ -46,46 +46,27 @@ FLAT_OBS_DIM = (
     + MAX_TRINKET_SLOTS * TRINKET_DIM
 )
 
-# Race name → enum value mapping (subset of GameTag race values)
+# Race name (from HDT C# RaceToString) → HSRL internal Race enum (1-12).
+# Must match hsrl/core/enums.py Race values for training observation parity.
 _RACE_MAP: dict[str, int] = {
     "INVALID": 0,
-    "BLOODELF": 1,
-    "DRAENEI": 2,
-    "DWARF": 3,
-    "GNOME": 4,
-    "GOBLIN": 5,
-    "HUMAN": 6,
-    "NIGHTELF": 7,
-    "ORC": 8,
-    "TAUREN": 9,
-    "TROLL": 10,
+    "BEAST": 1,
+    "DEMON": 2,
+    "DRAGON": 3,
+    "ELEMENTAL": 4,
+    "MECH": 5,
+    "MURLOC": 6,
+    "NAGA": 7,
+    "PIRATE": 8,
+    "QUILBOAR": 9,
     "UNDEAD": 11,
-    "WORGEN": 12,
-    "GOBLIN2": 13,
-    "MURLOC": 14,
-    "DEMON": 15,
-    "SCOURGE": 16,
-    "MECHANICAL": 17,  # MECH
-    "MECH": 17,
-    "ELEMENTAL": 18,
-    "OGRE": 19,
-    "BEAST": 20,
-    "TOTEM": 21,
-    "NERUBIAN": 22,
-    "PIRATE": 23,
-    "DRAGON": 24,
-    "BLANK": 25,
-    "ALL": 26,
-    "PET": 27,
-    "QUILBOAR": 28,
-    "HALF_ORC": 29,
-    "NAGA": 30,
-    "OLDGOD": 31,
-    "PANDAREN": 32,
-    "GRONN": 33,
-    "VULPERA": 34,
-    "UNDEAD2": 35,
+    # Aliases from older HDT race strings
+    "MECHANICAL": 5,
+    "SCOURGE": 11,
 }
+
+# Max race enum value for normalization
+_RACE_NORM = 12.0
 
 
 class StateMapper:
@@ -121,12 +102,22 @@ class StateMapper:
         arr[1] = 1.0 if msg.phase == "recruit" else 0.0
         arr[2] = msg.alive_count / 8.0
 
-        cap = msg.damage_cap
+        # Compute damage cap from turn + alive_count (mirrors Game._get_damage_cap()).
+        # Official BG: Turn 1-3 → 5, Turn 4-7 → 10, Turn 8+ → 15, removed at top 4.
+        if msg.alive_count <= 4:
+            cap = None
+        elif msg.turn <= 3:
+            cap = 5
+        elif msg.turn <= 7:
+            cap = 10
+        else:
+            cap = 15
         arr[3] = (cap / 15.0) if cap is not None else 0.0
 
         # Anomaly id hash
         if msg.anomaly_card_id:
-            arr[4] = (hash(msg.anomaly_card_id) % 100) / 100.0
+            from hsrl.env.card_encoder import encode_card_id
+            arr[4] = encode_card_id(msg.anomaly_card_id)
 
         # Player's rank among alive (by health)
         player_hp = msg.player.health
@@ -197,7 +188,7 @@ class StateMapper:
             arr[1] = min(s.health / 100.0, 1.0)
         arr[2] = s.tier / 7.0
         arr[3] = min(s.cost / 10.0, 1.0)
-        arr[4] = _RACE_MAP.get(s.race, 0) / 12.0
+        arr[4] = _RACE_MAP.get(s.race, 0) / _RACE_NORM
         arr[5] = 1.0 if s.is_minion else 0.0
         arr[6] = 1.0 if s.is_spell else 0.0
         arr[7] = 1.0 if s.taunt else 0.0
@@ -225,13 +216,14 @@ class StateMapper:
             arr[1] = min(s.health / 100.0, 1.0)
         arr[2] = s.tier / 7.0
         arr[3] = min(s.cost / 10.0, 1.0)
-        arr[4] = _RACE_MAP.get(s.race, 0) / 12.0
+        arr[4] = _RACE_MAP.get(s.race, 0) / _RACE_NORM
         arr[5] = 1.0 if s.is_minion else 0.0
         arr[6] = 1.0 if s.is_spell else 0.0
         arr[7] = 1.0 if s.golden else 0.0
         arr[8] = 1.0 if s.battlecry else 0.0
         arr[9] = min(s.turns_in_hand / 5.0, 1.0)
-        arr[10] = (hash(s.card_id) % 1000) / 1000.0
+        from hsrl.env.card_encoder import encode_card_id
+        arr[10] = encode_card_id(s.card_id)
         arr[11] = 1.0 if s.spellcraft else 0.0
         return arr
 
@@ -252,7 +244,7 @@ class StateMapper:
         arr[1] = min(s.health / 100.0, 1.0)
         arr[2] = min(s.max_health / 100.0, 1.0)
         arr[3] = s.tier / 7.0
-        arr[4] = _RACE_MAP.get(s.race, 0) / 12.0
+        arr[4] = _RACE_MAP.get(s.race, 0) / _RACE_NORM
         arr[5] = 1.0 if s.taunt else 0.0
         arr[6] = 1.0 if s.divine_shield else 0.0
         arr[7] = 1.0 if s.poisonous else 0.0
@@ -284,5 +276,6 @@ class StateMapper:
         arr[3] = 1.0 if s.has_start_of_combat else 0.0
         arr[4] = 1.0 if s.has_end_of_turn else 0.0
         arr[5] = 1.0 if s.has_start_of_turn else 0.0
-        arr[6] = (hash(s.card_id) % 1000) / 1000.0
+        from hsrl.env.card_encoder import encode_card_id
+        arr[6] = encode_card_id(s.card_id)
         return arr

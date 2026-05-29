@@ -8,6 +8,7 @@ the player is eliminated, copies return to the pool.
 Pool sizes per tier (current as of Patch 35.x):
   Tier 1: 16 copies  |  Tier 2: 15 copies  |  Tier 3: 13 copies
   Tier 4: 11 copies  |  Tier 5: 9 copies   |  Tier 6: 7 copies
+  Tier 7: 5 copies
 """
 
 import random
@@ -27,17 +28,19 @@ class MinionPool:
         4: 11,
         5: 9,
         6: 7,
+        7: 5,
     }
 
-    def __init__(self, card_db):
+    def __init__(self, card_db, rng=None):
         """Initialize the shared pool from a CardDB registry.
 
         Only pool minions (MINION type, known tech_level, non-token) are added.
         Token minions (summoned by effects) are NOT in the shared pool.
         """
         self.card_db = card_db
+        self.rng = rng if rng is not None else random
         # _pools[tier] = list of card_id strings (one per copy)
-        self._pools: Dict[int, List[str]] = {t: [] for t in range(1, 7)}
+        self._pools: Dict[int, List[str]] = {t: [] for t in range(1, 8)}
         # _pool_minions = set of card_ids that are part of the shared pool
         self._pool_minions: Set[str] = set()
 
@@ -50,8 +53,10 @@ class MinionPool:
             # Tokens and examples don't go in the pool
             if card_id.startswith("EXAMPLE_") or card_id.startswith("TOKEN_"):
                 continue
-            # Derived tokens (card_id ends with 't', e.g. BG19_010t) are not pool minions
-            if card_id.endswith("t") and len(card_id) > 3:
+            # Derived tokens (card_id ends with 't' or 't'+digit, e.g. BG19_010t, BG27_004t2)
+            # are not pool minions
+            import re
+            if re.search(r't\d*$', card_id) and len(card_id) > 3:
                 continue
             # Buddy cards (e.g. BG20_HERO_100_Buddy, BG20_HERO_100_Buddy_G) are not pool minions
             if "Buddy" in card_id or "buddy" in card_id.lower():
@@ -80,7 +85,7 @@ class MinionPool:
             valid = [cid for cid in valid
                      if self._matches_race(cid, race_filter)]
 
-        drawn = random.sample(valid, min(count, len(valid)))
+        drawn = self.rng.sample(valid, min(count, len(valid)))
         for card_id in drawn:
             tier = self._get_tier(card_id)
             if tier:

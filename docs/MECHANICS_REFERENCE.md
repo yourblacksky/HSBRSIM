@@ -2,7 +2,7 @@
 
 > 本文档面向开发者，详细说明每个机制在 HSRL 引擎中的实现位置、核心逻辑和边界情况。
 >
-> **版本**: 0.9.0 | **更新日期**: 2026-05-01
+> **版本**: 0.10.0 | **更新日期**: 2026-05-25
 
 ---
 
@@ -81,7 +81,7 @@ class Action:
 10. 广播 `AFTER_ATTACK`
 
 **边界情况**:
-- 如果 defender 在 attacker 的 Hit 中死亡，defender 不会反击（因为反击前检查 `not defender.dead`）。
+- **同时伤害**: HSRL 通过先排队双方 `Hit` Action 实现官方同时伤害语义。attacker 的 `Hit` 和 defender 的反击 `Hit` 都在 FIFO 队列中排队，`defender.dead` 检查发生在**排队之前**（而非 `Hit` 执行时），因此即使 defender 在 attacker 的 `Hit` 中死亡，其反击 `Hit` 仍然会执行。
 - Cleave 伤害是独立的 `Hit`，会独立触发圣盾、剧毒等。
 - 0 攻随从不会发起 Attack（在战斗循环中通过 `can_attack` 过滤）。
 
@@ -841,14 +841,11 @@ Fodder 关键词标签和 `FodderConsume` Action 已完全实现。详见 [Secti
 
 **GameTag**: `CHROMADRAKE = 68` 已在 enums.py 中定义。`Transform` Action 已实现（详见 [Section 15.1](#151-transform-action)），可用于 Chromadrake 卡牌效果。
 
-### 18.3 饰品（Trinkets）系统 — 待实现
+### 18.3 饰品（Trinkets）系统
 
-饰品是装备在英雄身上的特殊物品，提供持续效果。当前赛季在第 6 回合和第 9 回合分别提供购买机会。
+饰品是装备在英雄身上的特殊物品，提供被动或触发效果。当前赛季在第 6 回合（Lesser）和第 9 回合（Greater）提供购买机会。
 
-**待实现**:
-- Trinket 数据结构和注册
-- Player 持有效果物品
-- 饰品购买/装备流程
+**实现状态**: 已实现 302/314 active 饰品脚本。购买、发现、替换均通过 `buy_trinket()`/`DiscoverTrinket` 入口。`on_summon` 返回值自动排队处理。详见 `docs/CARD_REGISTRATION_GUIDE.md` §13.5。
 
 **饰品触发时机**:
 

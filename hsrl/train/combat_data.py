@@ -168,6 +168,8 @@ def collect_combat_data(
             pairs = getattr(game, '_combat_pairs', None)
             if pairs:
                 for p_a, p_b in pairs:
+                    if p_b is None:
+                        continue  # ghost match — skip
                     boards_a = pre_combat_boards.get(p_a.entity_id, [])
                     boards_b = pre_combat_boards.get(p_b.entity_id, [])
                     if not boards_a or not boards_b:

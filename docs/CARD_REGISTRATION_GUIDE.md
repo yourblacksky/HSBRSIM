@@ -50,7 +50,7 @@
     - 13.2 Chromadrake（龙变形）— ✅
     - 13.3 酒馆 Buff 追踪 — ✅
     - 13.4 Improves 增强追踪 — ✅
-    - 13.5 饰品（Trinkets）— 待实现
+    - 13.5 饰品（Trinkets）
 14. [英雄注册](#14-英雄注册)
 15. [测试要求](#15-测试要求)
 
@@ -1669,27 +1669,49 @@ class LaboratoryAssistantScript:
 
 **状态**: 完整酒馆法术系统已实现 (Phase E): Spell 实体 + SpellPool + buy/play + CastTavernSpell + 折扣系统。
 
-### 13.5 饰品（Trinkets）— 待实现
+### 13.5 饰品（Trinkets）
 
-饰品是装备在英雄身上的特殊物品。当前赛季在第 6 回合和第 9 回合提供购买机会。
+饰品是装备在英雄身上的特殊物品，提供被动或触发效果。当前赛季在第 6 回合（Lesser）和第 9 回合（Greater）提供购买机会。
 
-**注册方式**: 饰品本质上是带有持续效果的特殊卡牌，可以使用 `CardType.TRINKET` 注册。
+**实现状态**: 已实现 302/314 active 饰品脚本，覆盖 SoC buff、EoT buff、关键词赋予、Avenge、Spellcraft、Rally Doubler、BC Doubler、DR Doubler、Hero Power Doubler、金币获取、随从获取、法术获取、血宝石改善、酒馆 Buff 光环等主要机制。3 个空脚本为 UI-only timer 或 DEFERRED。
+
+**脚本 hooks**: Trinket 脚本类支持以下 hooks（均为 classmethod/staticmethod，签名 `(source, game)` 或 `(source, game, **kwargs)`）：
+
+| Hook | 触发时机 |
+|------|---------|
+| `on_summon` | 饰品装备时（购买/发现） |
+| `start_of_combat` | 战斗开始时 |
+| `start_of_turn` | 回合开始时 |
+| `end_of_turn` | 回合结束时 |
+| `on_buy` | 随从购买后 |
+| `on_play` | 随从/法术打出后 |
+| `avenge` | 复仇触发时 |
+| `spellcraft` | 生成 Spellcraft 法术 |
+| `on_spend_gold` | 花费金币后 |
+| `on_magnetized` | 磁力吸附后 |
+| `on_summon_in_combat` | 战斗中召唤后 |
+| `on_friendly_death_combat` | 战斗中友方死亡后 |
+| `on_tavern_refresh` | 酒馆刷新后 |
+| `on_minion_bought` | 随从购买后 |
+| `on_minion_sold` | 随从出售后 |
+| `on_turn_begin` | 新回合开始时 |
+
+**注册方式**: 饰品使用 `CardType.TRINKET` 注册，脚本类通过 `TRINKET_SCRIPT_REGISTRY` 映射：
 
 ```python
 register_card(
-    card_id="TRINKET_VALOROUS_MEDALLION",
-    name="Valorous Medallion",
-    text="Start of Combat: Give your minions +5/+5.",
+    card_id="BG30_MagicItem_422",
+    name="Lorewalker Scroll",
+    text="Whenever you cast a spell on a minion, give it +4/+4.",
     cardtype=CardType.TRINKET,
     race=Race.NONE,
-    tech_level=0,
-    tags={
-        GameTag.COST: 3,
-        GameTag.START_OF_COMBAT: True,
-    },
-    script_class=ValorousMedallionScript,
+    tech_level=1,
+    tags={GameTag.COST: 0},
+    script_class=LorewalkerScrollLesserScript,
 )
 ```
+
+**EventListener 模式**: 部分饰品通过 `on_summon` 注册 EventListener 监听游戏事件（如 TAVERN_SPELL_CAST、AFTER_ATTACK、KEYWORD_LOST 等），而非直接使用 Trinket hook。这适用于事件驱动的触发效果。
 
 ---
 

@@ -30,8 +30,9 @@ from hsrl.core.enums import GameTag, Race
 from hsrl.core.actions import (
     Action, Buff, Destroy, GainGold, GetRandomMinion, DiscoverMinion, DiscoverSpell,
     BuffTavern, DealDamageToRandomEnemy, GainKeyword, BuffRandomTavernMinion,
-    PlayBloodGems, GetBloodGem, AddToHand, TargetedAction,
+    PlayBloodGems, GetBloodGem, AddToHand, TargetedAction, Summon, Transform,
 )
+from hsrl.core.enums import CardType as CardTypeEnum  # for local use
 
 if TYPE_CHECKING:
     from hsrl.core.game import Game
@@ -73,19 +74,19 @@ def _random_friendly(player: Player, game: Game) -> Optional[BaseEntity]:
     """Return a random living friendly minion on the board, or None.
     (Deprecated: prefer _targeted_friendly_buff for new code.)"""
     living = [m for m in player.board if not m.dead]
-    return random.choice(living) if living else None
+    return game.rng.choice(living) if living else None
 
 
 def _random_hand_minion(player: Player) -> Optional[BaseEntity]:
     """Return a random minion in hand, or None."""
     from hsrl.core.minion import Minion
     minions = [e for e in player.hand if isinstance(e, Minion)]
-    return random.choice(minions) if minions else None
+    return player.game.rng.choice(minions) if minions else None
 
 
 def _random_tavern_minion(player: Player) -> Optional[BaseEntity]:
     """Return a random minion in Bob's tavern, or None."""
-    return random.choice(player.tavern) if player.tavern else None
+    return player.game.rng.choice(player.tavern) if player.tavern else None
 
 
 # ── Script Classes ──────────────────────────────────────────────────────────
@@ -183,22 +184,22 @@ class ShiftingTideScript(BuffRandomFriendlyScript):
 
 
 class HealthyBountyScript:
-    """Give three friendly minions +4/+4."""
+    """Give four friendly minions +4 Health."""
 
     @staticmethod
     def on_play(source: BaseEntity, game: Game) -> Action:
         living = [m for m in source.controller.board if not m.dead]
-        targets = random.sample(living, min(3, len(living)))
-        return [Buff(t, atk=4, health=4) for t in targets] if targets else None
+        targets = game.rng.sample(living, min(4, len(living)))
+        return [Buff(t, health=4) for t in targets] if targets else None
 
 
 class HostileBountyScript:
-    """Give three friendly minions +4 Attack."""
+    """Give four friendly minions +4 Attack."""
 
     @staticmethod
     def on_play(source: BaseEntity, game: Game) -> Action:
         living = [m for m in source.controller.board if not m.dead]
-        targets = random.sample(living, min(3, len(living)))
+        targets = game.rng.sample(living, min(4, len(living)))
         return [Buff(t, atk=4) for t in targets] if targets else None
 
 
@@ -254,7 +255,7 @@ class WaveOfGoldScript:
             return None
         actions = [Buff(m, atk=3, health=2) for m in board]
         for m in board:
-            if m.golden:
+            if m.is_golden:
                 actions.append(Buff(m, atk=3, health=2))
         return actions
 
@@ -280,17 +281,17 @@ class DeepwaterClanScript:
 
 
 class QueensCommandScript:
-    """Give your minions +2/+3. Give all your Naga another +2/+3."""
+    """Give your minions +2/+2. Give all your Naga another +2/+2."""
 
     @staticmethod
     def on_play(source: BaseEntity, game: Game) -> Action:
         board = [m for m in source.controller.board if not m.dead]
         if not board:
             return None
-        actions = [Buff(m, atk=2, health=3) for m in board]
+        actions = [Buff(m, atk=2, health=2) for m in board]
         for m in board:
             if m.race == Race.NAGA:
-                actions.append(Buff(m, atk=2, health=3))
+                actions.append(Buff(m, atk=2, health=2))
         return actions
 
 
@@ -324,7 +325,7 @@ class EyesEarthMotherScript:
     def on_play(source: BaseEntity, game: Game) -> Action:
         def filter_fn():
             return [m for m in source.controller.board
-                    if not m.dead and not m.golden
+                    if not m.dead and not m.is_golden
                     and m.get_tag(GameTag.TECH_LEVEL, 0) <= 4]
 
         def action_factory(target):
@@ -375,7 +376,7 @@ class ChannelDevourerScript:
                       if not m.dead and m != target]
             actions = [Destroy(target)]
             if others:
-                receiver = random.choice(others)
+                receiver = game.rng.choice(others)
                 actions.append(Buff(receiver, atk=stolen_atk, health=stolen_health))
             return actions
 
@@ -670,7 +671,7 @@ class TrickyTrousersScript(GainKeywordScript):
             return [m for m in source.controller.board if not m.dead]
         def action_factory(target):
             keywords = [GameTag.TAUNT, GameTag.DIVINE_SHIELD, GameTag.WINDFURY, GameTag.REBORN]
-            return GainKeyword(target, random.choice(keywords))
+            return GainKeyword(target, game.rng.choice(keywords))
         return TargetedAction(filter_fn, action_factory, label="Grant random keyword")
 
 
@@ -695,7 +696,7 @@ class NaturalBlessingScript(GainKeywordScript):
             return [m for m in source.controller.board if not m.dead]
         def action_factory(target):
             keywords = [GameTag.TAUNT, GameTag.DIVINE_SHIELD, GameTag.REBORN]
-            return GainKeyword(target, random.choice(keywords))
+            return GainKeyword(target, game.rng.choice(keywords))
         return TargetedAction(filter_fn, action_factory,
                               label="Grant random blessing")
 
@@ -748,7 +749,7 @@ class MakeGoldenScript:
     def on_play(source: BaseEntity, game: Game) -> Action:
         def filter_fn():
             return [m for m in source.controller.board
-                    if not m.dead and not m.golden]
+                    if not m.dead and not m.is_golden]
         def action_factory(target):
             target.set_tag(GameTag.GOLDEN, True)
             target.atk = target.atk * 2
@@ -768,7 +769,12 @@ class TransformFriendlyScript:
         def filter_fn():
             return [m for m in source.controller.board if not m.dead]
         def action_factory(target):
-            return Transform(target)
+            tier = target.tech_level
+            pool = game.minion_pool._pools.get(tier, [])
+            if not pool:
+                return None
+            new_id = game.rng.choice(list(set(pool)))
+            return Transform(target, new_id)
         return TargetedAction(filter_fn, action_factory,
                               label="Transform minion")
 
@@ -817,6 +823,136 @@ class _NotYetImplementedScript:
         return None
 
 
+class RobustEvolutionScript:
+    """Transform a friendly minion into one of a higher Tier. It keeps its stats.
+
+    Formal spec:
+      1. TargetedAction: player selects a friendly board minion
+      2. Find all pool minion IDs with tier > target's tier
+      3. Randomly pick one, Transform(target, new_id)
+    Test: transform a T1 minion into random T2+ minion, stats preserved.
+    """
+
+    @staticmethod
+    def on_play(source: BaseEntity, game: Game) -> Action:
+        def filter_fn():
+            return [m for m in source.controller.board if not m.dead]
+
+        def action_factory(target):
+            from hsrl.core.card_db import CARDS
+            target_tier = target.tech_level
+            candidates = []
+            for cid, data in CARDS._cards.items():
+                if (data.cardtype == CardTypeEnum.MINION
+                        and not cid.startswith("EXAMPLE_")
+                        and not cid.startswith("BGDUO")
+                        and data.tech_level > target_tier):
+                    candidates.append(cid)
+            if not candidates:
+                return None
+            new_id = game.rng.choice(candidates)
+            return Transform(target, new_id)
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Robust Evolution — transform to higher tier")
+
+
+# ── Tier 3-7 spell scripts ─────────────────────────────────────────────────
+
+class TemperatureShiftScript:
+    """Get a Fire Baller (BG31_816) and a Snow Baller (BG31_818)."""
+
+    @staticmethod
+    def on_play(source: BaseEntity, game: Game) -> Action:
+        actions = []
+        for token_id in ("BG31_816", "BG31_818"):
+            if len(source.controller.hand) < 10:
+                actions.append(AddToHand(source.controller, token_id))
+        return actions if actions else None
+
+
+class SpitescaleSpecialScript:
+    """Get 3 random Spellcraft spells of different types."""
+
+    @staticmethod
+    def on_play(source: BaseEntity, game: Game) -> Action:
+        from hsrl.core.card_db import CARDS
+        spellcraft_spells = [
+            cid for cid, data in CARDS._cards.items()
+            if (data.cardtype == CardTypeEnum.SPELL
+                and not cid.startswith("EXAMPLE_")
+                and data.tags.get(GameTag.SPELLCRAFT))
+        ]
+        if not spellcraft_spells:
+            return None
+        chosen = game.rng.sample(spellcraft_spells,
+                                 min(3, len(spellcraft_spells)))
+        actions = []
+        for cid in chosen:
+            if len(source.controller.hand) < 10:
+                actions.append(AddToHand(source.controller, cid))
+        return actions if actions else None
+
+
+class BroodOfNozdormuScript:
+    """Start of Combat: Double your left-most minion's stats."""
+
+    @staticmethod
+    def on_play(source: BaseEntity, game: Game) -> Action:
+        board = [m for m in source.controller.board if not m.dead]
+        if not board:
+            return None
+        leftmost = board[0]
+        return Buff(leftmost, atk=leftmost.atk, health=leftmost.max_health)
+
+
+class SharingIsCaringScript:
+    """Start of Combat: Summon a copy of your left-most minion."""
+
+    @staticmethod
+    def on_play(source: BaseEntity, game: Game) -> Action:
+        board = [m for m in source.controller.board if not m.dead]
+        if not board:
+            return None
+        if len(board) >= 7:
+            return None
+        leftmost = board[0]
+        copy_minion = game.create_minion(leftmost.data.id)
+        if copy_minion is None:
+            return None
+        # Copy stats and keywords
+        copy_minion.set_tag(GameTag.BASE_ATK, leftmost.atk)
+        copy_minion.set_tag(GameTag.BASE_HEALTH, leftmost.max_health)
+        copy_minion.set_tag(GameTag.HEALTH, leftmost.health)
+        if leftmost.is_golden:
+            copy_minion.set_tag(GameTag.GOLDEN, True)
+        return Summon(source.controller, copy_minion)
+
+
+class ButcheringScript:
+    """Destroy a friendly Undead. Give your Undead Attack equal to its Attack.
+
+    Uses TargetedAction: player selects which Undead to destroy during recruit.
+    """
+
+    @staticmethod
+    def on_play(source: BaseEntity, game: Game) -> Action:
+        def filter_fn():
+            return [m for m in source.controller.board
+                    if not m.dead and m.race == Race.UNDEAD]
+
+        def action_factory(target):
+            atk_val = target.atk
+            actions = [Destroy(target)]
+            for m in source.controller.board:
+                if not m.dead and m != target and m.race == Race.UNDEAD:
+                    actions.append(Buff(m, atk=atk_val))
+            return actions
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Destroy Undead → give ATK to other Undead")
+
+
 SPELL_SCRIPT_REGISTRY: dict = {
     # ── Tier 1 ──
     "BG28_503": FortifyScript,              # Fortify: +1/+1
@@ -844,11 +980,11 @@ SPELL_SCRIPT_REGISTRY: dict = {
     "BG28_800": GainGold2,                  # Careful Investment: +2 Gold
     "BG28_884": GainGold3,                  # Overconfidence: +3 Gold
     "BG28_886": GainGold2,                  # Staff of Enrichment: +2 Gold
-    "BG30_804": _NotYetImplementedScript,   # DEFERRED: Transform→higher tier keep stats
+    "BG30_804": RobustEvolutionScript,      # Transform → higher tier, keep stats
     "BG31_243": PortalInAFountainScript,    # Portal in a Fountain: Get T3
     "BG31_881": TimeManagementScript,       # Time Management: Tavern +1/+1
-    "BG33_811": HealthyBountyScript,        # Healthy Bounty: +4/+4 to 3 friendlies
-    "BG33_812": HostileBountyScript,        # Hostile Bounty: +4 atk to 3 friendlies
+    "BG33_811": HealthyBountyScript,        # Healthy Bounty: +4 Health to 4 friendlies
+    "BG33_812": HostileBountyScript,        # Hostile Bounty: +4 Attack to 4 friendlies
     "BG33_813": SelfishBountyScript,        # Selfish Bounty: left-most +6/+6
     "BG33_814": FriendlyBountyScript,       # Friendly Bounty: most common type
     "BG33_815": GainGold2,                  # Wealthy Bounty: Gain 2 Gold
@@ -857,12 +993,12 @@ SPELL_SCRIPT_REGISTRY: dict = {
     # ── Tier 4 ──
     "BG28_601": CloningConchScript,         # Cloning Conch: Discover copy
     "BG28_603": BoonOfBeetlesScript,        # Boon of Beetles: Taunt
-    "BG28_606": _NotYetImplementedScript,   # DEFERRED: Get 3 random Spellcraft spells
+    "BG28_606": SpitescaleSpecialScript,    # Get 3 random Spellcraft spells
     "BG28_698": GemConfiscationScript,      # Gem Confiscation: 2 Blood Gems
     "BG28_825": DefendersRitesScript,       # Defender's Rites: Taunt+DS
     "BG28_845": NaturalBlessingScript,      # Natural Blessing: Random keyword
     "BG28_888": MisplacedTeaSetScript,      # Misplaced Tea Set: Discover spell
-    "BG31_819": _NotYetImplementedScript,   # DEFERRED: Get Fire Baller + Snow Baller
+    "BG31_819": TemperatureShiftScript,     # Get Fire Baller + Snow Baller
     "BG32_815": ShiftingTideScript,         # Shifting Tide: +1/+1 x2, x4 for Naga
     "BG34_444": EasterlyWindsScript,        # Easterly Winds: Tavern +1/+2
     "BG34_888": TombTurningScript,          # Tomb Turning: Discover Undead
@@ -875,7 +1011,7 @@ SPELL_SCRIPT_REGISTRY: dict = {
     # ── Tier 5 ──
     "BG28_500": ArmorStashScript,           # Armor Stash: +5 Armor
     "BG28_573": UpperHandScript,            # Upper Hand: Get higher tier
-    "BG28_604": _NotYetImplementedScript,   # DEFERRED: Destroy Undead→Undead +atk
+    "BG28_604": ButcheringScript,           # Destroy Undead → give Undead ATK
     "BG28_607": CorruptedCupcakesScript,    # Corrupted Cupcakes: +3/+2
     "BG28_830": MakeGoldenScript,           # Golden Touch: Make golden
     "BG28_849": SaloonsFinestScript,        # Saloon's Finest: Tavern +2/+2
@@ -883,9 +1019,9 @@ SPELL_SCRIPT_REGISTRY: dict = {
     "BG31_242": GainGold5,                  # Bargain Bundle: +5 Gold
     "BG31_244": PortalInACrystalScript,     # Portal in a Crystal: Get T4
     "BG33_817": SanctifyScript,             # Sanctify: +6 atk to DS minions
-    "BG34_889": _NotYetImplementedScript,   # DEFERRED: Start of Combat: double leftmost
+    "BG34_889": BroodOfNozdormuScript,      # SoC: Double left-most minion's stats
     "BG34_990": WaveOfGoldScript,           # Wave of Gold: +3/+2, golden x2
-    "BG35_922": QueensCommandScript,        # Queen's Command: +2/+3, Naga x2
+    "BG35_922": QueensCommandScript,        # Queen's Command: +2/+2, Naga x2
     "BG28_GIL_836": HiredHeadhunterScript,  # Hired Headhunter: Get random
     "EBG_Spell_032": ChannelDevourerScript, # Channel Devourer: Sell→random friendly
     "EBG_Spell_037": TransformFriendlyScript,    # Unmasked Identity: Transform
@@ -899,7 +1035,7 @@ SPELL_SCRIPT_REGISTRY: dict = {
 
     # ── Tier 7 ──
     "BG28_507": SacredGiftScript,           # Sacred Gift: +5/+5
-    "BG31_889": _NotYetImplementedScript,   # DEFERRED: Start of Combat: leftmost mirror
+    "BG31_889": SharingIsCaringScript,      # SoC: Summon copy of left-most minion
     "BG31_896": HallowedRitualScript,       # Hallowed Ritual: Discover T7
     "BG34_272": MenagerieTablewareScript,   # Menagerie Tableware: +3/+3 per type
 }

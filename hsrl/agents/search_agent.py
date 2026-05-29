@@ -380,6 +380,7 @@ class SearchAgent:
         beam_depth: int = 3,
         device: str = "auto",
         seed: int = None,
+        epsilon: float = 0.0,
     ):
         if device == "auto":
             import torch
@@ -389,6 +390,7 @@ class SearchAgent:
         self.rng = random.Random(seed)
         self.beam_width = beam_width
         self.beam_depth = beam_depth
+        self.epsilon = epsilon
 
         # Load models — detect checkpoint version
         import torch
@@ -418,30 +420,135 @@ class SearchAgent:
     # ── Public API ───────────────────────────────────────────────────────
 
     def act(self, game, player) -> int:
-        """Choose the best action via lookahead search."""
+        """Choose the best action using a hybrid heuristic + value network approach.
+
+        Core heuristics for obvious decisions (buy when board not full,
+        upgrade on curve), value network for tie-breaking and sell decisions.
+        """
+        while True:
+            if getattr(game, '_pending_choice', None) is not None:
+                game.resolve_pending_choice(
+                    self.rng.randrange(len(game._pending_choice.options)))
+                continue
+            offers = getattr(player, '_pending_trinket_offers', [])
+            if offers:
+                affordable = [
+                    i for i, cid in enumerate(offers)
+                    if player.gold >= self._get_trinket_cost(game, cid)
+                ]
+                if affordable:
+                    idx = self.rng.choice(affordable)
+                    game.buy_trinket(player, idx)
+                    game.resolve_queue()
+                else:
+                    player._pending_trinket_offers = []
+                continue
+            break
+
         self._step_count += 1
-
-        # ── Trinket selection: evaluate each offer greedily ──
-        if getattr(player, '_pending_trinket_offers', []):
-            return self._select_trinket(game, player)
-
         mask = build_action_mask(game, player)
 
-        # Auto-play minions from hand
+        # ── Priority 1: Auto-play minions from hand ──
         auto_play = self._find_auto_play(player, mask)
         if auto_play is not None:
             return auto_play
 
-        # Enumerate productive actions
         productive = self._get_productive_actions(mask)
         if not productive:
             return END_TURN
 
-        # Dispatch
-        if self.beam_width > 0:
-            return self._beam_search(game, player, productive)
+        # ── Priority 2: Buy when board not full (Q-score heuristic) ──
+        board_count = len(player.get_board_minions())
+        buy_actions = [a for a in productive if a in range(BUY_OFFSET, BUY_OFFSET + 7)]
+        if board_count < 7 and buy_actions:
+            # Use heuristic Q-score to pick the best buy
+            best_buy = None
+            best_score = -1
+            for a in buy_actions:
+                slot = a - BUY_OFFSET
+                if slot < len(player.tavern):
+                    entity = player.tavern[slot]
+                    ct = entity.get_tag(GameTag.CARDTYPE, CardType.INVALID)
+                    if ct == CardType.MINION:
+                        score = entity.atk + entity.health
+                        if score > best_score:
+                            best_score = score
+                            best_buy = a
+            if best_buy is not None:
+                return best_buy
+
+        # ── Priority 3: Upgrade when behind curve ──
+        _EXPECTED_TIER = {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 3,
+                          8: 4, 9: 4, 10: 5, 11: 5, 12: 6}
+        expected = _EXPECTED_TIER.get(game.turn, player.tavern_tier)
+        if player.tavern_tier < expected and UPGRADE in productive:
+            return UPGRADE
+
+        # ── Priority 4: Sell weakest minion if board is full and there's a
+        # better buy available (Q-score heuristic) ──
+        if board_count >= 7 and buy_actions:
+            sell_actions = [a for a in productive
+                           if a in range(SELL_OFFSET, SELL_OFFSET + 7)]
+            if sell_actions:
+                # Find weakest board minion and best buy
+                living = [m for m in player.board if not m.dead]
+                weakest_idx = min(range(len(living)),
+                                  key=lambda i: living[i].atk + living[i].health)
+                best_buy_score = -1
+                best_buy_action = None
+                for a in buy_actions:
+                    slot = a - BUY_OFFSET
+                    if slot < len(player.tavern):
+                        e = player.tavern[slot]
+                        ct = e.get_tag(GameTag.CARDTYPE, CardType.INVALID)
+                        if ct == CardType.MINION:
+                            s = e.atk + e.health
+                            if s > best_buy_score:
+                                best_buy_score = s
+                                best_buy_action = a
+                weakest_score = (living[weakest_idx].atk +
+                                living[weakest_idx].health)
+                if (best_buy_action is not None and
+                        best_buy_score > weakest_score):
+                    return SELL_OFFSET + weakest_idx
+
+        # ── Priority 5: Refresh only if useful ──
+        # Refresh is useful when: (a) board not full and can afford a buy
+        # after refresh, (b) free refresh available, or (c) fishing for triple
+        if REFRESH in productive:
+            free_refreshes = player.get_tag(GameTag.FREE_REFRESH_REMAINING, 0)
+            min_tavern_cost = min(
+                (e.get_tag(GameTag.COST, 3) for e in player.tavern
+                 if e.get_tag(GameTag.CARDTYPE, CardType.INVALID)
+                 in (CardType.MINION, CardType.SPELL)),
+                default=99,
+            )
+            can_buy_after = (
+                free_refreshes > 0 or
+                (player.gold >= 1 + min_tavern_cost and board_count < 7)
+            )
+            if can_buy_after:
+                return REFRESH
+
+        # ── Priority 6: Value network fallback (exclude sells — Priority 4
+        # handles sell decisions when board is full and a better buy exists) ──
+        safe_productive = [a for a in productive
+                          if a not in range(SELL_OFFSET, SELL_OFFSET + 7)]
+        if safe_productive:
+            if self.beam_width > 0:
+                action = self._beam_search(game, player, safe_productive)
+            else:
+                action = self._greedy_search(game, player, mask, safe_productive)
         else:
-            return self._greedy_search(game, player, mask, productive)
+            action = END_TURN
+
+        if self.epsilon > 0 and productive:
+            if self.rng.random() < self.epsilon:
+                action = self.rng.choice(productive)
+            elif action == END_TURN and self.rng.random() < self.epsilon * 2:
+                action = self.rng.choice(productive)
+
+        return action
 
     def _select_trinket(self, game, player) -> int:
         """Evaluate each trinket offer and pick the best one.
@@ -500,6 +607,10 @@ class SearchAgent:
 
         saved = _save_player(player)
 
+        # Expected tier by turn (standard leveling curve, relaxed)
+        _EXPECTED_TIER = {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 3,
+                          8: 4, 9: 4, 10: 5, 11: 5, 12: 6}
+
         for action in productive:
             _restore_player(player, saved)
 
@@ -509,6 +620,13 @@ class SearchAgent:
                 if not _simulate_action(player, action):
                     continue
                 value = self._evaluate_state(game, player)
+
+            # ── Upgrade bonus: incentivize reaching expected tier curve ──
+            if action == UPGRADE:
+                expected = _EXPECTED_TIER.get(game.turn, player.tavern_tier)
+                tiers_behind = max(0, expected - player.tavern_tier)
+                # +0.12 per tier behind (significant signal for out-of-distribution states)
+                value += tiers_behind * 0.12
 
             if value > best_value:
                 best_value = value
@@ -761,11 +879,18 @@ def benchmark(
                     action = agent.act(game, agent_player)
                     if action == END_TURN:
                         break
+                    gold_before = agent_player.gold
+                    board_before = len([m for m in agent_player.board if not m.dead])
                     from hsrl.env.action import decode_action
                     decode_action(action, game, agent_player)
                     game.resolve_queue()
                     while game._pending_targeted_queue:
                         game.auto_resolve_pending_target()
+                    # Stuck detection
+                    gold_after = agent_player.gold
+                    board_after = len([m for m in agent_player.board if not m.dead])
+                    if gold_before == gold_after and board_before == board_after:
+                        break  # Action had no effect, avoid infinite loop
 
             game.end_recruit_phase()
 

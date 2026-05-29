@@ -30,6 +30,53 @@ try:
 except (FileNotFoundError, json.JSONDecodeError):
     _trinkets = []
 
+# Patch 35.4.2 Battlegrounds trinket pool updates.
+# Keep this as a registration-layer override until the upstream generated
+# bg_trinkets.json cache is regenerated from current CardDefs.
+_REMOVED_PATCH_35_4_2 = {
+    "BG30_MagicItem_433",   # Alliance Keychain
+    "BG30_MagicItem_433t",  # Alliance Keychain
+    "BG32_MagicItem_806",   # Battlecruiser Portrait
+    "BG32_MagicItem_954",   # Auric Offering
+    "BG30_MagicItem_978",   # Blingtron's Sunglasses
+    "BG32_MagicItem_417",   # Tarecgosa Sticker
+    "BG35_MagicItem_303",   # Skipper Portrait
+    "BG35_MagicItem_849",   # Cloud Serpent Horn
+    "BG35_MagicItem_155",   # Felburned Ledger
+    "BG30_MagicItem_548",   # Glowscale Portrait
+    "BG35_MagicItem_310",   # Radio Star Portrait
+    "BG30_MagicItem_986",   # Peacebloom Candle
+    "BG30_MagicItem_900t",  # Dragonwing Glider, Greater
+    "BG32_MagicItem_282",   # Turbocharged Drill
+}
+
+_COST_OVERRIDES_PATCH_35_4_2 = {
+    "BG35_MagicItem_152": 3,   # Demonic Tapestry
+    "BG30_MagicItem_902": 1,   # Holy Mallet
+    "BG32_MagicItem_831": 4,   # Sellemental Portrait
+    "BG32_MagicItem_170": 1,   # Spell-powered Wrench
+    "BG32_MagicItem_300": 2,   # Putricide Sticker
+    "BG30_MagicItem_700": 1,   # Deathly Phylactery
+    "BG32_MagicItem_822": 1,   # Bazaar Sticker
+    "BG35_MagicItem_302": 0,   # Stormcoil Sticker
+    "BG30_MagicItem_924t": 0,  # Booty Bay Brew, Greater
+    "BG32_MagicItem_363": 4,   # Faerie Dragon Scale, Greater
+    "BG32_MagicItem_998": 0,   # Behemoth Portrait, Greater
+    "BG30_MagicItem_951": 1,   # Lava Lamp, Greater
+    "BG30_MagicItem_993": 4,   # Pagle's Fishing Rod, Greater
+    "BG35_MagicItem_742": 4,   # Accord-o-Tron Portrait, Greater
+    "BG35_MagicItem_848t": 2,  # Egg of the Endtimes Portrait, Greater
+    "BG35_MagicItem_842": 2,   # Egg of the Endtimes Portrait
+    "BG35_MagicItem_840": 5,   # Chromatic Tear, Lesser
+    "BG30_MagicItem_988": 2,   # Great Boar Sticker, Lesser
+    "BG30_MagicItem_988t": 2,  # Great Boar Sticker, Greater
+    "BG35_MagicItem_850": 3,   # Pocket Cyclone, Lesser
+    "BG35_MagicItem_850t": 3,  # Pocket Cyclone, Greater
+    "BG35_MagicItem_434": 2,   # Jewelry Box
+    "BG30_MagicItem_442": 5,   # Blood Golem Sticker
+    "BG35_MagicItem_752": 4,   # Young Murk-Eye Sticker
+}
+
 _registered_count = 0
 
 # Load wiki text data
@@ -43,8 +90,13 @@ except (FileNotFoundError, json.JSONDecodeError):
 
 for trinket_data in _trinkets:
     card_id = trinket_data["id"]
+    if card_id in _REMOVED_PATCH_35_4_2:
+        continue
     name = trinket_data.get("name", card_id)
-    cost = trinket_data.get("cost", 0)
+    cost = _COST_OVERRIDES_PATCH_35_4_2.get(
+        card_id,
+        trinket_data.get("cost", 0),
+    )
     script_class = TRINKET_SCRIPT_REGISTRY.get(card_id)
 
     tags = {GameTag.COST: cost}
@@ -101,6 +153,7 @@ _tokens = [
 ]
 for _tid, _tname, _ttext, _ttype in _tokens:
     if _tid not in [t["id"] for t in _trinkets]:
+        token_script = TRINKET_SCRIPT_REGISTRY.get(_tid, None)
         register_card(
             card_id=_tid,
             name=_tname,
@@ -110,5 +163,5 @@ for _tid, _tname, _ttext, _ttype in _tokens:
             tech_level=1,
             rarity=Rarity.COMMON,
             tags={GameTag.COST: 0},
-            script_class=None,
+            script_class=token_script,
         )

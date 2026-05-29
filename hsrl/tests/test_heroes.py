@@ -27,7 +27,7 @@ class TestHeroCreation(unittest.TestCase):
 
     def test_create_example_hero(self):
         """Example hero has health=30, armor=0, hero_power_cost=0."""
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         player = Player(CARDS.get("EXAMPLE_HERO"), game=game)
         game.players = [player]
@@ -42,7 +42,7 @@ class TestHeroCreation(unittest.TestCase):
 
     def test_create_blackthorn(self):
         """Death Speaker Blackthorn has cost=1 hero power."""
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         player = Player(CARDS.get("BG20_HERO_103"), game=game)
         game.players = [player]
@@ -55,7 +55,7 @@ class TestHeroCreation(unittest.TestCase):
 
     def test_create_xyrella(self):
         """Xyrella has cost=2 hero power."""
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         player = Player(CARDS.get("BG20_HERO_101"), game=game)
         game.players = [player]
@@ -64,7 +64,7 @@ class TestHeroCreation(unittest.TestCase):
 
     def test_create_player_via_game(self):
         """game.create_player() works for hero cards."""
-        game = Game([])
+        game = Game([], seed=0)
         game.card_db = CARDS
         player = game.create_player("EXAMPLE_HERO")
         self.assertEqual(player.health, 30)
@@ -75,7 +75,7 @@ class TestHeroPowerUsage(unittest.TestCase):
     """Basic hero power activation tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         # Use EXAMPLE_HERO (0-cost +1/+1 buff) for most tests
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
@@ -143,7 +143,7 @@ class TestHeroPowerGoldCost(unittest.TestCase):
     """Hero power gold cost and edge cases."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("BG20_HERO_103"), game=self.game)  # cost=1
         self.player.gold = 10
@@ -187,7 +187,7 @@ class TestHeroPowerEffects(unittest.TestCase):
     """Specific hero power effect tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -258,7 +258,7 @@ class TestPassiveHeroPower(unittest.TestCase):
     """Passive hero power (Rokara) tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("BG20_HERO_100"), game=self.game)  # Rokara
         self.player.gold = 10
@@ -290,7 +290,7 @@ class TestNewHeroPowerScripts(unittest.TestCase):
     """Tests for newly added hero power scripts."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
         self.game.in_combat = True
@@ -422,7 +422,7 @@ class TestPhaseIINewHeroPowers(unittest.TestCase):
     """Phase II: newly implemented hero power scripts."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
         self.game.in_combat = True
@@ -598,7 +598,7 @@ class TestPhaseIIINewHeroPowers(unittest.TestCase):
     mass steal, pair detection."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
         self.game.in_combat = True
@@ -747,7 +747,7 @@ class TestTemporaryBuffSystem(unittest.TestCase):
     """Temporary buff infrastructure tests."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
         player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
@@ -799,7 +799,7 @@ class TestPermanentHeroAura(unittest.TestCase):
     """Phase III: Permanent hero aura — passive on_summon auras (Example)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -872,7 +872,7 @@ class TestPhaseIIIActiveAuras(unittest.TestCase):
     """Phase III: Active hero power — tribe-wide buffs (Bloodfury)."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -930,7 +930,7 @@ class TestPhaseIVSpellDiscover(unittest.TestCase):
     """Phase IV: Spell discovery hero powers."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -966,7 +966,7 @@ class TestPhaseIVTavernFreeze(unittest.TestCase):
     """Phase IV: Per-minion tavern freeze system."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
         self.game.init_pool()
@@ -1042,7 +1042,7 @@ class TestPhaseIVGalakrond(unittest.TestCase):
     """Phase IV: Galakrond's Greed — replace tavern minion with higher tier."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
         self.game.init_pool()
@@ -1075,7 +1075,7 @@ class TestPhaseIVPostCombatCopy(unittest.TestCase):
     """Phase IV: Post-combat copy — I'll Take That! & Example."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1145,7 +1145,7 @@ class TestPhaseVDigCounter(unittest.TestCase):
     """Phase V: Dig Counter — Buried Treasure & Example."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1220,7 +1220,7 @@ class TestPhaseVTypeRotation(unittest.TestCase):
     """Phase V: Type Rotation — A Tale of Kings & Example."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1315,7 +1315,7 @@ class TestPhaseVIStartOfCombat(unittest.TestCase):
     """Phase VI: Passive hero powers triggered on START_OF_COMBAT."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1386,7 +1386,7 @@ class TestPhaseVIDeathwing(unittest.TestCase):
     """Phase VI: Deathwing's ALL Will Burn! — global +3 ATK aura."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1426,7 +1426,7 @@ class TestPhaseVIBananarama(unittest.TestCase):
     """Phase VI: Mukla's Bananarama — start of turn get 2 Bananas."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1472,7 +1472,7 @@ class TestPhaseVIVerdantSpheres(unittest.TestCase):
     """Phase VI: Kael'thas's Verdant Spheres — buy 3 → get Tavern Coin."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1527,7 +1527,7 @@ class TestPhaseVIbSwattingInsects(unittest.TestCase):
     """Phase VIb: Al'Akir's Swatting Insects — SoC give WF/DS/Taunt to left-most."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1604,7 +1604,7 @@ class TestPhaseVIbEverbloom(unittest.TestCase):
     """Phase VIb: Omu's Everbloom — TAVERN_UPGRADED → Gain 2 Gold."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1659,7 +1659,7 @@ class TestPhaseVIbWaxWarband(unittest.TestCase):
     """Phase VIb: Wagtoggle's Wax Warband — SoC buff one minion per type +2/+2."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1756,7 +1756,7 @@ class TestPhaseVIcGoneFishing(unittest.TestCase):
     """Phase VIc: Flurgl's Gone Fishing — sell 5 minions → random Murloc in hand."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.players = []
 
@@ -1857,7 +1857,7 @@ class TestRagePotion(unittest.TestCase):
     """Rage Potion (TB_BaconShop_HP_018): HP(1) — Give a minion +3 ATK this turn."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
@@ -1890,7 +1890,7 @@ class TestDieInsects(unittest.TestCase):
     """DIE, INSECTS! (TB_BaconShop_HP_019): HP(2) — Give a minion +8 ATK this turn."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
@@ -1920,7 +1920,7 @@ class TestRebornRites(unittest.TestCase):
     """Reborn Rites (TB_BaconShop_HP_024): HP(0) — Give a minion Reborn."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
@@ -1960,7 +1960,7 @@ class TestKingOfBeasts(unittest.TestCase):
     """King of Beasts (TB_BaconShop_HP_041a): HP(2) — Give a friendly Beast +2/+2."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
@@ -2009,7 +2009,7 @@ class TestPhase11HonorableWarband(unittest.TestCase):
     """TB_BaconShop_HP_051 — Honorable Warband: Give tribeless minions +1/+1."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2074,7 +2074,7 @@ class TestPhase11NefariousFire(unittest.TestCase):
     """TB_BaconShop_HP_043 — Nefarious Fire: SoC deal 1 damage to all enemies."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2128,7 +2128,7 @@ class TestPhase11FireTheCannons(unittest.TestCase):
     """TB_BaconShop_HP_027 — Fire the Cannons!: SoC deal 3 to 2 random enemies."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2175,7 +2175,7 @@ class TestPhase11PirateParrrrty(unittest.TestCase):
     """TB_BaconShop_HP_072 — Pirate Parrrrty!: Get Pirate, buy discount."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("TB_BaconShop_HERO_18"), game=self.game)
         self.player.gold = 10
@@ -2242,7 +2242,7 @@ class TestPhase12NagaConquest(unittest.TestCase):
     """BG22_HERO_007p2 — Naga Conquest: Discover a Naga."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2265,7 +2265,7 @@ class TestPhase12BlessingNineFrogs(unittest.TestCase):
     """BG28_HERO_801p — Blessing of the Nine Frogs: Get a random Tavern spell."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2287,7 +2287,7 @@ class TestPhase12RunicEmpowerment(unittest.TestCase):
     """TB_BaconShop_HP_702 — Runic Empowerment: Buff +1/+1, upgrades after 5 deaths."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.game.in_combat = True
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
@@ -2338,7 +2338,7 @@ class TestPhase12TavernLighting(unittest.TestCase):
     """TB_BaconShop_HP_085 — Tavern Lighting: Get Lantern Light spell."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2360,7 +2360,7 @@ class TestPhase12MurlocKing(unittest.TestCase):
     """TB_BaconShop_HP_017 — Murloc King: SoC give DR: Summon 1/1 Murloc."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2408,7 +2408,7 @@ class TestPhase12Wingmen(unittest.TestCase):
     """TB_BaconShop_HP_069 — Wingmen: SoC left/right +2/+1 and attack immediately."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2459,7 +2459,7 @@ class TestPhase12FragrantPhylactery(unittest.TestCase):
     """BG20_HERO_282p — Fragrant Phylactery: SoC give lowest-ATK minion DR."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2500,7 +2500,7 @@ class TestPhase12Deadeye(unittest.TestCase):
     """BG22_HERO_000p — Deadeye: SoC deal 99 to targeted enemy."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2536,7 +2536,7 @@ class TestPhase12EmbraceElements(unittest.TestCase):
     """BG22_HERO_001p — Embrace the Elements: SoC invoke fire/water/lightning."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2577,7 +2577,7 @@ class TestPhase12ImTheCapnNow(unittest.TestCase):
     """BG26_HERO_101p — I'm the Cap'n Now: buy Pirate → gain 1 Gold."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2618,7 +2618,7 @@ class TestPhase12ForTheHorde(unittest.TestCase):
     """BG20_HERO_102p — For the Horde!: Tavern +1/+1, improves after 4 buys."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2654,7 +2654,7 @@ class TestPhase12NaturalBalance(unittest.TestCase):
     """BG20_HERO_242p — Natural Balance: buy 20 tiers → Triple Reward."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2686,7 +2686,7 @@ class TestPhase12GlaiveRicochet(unittest.TestCase):
     """BG20_HERO_280p5 — Glaive Ricochet: 3 buys/turn → copy."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2711,7 +2711,7 @@ class TestPhase12WarpGate(unittest.TestCase):
     """BG31_HERO_802p — Warp Gate: start game choose Protoss → after 14 buys."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2735,7 +2735,7 @@ class TestPhase12BattleBrand(unittest.TestCase):
     """TB_BaconShop_HP_048 — Battle Brand: buy 5 Battlecry → Brann."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10
@@ -2774,7 +2774,7 @@ class TestPhase12BuyInsect(unittest.TestCase):
     """TB_BaconShop_HP_087 — BUY, INSECT!: buy 16 cards → Sulfuras EOT."""
 
     def setUp(self):
-        self.game = Game([])
+        self.game = Game([], seed=0)
         self.game.card_db = CARDS
         self.player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
         self.player.gold = 10

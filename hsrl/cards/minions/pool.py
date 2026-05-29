@@ -27,6 +27,8 @@ _KEYWORD_MAP = {
     "deathrattle": GameTag.DEATHRATTLE,
     "avenge": GameTag.Avenge,
     "rally": GameTag.RALLY,
+    "health_cost_demon": GameTag.HEALTH_COST_DEMON,
+    "health_cost_spell": GameTag.HEALTH_COST_SPELL,
 }
 
 # ── Text-based keyword detection ──────────────────────────────────────
@@ -37,7 +39,8 @@ _TEXT_KEYWORDS = [
     ("When you sell this", GameTag.ON_SELL),
     ("At the end of your turn", GameTag.END_OF_TURN),
     ("At the start of your turn", GameTag.START_OF_TURN),
-    ("Fodder", GameTag.FODDER),
+    # Fodder is detected from pool JSON's "fodder" field, not text.
+    # The word "Fodder" in card text usually means "adds a Fodder" not "has Fodder".
 ]
 
 # ── Data paths ────────────────────────────────────────────────────────
@@ -64,6 +67,9 @@ def register_all_pool_minions():
         card_id = m["id"]
         # Skip duo-specific cards
         if card_id.startswith("BGDUO"):
+            continue
+        # Skip cards explicitly marked as not-in-pool
+        if m.get("is_pool_minion") is False:
             continue
         _register_one_minion(m, texts.get(card_id, ""))
         registered += 1

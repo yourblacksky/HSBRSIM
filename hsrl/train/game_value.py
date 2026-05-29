@@ -377,6 +377,7 @@ class GameValueTrainer:
         batch_size: int = 512,
         val_split: float = 0.1,
         verbose: bool = True,
+        save_path: str = "checkpoints/game_value_v2.pt",
     ):
         obs_t = torch.as_tensor(obs, dtype=torch.float32)
         targets_t = torch.as_tensor(targets, dtype=torch.float32)
@@ -450,7 +451,7 @@ class GameValueTrainer:
 
             if val_mae < best_val_mae:
                 best_val_mae = val_mae
-                self.save("checkpoints/game_value_v2.pt", epoch, val_mae)
+                self.save(save_path, epoch, val_mae)
 
             if verbose and (epoch + 1) % 10 == 0:
                 elapsed = time.time() - t_start
@@ -464,7 +465,7 @@ class GameValueTrainer:
         if verbose:
             print(f"\nTraining complete: {epochs} epochs in {elapsed:.0f}s")
             print(f"  Best val_mae: {best_val_mae:.4f} (~{best_val_mae * 7:.2f} placement positions)")
-            print(f"  Model saved to: checkpoints/game_value_v2.pt")
+            print(f"  Model saved to: {save_path}")
             baseline_mae = np.abs(targets - targets.mean()).mean()
             print(f"  Baseline: constant mean prediction MAE = {baseline_mae:.4f}")
 
@@ -550,11 +551,8 @@ def main():
         targets=targets,
         epochs=args.epochs,
         batch_size=args.batch_size,
+        save_path=args.output,
     )
-
-    if args.output != "checkpoints/game_value_v2.pt":
-        trainer.save(args.output, epoch=args.epochs, val_mae=0.0)
-        print(f"Saved to {args.output}")
 
 
 if __name__ == "__main__":

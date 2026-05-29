@@ -769,6 +769,16 @@ register_card(
     tags={GameTag.TAUNT: True},
 )
 
+register_card(
+    card_id="BLOOD_GEM_REBORN",
+    name="Blood Gem",
+    text="Give a friendly Quilboar +1/+1 and Reborn.",
+    cardtype=CardType.BLOOD_GEM_CARD,
+    race=Race.INVALID,
+    tech_level=1,
+    tags={GameTag.REBORN: True},
+)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Tavern Coin Spell Card
 # ═══════════════════════════════════════════════════════════════════════════════

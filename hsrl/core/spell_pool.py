@@ -19,8 +19,9 @@ class SpellPool:
 
     POOL_SIZES = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
 
-    def __init__(self, card_db):
+    def __init__(self, card_db, rng=None):
         self._card_db = card_db
+        self.rng = rng if rng is not None else random
         self._pools: dict[int, List[str]] = {tier: [] for tier in range(1, 8)}
         self._active: Set[str] = set()
 
@@ -54,7 +55,7 @@ class SpellPool:
 
         drawn = []
         for _ in range(min(count, len(candidates))):
-            card_id = random.choice(candidates)
+            card_id = self.rng.choice(candidates)
             self._remove_from_pool(card_id)
             drawn.append(card_id)
             candidates.remove(card_id)
@@ -104,4 +105,4 @@ class SpellPool:
         """Return a random spell card_id from the full active pool."""
         if not self._active:
             return None
-        return random.choice(list(self._active))
+        return self.rng.choice(list(self._active))

@@ -110,7 +110,7 @@ def register_all_tokens():
         text="Taunt",
         cardtype=CardType.MINION,
         race=Race.BEAST,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 2,
             GameTag.BASE_HEALTH: 3,
@@ -125,7 +125,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.UNDEAD,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -139,7 +139,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.MECH,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -153,7 +153,7 @@ def register_all_tokens():
         text="Taunt",
         cardtype=CardType.MINION,
         race=Race.BEAST,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 0,
             GameTag.BASE_HEALTH: 1,
@@ -168,7 +168,7 @@ def register_all_tokens():
         text="Reborn",
         cardtype=CardType.MINION,
         race=Race.UNDEAD,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 2,
             GameTag.BASE_HEALTH: 1,
@@ -183,7 +183,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.DRAGON,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 3,
             GameTag.BASE_HEALTH: 3,
@@ -197,7 +197,7 @@ def register_all_tokens():
         text="Taunt",
         cardtype=CardType.MINION,
         race=Race.QUILBOAR,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -212,7 +212,7 @@ def register_all_tokens():
         text="Charge",
         cardtype=CardType.MINION,
         race=Race.PIRATE,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -227,7 +227,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.ELEMENTAL,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 3,
             GameTag.BASE_HEALTH: 3,
@@ -244,7 +244,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.DRAGON,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 6,
             GameTag.BASE_HEALTH: 6,
@@ -258,7 +258,7 @@ def register_all_tokens():
         text="Taunt",
         cardtype=CardType.MINION,
         race=Race.DRAGON,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 8,
             GameTag.BASE_HEALTH: 8,
@@ -273,7 +273,7 @@ def register_all_tokens():
         text="Divine Shield",
         cardtype=CardType.MINION,
         race=Race.DRAGON,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 5,
             GameTag.BASE_HEALTH: 5,
@@ -288,7 +288,7 @@ def register_all_tokens():
         text="Reborn",
         cardtype=CardType.MINION,
         race=Race.DRAGON,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 4,
             GameTag.BASE_HEALTH: 4,
@@ -303,7 +303,7 @@ def register_all_tokens():
         text="Windfury",
         cardtype=CardType.MINION,
         race=Race.DRAGON,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 7,
             GameTag.BASE_HEALTH: 7,
@@ -323,7 +323,7 @@ def register_all_tokens():
         text="Give a minion +1/+1 and Taunt.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
         script_class=_SlimyShieldScript,
     )
@@ -335,7 +335,7 @@ def register_all_tokens():
         text="Give a minion +4 Attack.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
     )
 
@@ -521,7 +521,7 @@ def register_all_tokens():
         text="<b>Magnetic</b>",
         cardtype=CardType.MINION,
         race=Race.MECH,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -536,7 +536,7 @@ def register_all_tokens():
         text="Give a minion 'Deathrattle: Summon a 3/2 Crab' until next turn.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
         script_class=CrabMountScript,
     )
@@ -548,7 +548,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.BEAST,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 3,
             GameTag.BASE_HEALTH: 2,
@@ -562,7 +562,7 @@ def register_all_tokens():
         text="Choose a different minion in the Tavern to get a copy of.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
         script_class=SirensSongScript,
     )
@@ -574,7 +574,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.MURLOC,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -602,7 +602,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.MECH,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 2,
             GameTag.BASE_HEALTH: 2,
@@ -616,7 +616,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.ELEMENTAL,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -630,7 +630,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
     )
 
@@ -640,7 +640,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 4,
             GameTag.BASE_HEALTH: 4,
@@ -654,7 +654,7 @@ def register_all_tokens():
         text="Give a friendly minion +2/+2 for each friendly minion of its type.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
     )
 
@@ -673,6 +673,14 @@ def register_all_tokens():
     )
 
     # ── Slumber Sorcerer (trinket token: BG32_MagicItem_933) ───────────
+
+    class _SlumberSorcererScript:
+        """Spellcraft: Give a friendly minion 'Deathrattle: Summon a 4/4 Beast.'"""
+
+        @staticmethod
+        def spellcraft(source, game):
+            return "BG32_833s"  # Spell token ID
+
     register_card(
         card_id="BG32_833",
         name="Slumber Sorcerer",
@@ -685,6 +693,57 @@ def register_all_tokens():
             GameTag.BASE_HEALTH: 4,
             GameTag.SPELLCRAFT: True,
         },
+        script_class=_SlumberSorcererScript,
+    )
+
+    # Spell token for Slumber Sorcerer's Spellcraft
+    class _SlumberSorcererSpellScript:
+        """Give a friendly minion 'Deathrattle: Summon a 4/4 Beast'."""
+
+        @staticmethod
+        def on_play(source, game):
+            from hsrl.core.actions import GainSpecificDeathrattle, TargetedAction
+
+            def filter_fn():
+                return [m for m in source.controller.board if not m.dead]
+
+            def action_factory(target):
+                # Summon a 4/4 Beast token on death
+                from hsrl.core.actions import GainDeathrattle
+                token_id = "BG32_833t"
+
+                def _summon_beast(src, g):
+                    token = g.create_minion(token_id)
+                    if token:
+                        from hsrl.core.actions import Summon
+                        return Summon(src.controller, token)
+                    return None
+
+                return GainDeathrattle(target, _summon_beast)
+
+            return TargetedAction(filter_fn, action_factory,
+                                  label="Slumber Sorcerer — Deathrattle: Summon 4/4 Beast")
+
+    register_card(
+        card_id="BG32_833s",
+        name="Slumber Sorcerer's Spellcraft",
+        text="Give a friendly minion 'Deathrattle: Summon a 4/4 Beast.'",
+        cardtype=CardType.SPELL,
+        race=Race.INVALID,
+        tech_level=0,  # Token — not in pool
+        tags={GameTag.COST: 0, GameTag.SPELLCRAFT_SPELL: True},
+        script_class=_SlumberSorcererSpellScript,
+    )
+
+    # 4/4 Beast token for Slumber Sorcerer
+    register_card(
+        card_id="BG32_833t",
+        name="Dream Beast",
+        text="",
+        cardtype=CardType.MINION,
+        race=Race.BEAST,
+        tech_level=0,  # Token — not in pool
+        tags={GameTag.BASE_ATK: 4, GameTag.BASE_HEALTH: 4},
     )
 
     # ── Howler Driver (trinket token: BG30_MagicItem_402) ───────────────
@@ -694,7 +753,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 5,
             GameTag.BASE_HEALTH: 5,
@@ -702,13 +761,16 @@ def register_all_tokens():
     )
 
     # ── False Implicator (trinket token: BG32_MagicItem_824) ────────────
+    # False Implicator is a T3 minion. Register with correct T3 tier so it
+    # does not pollute the T1 pool. The Implicator Portrait adds it directly
+    # to the player's hand (not from pool).
     register_card(
         card_id="BG29_140",
         name="False Implicator",
         text="Battlecry: Eat a minion in the Tavern.",
         cardtype=CardType.MINION,
         race=Race.DEMON,
-        tech_level=1,
+        tech_level=3,
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -725,7 +787,7 @@ def register_all_tokens():
         text="Each turn this is in your hand, transform into a random minion.",
         cardtype=CardType.MINION,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 1,
             GameTag.BASE_HEALTH: 1,
@@ -739,7 +801,7 @@ def register_all_tokens():
         text="Transform a minion into one of the next higher Tier.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
     )
 
@@ -750,7 +812,7 @@ def register_all_tokens():
         text="Give a minion +5/+5 and a random bonus effect.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
         script_class=_SparePartScript,
     )
@@ -762,7 +824,7 @@ def register_all_tokens():
         text="Make a friendly minion Golden until next turn.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={GameTag.SPELLCRAFT_SPELL: True},
         script_class=None,  # Effect handled by engine via GOLDEN tag
     )
@@ -775,7 +837,7 @@ def register_all_tokens():
         text="Choose a non-golden card. Move it to your hand.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={GameTag.SPELLCRAFT_SPELL: True},
         script_class=None,
     )
@@ -787,7 +849,7 @@ def register_all_tokens():
         text="",
         cardtype=CardType.MINION,
         race=Race.ELEMENTAL,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={
             GameTag.BASE_ATK: 4,
             GameTag.BASE_HEALTH: 4,
@@ -801,7 +863,7 @@ def register_all_tokens():
         text="Give a friendly minion Windfury and Divine Shield.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={GameTag.SPELLCRAFT_SPELL: True},
         script_class=_WindfuryDSScript,
     )
@@ -1003,7 +1065,7 @@ def _register_lantern_light():
         text="Give a minion stats equal to your Tier.",
         cardtype=CardType.SPELL,
         race=Race.INVALID,
-        tech_level=1,
+        tech_level=0,  # Token — not in pool
         tags={},
         script_class=LanternLightScript,
     )

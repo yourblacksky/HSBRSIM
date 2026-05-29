@@ -23,6 +23,7 @@ def init_cards():
     import hsrl.cards.minions.tokens as _  # noqa: F401
     import hsrl.cards.heroes.pool as _  # noqa: F401
     import hsrl.cards.heroes.scripts as _  # noqa: F401
+    import hsrl.cards.spells.scripts as _  # noqa: F401
     import hsrl.cards.trinkets.scripts as _  # noqa: F401
     import hsrl.cards.rewards.scripts as _  # noqa: F401
     import hsrl.cards.anomalies.scripts as _  # noqa: F401

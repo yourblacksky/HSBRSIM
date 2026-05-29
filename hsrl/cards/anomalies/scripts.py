@@ -118,15 +118,15 @@ class SecretsOfNorgannonScript:
     """
     Natural language: Tier 7 exists. Start with +10 Armor.
 
-    Formal spec: Set armor+=10 for all players.
-    Note: Tier 7 pool support is engine-level → DEFERRED.
-    Test: all players have +10 armor.
+    Formal spec: Set armor+=10 and TIER_7_UNLOCKED=True for all players.
+    Test: all players have +10 armor and can upgrade to tier 7.
     """
 
     @staticmethod
     def on_apply(source, game):
         for p in game.players:
             p.set_tag(GameTag.ARMOR, p.get_tag(GameTag.ARMOR, 0) + 10)
+            p.set_tag(GameTag.TIER_7_UNLOCKED, True)
 
 
 class UncompensatedUpsetScript:
@@ -175,7 +175,7 @@ class Get3Tier2MinionsScript:
                 if data.cardtype == 4 and data.tech_level == 2
                 and not cid.startswith("EXAMPLE")]
         for p in game.players:
-            for cid in random.sample(pool, min(3, len(pool))):
+            for cid in game.rng.sample(pool, min(3, len(pool))):
                 game.queue_action(AddToHand(p, cid))
 
 
@@ -308,7 +308,7 @@ class AfterSellTransferStatsAnomalyScript:
                     return
                 tavern = target.controller.tavern
                 if tavern:
-                    t = random.choice(tavern)
+                    t = game.rng.choice(tavern)
                     from hsrl.core.actions import Buff
                     g.queue_action(Buff(t, atk=target.atk, health=target.max_health))
 
@@ -344,7 +344,7 @@ class RefreshExtraSpellAnomalyScript:
                 spell_pool = [cid for cid, data in CARDS._cards.items()
                               if data.cardtype == 42 and not cid.startswith("EXAMPLE")]
                 if spell_pool:
-                    token = g.create_minion(random.choice(spell_pool))
+                    token = g.create_minion(game.rng.choice(spell_pool))
                     if token:
                         token.controller = target
                         from hsrl.core.enums import Zone
@@ -380,7 +380,7 @@ class AfterRefreshBuffTavernAnomalyScript:
                     return
                 tavern = target.tavern
                 if tavern:
-                    m = random.choice(tavern)
+                    m = game.rng.choice(tavern)
                     g.queue_action(Buff(m, atk=6, health=6))
                     g.queue_action(GainKeyword(m, GameTag.DIVINE_SHIELD))
 
@@ -586,7 +586,8 @@ class PrizeEvery4TurnsScript:
       1. on_apply: schedule callbacks for turns 4, 8, 12, ...
       2. Each callback: for each alive player, DiscoverSpell (prize proxy)
     Note: full implementation needs dedicated Darkmoon Prize card pool.
-      Currently uses DiscoverSpell as an approximation.
+      Status: DEFERRED — requires Darkmoon Prize pool (separate card set).
+      Currently uses DiscoverSpell as proxy.
 
     Test: on turn 4, player discovers a spell (prize proxy).
     """
@@ -674,8 +675,8 @@ class SoTGetEvolvingScrollScript:
       1. on_apply: set _evolving_tier = 1 on anomaly entity
       2. start_of_turn: for each player, DiscoverSpell at _evolving_tier tier
       3. Increment _evolving_tier (max 6) each turn
-    Note: full implementation needs Evolving Scroll card entity with per-card
-      tracking. Currently uses DiscoverSpell of increasing tier as approximation.
+    Status: DEFERRED — requires Evolving Scroll card entity with per-card
+      tracking engine subsystem. Uses DiscoverSpell of increasing tier as proxy.
 
     Test: each turn, players discover spells of increasing tiers.
     """
@@ -893,7 +894,8 @@ class UpgradeDiscoverPrizeAnomalyScript:
     Formal spec:
       1. on_upgrade: for the upgrading player, DiscoverSpell at new tier
     Note: full implementation needs dedicated Darkmoon Prize card pool.
-      Currently uses DiscoverSpell as an approximation.
+      Status: DEFERRED — requires Darkmoon Prize pool (separate card set).
+      Currently uses DiscoverSpell as proxy.
 
     Test: after upgrade, player discovers a spell at the new tier.
     """
@@ -1307,7 +1309,7 @@ class RandomKeywordAnomalyScript:
                     return
                 for m in target.tavern:
                     if not m.dead:
-                        kw = random.choice(keywords)
+                        kw = game.rng.choice(keywords)
                         g.queue_action(GainKeyword(m, kw))
 
         game.register_listener(source, EventListener(
@@ -1734,7 +1736,7 @@ class GuessWinnerAnomalyScript:
         class _GuessAction(Action):
             def do(self, s, g, target=None):
                 # Auto-guess: 50% chance of correct
-                if random.random() < 0.5:
+                if g.rng.random() < 0.5:
                     for p in g.players:
                         if p.is_alive:
                             g.queue_action(GainGold(p, 3))
@@ -1772,7 +1774,7 @@ class PlayerChoiceCardScript:
                 pool = [cid for cid, data in CARDS._cards.items()
                         if data.cardtype == 4 and not cid.startswith("EXAMPLE")]
                 if pool:
-                    source._chosen_card = random.choice(pool)
+                    source._chosen_card = game.rng.choice(pool)
 
         class _EoTAction(Action):
             def do(self, s, g, target=None):
@@ -1827,8 +1829,9 @@ class SoTDeepBluesAnomalyScript:
       1. on_apply: set _deep_blue_counter = 1 on anomaly entity
       2. start_of_turn: for each player, GetBloodGem × 2 (proxy for Deep Blue)
       3. Increment _deep_blue_counter each turn
-    Note: full implementation needs Deep Blue spell card with per-use
-      improve tracking. Currently uses Blood Gems as an approximation.
+    Status: DEFERRED — requires Deep Blue spell card with per-use improve
+      tracking engine subsystem. Uses Blood Gems as proxy (not identical:
+      Blood Gems don't improve with each use like Deep Blues do).
 
     Test: each turn, players get 2 Blood Gems representing Deep Blues.
     """
@@ -2074,7 +2077,7 @@ class TwistExtraRandomTurnScript:
     @staticmethod
     def on_apply(source, game):
         import random
-        extra_turn = random.randint(5, 12)
+        extra_turn = game.rng.randint(5, 12)
 
         def _extra_twist(g, t):
             for p in g.players:
@@ -2295,6 +2298,10 @@ ANOMALY_SCRIPT_REGISTRY: dict = {
     "BG34_Anomaly_805": TwistPoolEntryScript,
     "BG34_Anomaly_809": TwistExtraRandomTurnScript,
 
+    # ── DEFERRED: Missing text data ──
+    "BG31_Anomaly_111": DeferredAnomalyScript,     # Elven Elite
+    "BG31_Anomaly_112": DeferredAnomalyScript,     # Incubation Mutation
+    "BG31_Anomaly_114": DeferredAnomalyScript,     # Factory Line
     # ── OUT_OF_SCOPE: Duos ──
     "BGDUO_Anomaly_003": DeferredAnomalyScript,
     "BGDUO_Anomaly_005": DeferredAnomalyScript,

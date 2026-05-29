@@ -49,12 +49,17 @@ class Game:
     Main game controller for a Battlegrounds match.
     """
 
-    def __init__(self, players: List[Player], card_db=None):
+    def __init__(self, players: List[Player], card_db=None, seed: int = None):
         self.players = players
         self.card_db = card_db
         self.turn: int = 0
+        # Per-game random state — set seed for deterministic replay.
+        self.rng = random.Random(seed) if seed is not None else random.Random()
+        self._seed = seed
         self.step: Step = Step.INVALID
         self.state: State = State.INVALID
+        # Combat event log for audit/demo
+        self._combat_event_log: List[dict] = []
         self._action_queue: List[Tuple[Action, BaseEntity, Optional[BaseEntity]]] = []
         self._event_listeners: List[Tuple[BaseEntity, EventListener]] = []
         self._next_entity_id = 1
@@ -63,6 +68,7 @@ class Game:
         self._deferred_actions: List[Tuple[Player, Action]] = []
         self._turn_schedule: dict = {}   # turn → list of callbacks
         self._combat_death_log: List[Minion] = []
+        self._combat_summon_log: List[Minion] = []
         self.in_combat: bool = False
         self.active_player: Optional[Player] = None  # Current active player during recruit
         self.minion_pool = None  # Lazy init via init_pool()
@@ -70,7 +76,10 @@ class Game:
         self.active_anomaly = None  # Optional Anomaly entity (game-wide modifier)
         self.active_tribes: Optional[set] = None  # Set of playable tribes (None = all, unset)
         self._combat_pairs: List[Tuple[Player, Player]] = []  # (player, opponent) per combat
+        self._current_combat_opponents: Dict[Player, Player] = {}
         self._pending_targeted_queue: list = []  # TargetedActions awaiting target selection
+        self._pending_choice = None  # Optional PendingChoice — discover/choose awaiting resolution
+        self._auto_resolve_choices: bool = True  # Auto-resolve pending choices in heuristic/test mode
 
         # Combat memory: per-player per-opponent last-seen board snapshots.
         # combat_memory[player_id][opponent_id] = CombatRecord
@@ -85,12 +94,66 @@ class Game:
         for p in self.players:
             p.game = self
 
+    # ── Deep state snapshot / restore for MCTS search ──────────────────────
+
+    def snapshot_player_state(self, player: Player) -> dict:
+        """Deep snapshot of a player's mutable state for safe search restore.
+
+        Snaps the player's board, hand, tavern and all their entities' tags,
+        buffs, and script overrides. This allows MCTS to mutate entity state
+        during forward simulation and then perfectly restore.
+
+        Returns a dict that can be passed to restore_player_state().
+        """
+        def _snap_entity(e) -> dict:
+            return e.snapshot()  # BaseEntity.snapshot()
+
+        def _snap_list(lst: list) -> list:
+            return [(_snap_entity(e), e) for e in lst]
+
+        return {
+            "gold": player.gold,
+            "health": player.health,
+            "armor": player.armor,
+            "tavern_tier": player.tavern_tier,
+            "board": _snap_list(player.board),
+            "hand": _snap_list(player.hand),
+            "tavern": _snap_list(player.tavern),
+            "tags": {tag: player.get_tag(tag, 0) for tag in (
+                GameTag.HERO_POWER_USED,
+                GameTag.HERO_POWER_EXTRA_USES,
+                GameTag.FREE_REFRESH_REMAINING,
+                GameTag.FROZEN,
+                GameTag.TAVERN_UPGRADE_COST,
+            )},
+        }
+
+    def restore_player_state(self, player: Player, saved: dict) -> None:
+        """Restore player state from a snapshot taken by snapshot_player_state()."""
+        player.gold = saved["gold"]
+        player.health = saved["health"]
+        player.armor = saved["armor"]
+        player.tavern_tier = saved["tavern_tier"]
+
+        def _restore_list(lst: list, snaps: list) -> None:
+            lst.clear()
+            for snap, entity in snaps:
+                entity.restore_snapshot(snap)
+                lst.append(entity)
+
+        _restore_list(player.board, saved["board"])
+        _restore_list(player.hand, saved["hand"])
+        _restore_list(player.tavern, saved["tavern"])
+
+        for tag, val in saved["tags"].items():
+            player.set_tag(tag, val)
+
     def init_pool(self) -> None:
         """Initialize the shared minion and spell pools. Call after card_db is set."""
         from hsrl.core.minion_pool import MinionPool
         from hsrl.core.spell_pool import SpellPool
-        self.minion_pool = MinionPool(self.card_db)
-        self.spell_pool = SpellPool(self.card_db)
+        self.minion_pool = MinionPool(self.card_db, rng=self.rng)
+        self.spell_pool = SpellPool(self.card_db, rng=self.rng)
 
     def refresh_tavern(self, player: Player, preserve_frozen: bool = False) -> None:
         """Refresh Bob's tavern offerings for a player.
@@ -195,6 +258,9 @@ class Game:
         from hsrl.core.actions import SpendGold
         if minion not in player.tavern:
             return
+        # Hand must have room before spending gold (standard BG rule)
+        if len(player.hand) >= MAX_HAND_SIZE:
+            return
         cost = minion.get_tag(GameTag.COST, 3)
         # Anomaly: minions cost equals their tier (No Tier 1, cost = tier)
         anomaly = self.active_anomaly
@@ -206,9 +272,12 @@ class Game:
         # Electrode Attractor: magnetic mechs cost (2)
         if minion.has_tag(GameTag.MAGNETIC) and player.get_tag(GameTag.MAGNETIC_COST_OVERRIDE, 0) > 0:
             cost = player.get_tag(GameTag.MAGNETIC_COST_OVERRIDE)
-        # Pilgrimp Sticker: one demon per turn buyable with health
-        health_cost_demon = (player.get_tag(GameTag.HEALTH_COST_DEMON, 0) > 0
-                             and minion.has_tag(GameTag.RACE) and minion.race == Race.DEMON)
+        # Health cost: Pilgrimp Sticker (player aura) or Leeching Felhound (self)
+        health_cost_demon = (
+            minion.has_tag(GameTag.HEALTH_COST_DEMON)
+            or (player.get_tag(GameTag.HEALTH_COST_DEMON, 0) > 0
+                and minion.has_tag(GameTag.RACE) and minion.race == Race.DEMON)
+        )
         if health_cost_demon and player.health > cost:
             from hsrl.core.actions import DealDamageToHero
             self.queue_action(DealDamageToHero(player, cost))
@@ -221,11 +290,6 @@ class Game:
         current = player.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0)
         player.set_tag(GameTag.GOLD_SPENT_THIS_TURN, current + cost)
         player.tavern.remove(minion)
-        if len(player.hand) >= MAX_HAND_SIZE:
-            # Hand is full — minion is removed from tavern but not added to hand
-            minion.zone = Zone.REMOVED
-            self.resolve_queue()
-            return
         minion.zone = Zone.HAND
         player.hand.append(minion)
         # Minion is already removed from pool during refresh_tavern
@@ -256,6 +320,9 @@ class Game:
         from hsrl.core.actions import SpendGold
         if spell not in player.tavern:
             return
+        # Hand must have room before spending gold
+        if len(player.hand) >= MAX_HAND_SIZE:
+            return
         cost = spell.get_tag(GameTag.COST, 0)
         # Apply NEXT_SPELL_COST_REDUCTION discount
         discount = player.get_tag(GameTag.NEXT_SPELL_COST_REDUCTION, 0)
@@ -277,10 +344,6 @@ class Game:
         if discount > 0:
             player.set_tag(GameTag.NEXT_SPELL_COST_REDUCTION, 0)
         player.tavern.remove(spell)
-        if len(player.hand) >= MAX_HAND_SIZE:
-            spell.zone = Zone.REMOVED
-            self.resolve_queue()
-            return
         spell.zone = Zone.HAND
         player.hand.append(spell)
         self.resolve_queue()
@@ -529,10 +592,17 @@ class Game:
     def get_opponent(self, player: Player) -> Optional[Player]:
         """Get the current combat opponent.
         In full game this would use matchup system; here we pick a random alive opponent."""
+        current = self.get_current_combat_opponent(player)
+        if current is not None:
+            return current
         candidates = [p for p in self.players if p is not player and p.is_alive]
         if not candidates:
             return None
-        return random.choice(candidates)
+        return self.rng.choice(candidates)
+
+    def get_current_combat_opponent(self, player: Player) -> Optional[Player]:
+        """Return the opponent for the combat pair currently being resolved."""
+        return self._current_combat_opponents.get(player)
 
     # ── Summoning ──
 
@@ -548,10 +618,6 @@ class Game:
             position = len(player.board)
         player.board.insert(position, minion)
         self._update_zone_positions(player.board)
-        # Trigger on_summon script (for registering event listeners)
-        on_summon_action = minion.on_summon
-        if on_summon_action:
-            self.queue_action(on_summon_action, source=minion)
         # Broadcast ELEMENTAL_PLAYED for "Improves after playing an Elemental" cards
         if minion.race == Race.ELEMENTAL:
             self.broadcast(ELEMENTAL_PLAYED, minion, player)
@@ -564,6 +630,11 @@ class Game:
         # Broadcast MINION_PLAYED for "after you play a card" effects
         # (One-Amalgam Tour Group, Primitive Painter, etc.)
         self.broadcast(MINION_PLAYED, minion, player)
+        # Trigger on_summon script AFTER broadcasts so "After you play X"
+        # listeners don't catch the minion's own play event.
+        on_summon_action = minion.on_summon
+        if on_summon_action:
+            self.queue_action(on_summon_action, source=minion)
     def play_minion(self, player: Player, minion: Minion,
                     position: Optional[int] = None,
                     magnetic_target: Optional[Minion] = None) -> None:
@@ -580,6 +651,19 @@ class Game:
 
         # Magnetic attachment path
         if magnetic_target is not None and minion.magnetic:
+            # Validate target: same controller, alive on board, valid race
+            target_race = magnetic_target.race
+            if magnetic_target.controller != player:
+                return
+            if magnetic_target.dead or magnetic_target.zone != Zone.PLAY:
+                return
+            card_id = minion.get_tag(GameTag.CARD_ID)
+            if card_id == "BG31_859":
+                # Technical Element: can magnetize to Mechs and Elementals
+                if target_race not in (Race.MECH, Race.ELEMENTAL):
+                    return
+            elif target_race != Race.MECH:
+                return
             player.hand.remove(minion)
             from hsrl.core.actions import AttachMagnetic
             self.queue_action(AttachMagnetic(minion, magnetic_target))
@@ -634,11 +718,17 @@ class Game:
 
         Counts non-golden copies of the same card_id across hand and board.
         When 3 are found, triggers _combine_triple.
+
+        Special case: Elemental of Surprise (BG26_175) can triple with any
+        Elemental as a substitute for one copy.
         """
         card_id = entity.get_tag(GameTag.CARD_ID)
         if not card_id:
             return
         if entity.is_golden:
+            return
+        # Only pool minions can triple; Blood Gems, spells, and tokens cannot.
+        if entity.get_tag(GameTag.CARDTYPE) != CardType.MINION:
             return
 
         copies = []
@@ -650,11 +740,39 @@ class Game:
             if m.get_tag(GameTag.CARD_ID) == card_id:
                 copies.append(m)
 
-        # Designer Eyepatch: pirates only need 2 copies (entity + 1 other)
         need_copies = 1 if (player.get_tag(GameTag.PIRATES_NEED_2_COPIES) and
                             entity.race == Race.PIRATE) else 2
+
         if len(copies) >= need_copies:
             self._combine_triple(player, [entity] + copies[:need_copies])
+            return
+
+        # Elemental of Surprise: can triple with any Elemental as substitute
+        if card_id == "BG26_175" and len(copies) == 1:
+            # Have 2x Elemental of Surprise, need 1 more Elemental
+            for m in player.hand + player.board:
+                if m.uuid == entity.uuid or m in copies:
+                    continue
+                if m.is_golden:
+                    continue
+                if m.race == Race.ELEMENTAL and m.get_tag(GameTag.CARDTYPE) == CardType.MINION:
+                    copies.append(m)
+                    break
+            if len(copies) >= 2:
+                self._combine_triple(player, [entity] + copies[:2])
+
+        elif card_id != "BG26_175" and entity.race == Race.ELEMENTAL and len(copies) == 1:
+            # Have 2x of this Elemental, check for Elemental of Surprise as 3rd
+            for m in player.hand + player.board:
+                if m.uuid == entity.uuid or m in copies:
+                    continue
+                if m.is_golden:
+                    continue
+                if m.get_tag(GameTag.CARD_ID) == "BG26_175":
+                    copies.append(m)
+                    break
+            if len(copies) >= 2:
+                self._combine_triple(player, [entity] + copies[:2])
 
     def _combine_triple(self, player: Player,
                         copies: List["Minion"]) -> None:
@@ -714,16 +832,20 @@ class Game:
     def _grant_triple_reward(self, player: Player, golden) -> None:
         """Grant a Triple Reward Discover when a golden minion is played.
 
-        Discovers a minion from the reward tier (tier+1 of the original,
-        capped at 6). Clears TRIPLE_REWARD_TIER after use.
+        Normally discovers a minion from the reward tier (tier+1 of original).
+        If TRIPLE_REWARD_IS_PRIZE is set (Corrupted Tome), discovers a Prize instead.
         """
-        from hsrl.core.actions import DiscoverMinion
-
         reward_tier = golden.get_tag(GameTag.TRIPLE_REWARD_TIER,
                                      golden.tech_level + 1)
         golden.set_tag(GameTag.TRIPLE_REWARD_TIER, 0)
 
-        reward = DiscoverMinion(player, max_tier=reward_tier)
+        if player.get_tag(GameTag.TRIPLE_REWARD_IS_PRIZE, False):
+            from hsrl.core.actions import DiscoverPrize
+            reward = DiscoverPrize(player)
+        else:
+            from hsrl.core.actions import DiscoverMinion
+            reward = DiscoverMinion(player, max_tier=reward_tier)
+
         self.queue_action(reward)
         self.resolve_queue()
 
@@ -769,20 +891,24 @@ class Game:
             # Log death for combat tracking (Kangor's Apprentice etc.)
             self._combat_death_log.append(m)
 
-            # Trigger deathrattle
+            # Trigger Reborn (spec §6: Reborn BEFORE Deathrattle)
+            if m.reborn and not m.has_tag(GameTag.REBORN_USED):
+                from hsrl.core.actions import Reborn
+                self.queue_action(Reborn(m), source=m)
+
+            # Trigger deathrattle (spec §6: after Reborn)
             dr = m.deathrattle
             if dr:
                 self.broadcast(DEATHRATTLE_TRIGGER, m)
+                # Increment per-player deathrattle counter (Falling Sky Golem, etc.)
+                if m.controller:
+                    total = m.controller.get_tag(GameTag.DEATHRATTLE_TRIGGERED, 0)
+                    m.controller.set_tag(GameTag.DEATHRATTLE_TRIGGERED, total + 1)
                 if isinstance(dr, (list, tuple)):
                     for action in dr:
                         self.queue_action(action, source=m)
                 else:
                     self.queue_action(dr, source=m)
-
-            # Trigger Reborn
-            if m.reborn and not m.has_tag(GameTag.REBORN_USED):
-                from hsrl.core.actions import Reborn
-                self.queue_action(Reborn(m), source=m)
 
             # Increment Avenge counters for friendly minions
             from hsrl.core.actions import AvengeIncrement
@@ -815,8 +941,13 @@ class Game:
             self._check_deaths(_wave, _total_actions)
 
     def resolve_queue(self) -> None:
-        """Public entry point — process all queued actions."""
+        """Public entry point — process all queued actions.
+        Auto-resolves pending discover choices unless disabled by RL env.
+        """
         self._resolve_queue(0)
+        if self._auto_resolve_choices and self._pending_choice is not None:
+            import random
+            self.resolve_pending_choice(self.rng.randrange(len(self._pending_choice.options)))
 
     def has_pending_target(self) -> bool:
         """Check if a TargetedAction is awaiting target selection."""
@@ -848,7 +979,7 @@ class Game:
             action.target = candidates[target_index]
         elif candidates:
             import random
-            action.target = random.choice(candidates)
+            action.target = self.rng.choice(candidates)
         else:
             return len(self._pending_targeted_queue) > 0
         # Re-queue the TargetedAction — it will now execute with target set
@@ -869,14 +1000,14 @@ class Game:
         action = self._pending_targeted_queue.pop(0)
         candidates = action.candidates
         if candidates:
-            action.target = random.choice(candidates)
+            action.target = self.rng.choice(candidates)
             self.queue_action(action)
             self.resolve_queue()
         while self._pending_targeted_queue:
             a = self._pending_targeted_queue.pop(0)
             c = a.candidates
             if c:
-                a.target = random.choice(c)
+                a.target = self.rng.choice(c)
                 self.queue_action(a)
                 self.resolve_queue()
 
@@ -926,7 +1057,7 @@ class Game:
             return
 
         import random
-        anomaly_id = random.choice(available_ids)
+        anomaly_id = self.rng.choice(available_ids)
         anomaly_data = self.card_db.get(anomaly_id)
         anomaly = Anomaly(anomaly_data, game=self)
         self.active_anomaly = anomaly
@@ -963,7 +1094,7 @@ class Game:
         playable = [Race.BEAST, Race.DEMON, Race.DRAGON, Race.ELEMENTAL,
                      Race.MECH, Race.MURLOC, Race.NAGA, Race.PIRATE,
                      Race.QUILBOAR, Race.UNDEAD]
-        self.active_tribes = set(random.sample(playable, 5))
+        self.active_tribes = set(self.rng.sample(playable, 5))
 
     # ── Trinket offering ─────────────────────────────────────────────────────
 
@@ -1163,12 +1294,12 @@ class Game:
         offered: List[str] = []
         if tribe_pool:
             n_tribe = min(3, len(tribe_pool))
-            offered.extend(random.sample(tribe_pool, n_tribe))
+            offered.extend(self.rng.sample(tribe_pool, n_tribe))
 
         # Fill remaining slots from neutral pool
         needed = 4 - len(offered)
         if needed > 0 and neutral_pool:
-            offered.extend(random.sample(neutral_pool, min(needed, len(neutral_pool))))
+            offered.extend(self.rng.sample(neutral_pool, min(needed, len(neutral_pool))))
 
         # If still short, pad from any filtered candidate
         if len(offered) < 4:
@@ -1176,7 +1307,7 @@ class Game:
             remaining = [c for c in all_filtered if c not in offered]
             needed = 4 - len(offered)
             if remaining:
-                offered.extend(random.sample(remaining, min(needed, len(remaining))))
+                offered.extend(self.rng.sample(remaining, min(needed, len(remaining))))
 
         if len(offered) < 4:
             # Fallback: use all available trinkets (ignore type filter)
@@ -1185,7 +1316,7 @@ class Game:
             ) if cid not in offered]
             needed = 4 - len(offered)
             if all_ids:
-                offered.extend(random.sample(all_ids, min(needed, len(all_ids))))
+                offered.extend(self.rng.sample(all_ids, min(needed, len(all_ids))))
 
         if not offered:
             return
@@ -1200,7 +1331,7 @@ class Game:
             ]
             if cheap_candidates:
                 offered.sort(key=lambda cid: self._get_trinket_cost(cid))
-                offered[-1] = random.choice(cheap_candidates)
+                offered[-1] = self.rng.choice(cheap_candidates)
 
         player._pending_trinket_offers = offered
         self.broadcast("TRINKETS_OFFERED", player, offered)
@@ -1243,11 +1374,17 @@ class Game:
         player.set_tag(trinket_slot, True)
         player._pending_trinket_offers = []
 
-        # Register on_summon listener if present
+        # Trigger on_summon and queue returned actions
         if trinket_data.scripts:
             fn = getattr(trinket_data.scripts, "on_summon", None)
             if fn and callable(fn):
-                fn(trinket, self)
+                result = fn(trinket, self)
+                if result is not None:
+                    if isinstance(result, (list, tuple)):
+                        for a in result:
+                            self.queue_action(a, source=trinket)
+                    elif isinstance(result, Action):
+                        self.queue_action(result, source=trinket)
 
         self.broadcast("TRINKET_PURCHASED", player, chosen_id)
         self.resolve_queue()
@@ -1279,8 +1416,8 @@ class Game:
             return
 
         import random
-        quest_id = random.choice(available_ids)
-        reward_id = random.choice(reward_ids)
+        quest_id = self.rng.choice(available_ids)
+        reward_id = self.rng.choice(reward_ids)
 
         quest = self.card_db.create_quest(quest_id, game=self)
         quest.controller = player
@@ -1425,25 +1562,184 @@ class Game:
                     m._script_overrides.pop("deathrattle", None)
                     m.set_tag(GameTag.TEMPORARY_DEATHRATTLE, False)
 
+    def _pair_combat_players(self, alive: list) -> list:
+        """Pair alive players for combat, avoiding recent rematches when possible.
+
+        Returns list of (player, opponent) tuples. If odd, one player faces
+        a ghost (None opponent + ghost board).
+        """
+        import random
+        # Track opponent history (last 2 opponents per player)
+        if not hasattr(self, '_opponent_history'):
+            self._opponent_history: dict = {p: [] for p in self.players}
+
+        paired = set()
+        pairs = []
+
+        # Greedy pairing: for each unpaired player, find best available opponent
+        unpaired = list(alive)
+        self.rng.shuffle(unpaired)
+
+        while len(unpaired) >= 2:
+            p1 = unpaired[0]
+            best = None
+            for p2 in unpaired[1:]:
+                if p2 in self._opponent_history.get(p1, []):
+                    continue  # recent rematch — try to avoid
+                best = p2
+                break
+            if best is None:
+                best = unpaired[1]  # fallback: forced rematch
+
+            pairs.append((p1, best))
+            self._opponent_history.setdefault(p1, []).append(best)
+            self._opponent_history.setdefault(best, []).append(p1)
+            # Keep only last 2 opponents in history
+            if len(self._opponent_history[p1]) > 2:
+                self._opponent_history[p1] = self._opponent_history[p1][-2:]
+            if len(self._opponent_history[best]) > 2:
+                self._opponent_history[best] = self._opponent_history[best][-2:]
+            unpaired.remove(p1)
+            unpaired.remove(best)
+
+        if unpaired:
+            # Odd player — faces ghost
+            ghost_player = unpaired[0]
+            pairs.append((ghost_player, None))
+
+        return pairs
+
+    def _build_ghost_board(self, player: Player) -> list:
+        """Build a ghost opponent board for the unpaired player.
+
+        Uses the last board of a dead player, or a copy of a random alive
+        player's board (excluding the current player).
+        """
+        import random
+        # Prefer dead players' boards
+        dead = [p for p in self.players if not p.is_alive]
+        for dp in dead:
+            ghost_board = getattr(dp, 'last_combat_board', None)
+            if ghost_board:
+                return [self._snapshot_minion_for_combat(m) for m in ghost_board
+                        if not m.dead]
+
+        # Fallback: copy a random alive player's board
+        candidates = [p for p in self.players if p.is_alive and p is not player]
+        if candidates:
+            donor = self.rng.choice(candidates)
+            return [self._snapshot_minion_for_combat(m)
+                    for m in donor.board if not m.dead]
+
+        # Last resort: empty
+        return []
+
     def _start_combat_phase(self) -> None:
         self.step = Step.COMBAT
         self.broadcast(COMBAT_BEGIN, self.turn)
 
-        # Pair up players for combat (simplified: random pairs)
         alive_players = [p for p in self.players if p.is_alive]
-        random.shuffle(alive_players)
         self._combat_pairs = []
 
-        # Simple pairing: if odd number, one player faces a ghost (not implemented)
-        for i in range(0, len(alive_players), 2):
-            p1 = alive_players[i]
-            p2 = alive_players[i + 1] if i + 1 < len(alive_players) else None
-            if p2:
+        # Snapshot each player's board BEFORE combat clones
+        for p in self.players:
+            if p.is_alive:
+                p.last_combat_board = [m for m in p.board if not m.dead]
+
+        pairs = self._pair_combat_players(alive_players)
+
+        for p1, p2 in pairs:
+            if p2 is not None:
                 self._combat_pairs.append((p1, p2))
                 self._combat_pairs.append((p2, p1))
                 self._run_combat(p1, p2)
+            else:
+                # Ghost combat
+                ghost_board = self._build_ghost_board(p1)
+                self._combat_pairs.append((p1, None))
+                self._run_ghost_combat(p1, ghost_board)
 
         self._end_combat_phase()
+
+    def _run_ghost_combat(self, player: Player, ghost_board: list) -> None:
+        """Run combat between a player and a ghost opponent.
+
+        The ghost board fights normally but the ghost "player" takes no damage.
+        Player deals damage to the ghost and takes damage from surviving
+        ghost minions.
+        """
+        if not ghost_board:
+            # Empty ghost — player wins, no damage dealt or taken
+            return
+
+        self.in_combat = True
+
+        # Save original board
+        original_board = list(player.board)
+
+        # Replace with combat clones
+        player.board = [self._snapshot_minion_for_combat(m) for m in original_board]
+
+        board_player = player.get_board_minions()
+        for m in board_player + ghost_board:
+            m.reset_combat_state()
+
+        self._combat_death_log = []
+        self._combat_summon_log = []
+
+        # Start of Combat for player only
+        self._trigger_start_of_combat(board_player, player)
+
+        # Determine first attacker
+        if len(board_player) > len(ghost_board):
+            attacker_side, defender_side = board_player, ghost_board
+        elif len(ghost_board) > len(board_player):
+            attacker_side, defender_side = ghost_board, board_player
+        else:
+            if self.rng.choice([True, False]):
+                attacker_side, defender_side = board_player, ghost_board
+            else:
+                attacker_side, defender_side = ghost_board, board_player
+
+        # Combat loop
+        for _ in range(1000):
+            attacker = self._get_next_attacker(attacker_side)
+            if attacker is None:
+                break
+            target = self._choose_attack_target(defender_side)
+            if target is None:
+                break
+
+            from hsrl.core.actions import Attack
+            self.queue_action(Attack(attacker, target))
+            self.resolve_queue()
+
+            attacker_side, defender_side = defender_side, attacker_side
+
+            living_player = [m for m in board_player if not m.dead]
+            living_ghost = [m for m in ghost_board if not m.dead]
+            if not living_player or not living_ghost:
+                break
+
+        living_player = [m for m in board_player if not m.dead]
+
+        # Damage: ghost survivors deal damage to player
+        damage = 0
+        for m in ghost_board:
+            if not m.dead:
+                damage += m.tech_level
+        # Apply damage cap
+        cap = self._get_damage_cap()
+        if cap is not None:
+            damage = min(damage, cap)
+
+        if damage > 0:
+            self._deal_player_damage(player, damage)
+
+        # Restore original board
+        player.board = original_board
+
+        self.in_combat = False
 
     def _snapshot_minion_for_combat(self, minion: Minion) -> Minion:
         """Create a combat clone of a minion with deep-copied mutable state.
@@ -1465,6 +1761,11 @@ class Game:
     def _run_combat(self, player_a: Player, player_b: Player) -> None:
         """Run a single combat between two players."""
         self.in_combat = True
+        previous_combat_opponents = self._current_combat_opponents
+        self._current_combat_opponents = {
+            player_a: player_b,
+            player_b: player_a,
+        }
 
         # Reset anomaly SoC guard so effects fire once per combat
         if self.active_anomaly is not None and not isinstance(self.active_anomaly, bool):
@@ -1507,12 +1808,22 @@ class Game:
             attacker_player, defender_player = player_b, player_a
         else:
             # Random
-            if random.choice([True, False]):
+            if self.rng.choice([True, False]):
                 attacker_side, defender_side = board_a, board_b
                 attacker_player, defender_player = player_a, player_b
             else:
                 attacker_side, defender_side = board_b, board_a
                 attacker_player, defender_player = player_b, player_a
+
+        # Log combat start
+        self._combat_event_log.append({
+            'event': 'combat_start',
+            'turn': self.turn,
+            'p1': player_a.get_tag(GameTag.NAME) or str(player_a.entity_id), 'p2': player_b.get_tag(GameTag.NAME) or str(player_b.entity_id),
+            'p1_board': [f"{m.atk}/{m.health}" for m in board_a if not m.dead],
+            'p2_board': [f"{m.atk}/{m.health}" for m in board_b if not m.dead],
+            'first_attacker': attacker_player.get_tag(GameTag.NAME) or str(attacker_player.entity_id),
+        })
 
         # Combat loop
         round_limit = 1000  # Prevent infinite loops
@@ -1528,8 +1839,24 @@ class Game:
                 break
 
             from hsrl.core.actions import Attack
+            att_atk, att_hp = attacker.atk, attacker.health
+            def_atk, def_hp = target.atk, target.health
             self.queue_action(Attack(attacker, target))
             self.resolve_queue()
+            # Log attack outcome
+            atk_alive = not attacker.dead
+            def_alive = not target.dead
+            self._combat_event_log.append({
+                'event': 'attack',
+                'attacker': attacker.get_tag(GameTag.NAME) or '?',
+                'atk_before': f"{att_atk}/{att_hp}",
+                'atk_after': f"{attacker.atk}/{attacker.health}",
+                'atk_dead': not atk_alive,
+                'defender': target.get_tag(GameTag.NAME) or '?',
+                'def_before': f"{def_atk}/{def_hp}",
+                'def_after': f"{target.atk}/{target.health}",
+                'def_dead': not def_alive,
+            })
 
             # Swap sides
             self._last_defender = defender_player
@@ -1544,6 +1871,17 @@ class Game:
 
         # Calculate damage
         self._resolve_combat_damage(player_a, player_b, board_a, board_b)
+
+        # Log combat end
+        living_a = [m for m in board_a if not m.dead]
+        living_b = [m for m in board_b if not m.dead]
+        winner = player_a if living_a else (player_b if living_b else None)
+        self._combat_event_log.append({
+            'event': 'combat_end',
+            'survivors_p1': len(living_a), 'survivors_p2': len(living_b),
+            'p1_alive': player_a.is_alive, 'p2_alive': player_b.is_alive,
+            'winner': winner.get_tag(GameTag.NAME) or str(winner.entity_id) if winner else 'draw',
+        })
 
         # Tarecgosa Sticker: persist combat-gained stats for left/right dragons
         self._persist_combat_stats(player_a, board_a, original_board_a)
@@ -1562,6 +1900,7 @@ class Game:
         # ── Save combat memory for POMDP value network ──
         self._save_combat_record(player_a, player_b, board_a, board_b)
 
+        self._current_combat_opponents = previous_combat_opponents
         self.in_combat = False
 
     def _persist_combat_stats(self, player, combat_board, original_board):
@@ -1702,8 +2041,8 @@ class Game:
             return None
         taunts = [m for m in living if m.taunt]
         if taunts:
-            return random.choice(taunts)
-        return random.choice(living)
+            return self.rng.choice(taunts)
+        return self.rng.choice(living)
 
     def _dispatch_trinket_event(self, player: Player, method_name: str, **kwargs) -> None:
         """Call method_name on all player trinkets that have it.
@@ -1986,6 +2325,10 @@ class Game:
         if player.health <= 0:
             player.set_tag(GameTag.PLAYSTATE, PlayState.LOST)
             player._death_turn = self.turn
+            if not hasattr(self, '_death_counter'):
+                self._death_counter = 0
+            self._death_counter += 1
+            player._death_order = self._death_counter
             self.broadcast(PLAYER_DEFEATED, player)
 
     def _end_combat_phase(self) -> None:
@@ -2023,7 +2366,7 @@ class Game:
         import random
         for p in self.players:
             if p._buddy_card_id is None:
-                p._buddy_card_id = random.choice(buddy_pool)
+                p._buddy_card_id = self.rng.choice(buddy_pool)
 
     def _fill_buddy_meters(self) -> None:
         """Fill buddy meters after combat. Each player's surviving minions
@@ -2174,6 +2517,19 @@ class Game:
             # Auto-resolve any pending targeted actions randomly
             while self._pending_targeted_queue:
                 self.auto_resolve_pending_target()
+            # Auto-resolve pending discover/choice randomly for heuristic players
+            while self._pending_choice is not None:
+                self.resolve_pending_choice(self.rng.randrange(len(self._pending_choice.options)))
+
+    def resolve_pending_choice(self, index: int) -> None:
+        """Resolve the current PendingChoice with the given option index.
+        Called by the RL agent (or heuristic bot) to make a discover selection.
+        """
+        if self._pending_choice is None:
+            return
+        self._pending_choice.resolve(index, self)
+        self._pending_choice = None
+        self.resolve_queue()
 
     @staticmethod
     def _board_score(board: list, player: Optional[Player] = None) -> int:
@@ -2245,7 +2601,8 @@ class Game:
 
             # ── Evaluate every affordable tavern minion ──
             affordable = [m for m in player.tavern
-                          if not m.dead and m.get_tag(GameTag.COST, 3) <= player.gold
+                          if not m.dead and m.get_tag(GameTag.CARDTYPE, CardType.INVALID) == CardType.MINION
+                          and m.get_tag(GameTag.COST, 3) <= player.gold
                           and len(player.hand) < MAX_HAND_SIZE]
 
             best_score = current_score
@@ -2272,15 +2629,33 @@ class Game:
                                 best_score = score
                                 best_action = ("sell_buy_play", candidate, weakest)
 
+            # ── Evaluate affordable tavern spells ──
+            affordable_spells = [m for m in player.tavern
+                                 if not m.dead and m.get_tag(GameTag.CARDTYPE, CardType.INVALID) == CardType.SPELL
+                                 and m.get_tag(GameTag.COST, 0) <= player.gold
+                                 and len(player.hand) < MAX_HAND_SIZE]
+
+            for spell in affordable_spells:
+                spell_cost = spell.get_tag(GameTag.COST, 0)
+                spell_score = self._estimate_spell_value(spell, player, board, current_score)
+                if spell_score > best_score:
+                    best_score = spell_score
+                    best_action = ("buy_play_spell", spell, None)
+
             if best_action:
                 action_type, buy_target, replace_target = best_action
                 if action_type == "sell_buy_play":
                     self.sell_minion(player, replace_target)
-                    # Re-check gold after sell
                     if player.gold < buy_target.get_tag(GameTag.COST, 3):
                         continue
+                if action_type == "buy_play_spell":
+                    self.buy_spell(player, buy_target)
+                    spell_hand = [m for m in player.hand
+                                  if m.get_tag(GameTag.CARDTYPE) == CardType.SPELL]
+                    if spell_hand:
+                        self.play_spell(player, spell_hand[-1])
+                    continue
                 self.buy_minion(player, buy_target)
-                # Play the minion we just bought
                 minion_hand = [m for m in player.hand
                                if m.get_tag(GameTag.CARDTYPE) == CardType.MINION]
                 if minion_hand and len(player.get_board_minions()) < 7:
@@ -2309,6 +2684,63 @@ class Game:
             if len(player.get_board_minions()) < 7:
                 self.play_minion(player, m)
 
+        # ── Play any remaining spells from hand ──
+        spell_hand = [m for m in player.hand
+                      if m.get_tag(GameTag.CARDTYPE) == CardType.SPELL]
+        for m in spell_hand:
+            self.play_spell(player, m)
+
+    @staticmethod
+    def _estimate_spell_value(spell, player, board, current_score) -> float:
+        """Estimate the board score after buying and playing a tavern spell.
+
+        For simple stat buffs, estimates the net board stat increase.
+        For utility spells (gold, refresh, discover), returns a small
+        positive bonus to encourage purchase.
+        """
+        from hsrl.core.enums import CardType
+        spell_cost = spell.get_tag(GameTag.COST, 0)
+        spell_name = spell.get_tag(GameTag.NAME, '')
+
+        # ── Known buff spells: estimate +ATK/+HP to board ──
+        buff_spells = {
+            'Fortify': (1, 1), 'Fleeting Vigor': (2, 2),
+            'Them Apples': (1, 2), 'Azerite Empowerment': (4, 4),
+            'Sacred Gift': (5, 5), 'Corrupted Cupcakes': (3, 2),
+            "Saloons Finest": (0, 0),  # Tavern buff, skip
+        }
+        if spell_name in buff_spells:
+            atk_bonus, hp_bonus = buff_spells[spell_name]
+            board_size = len(board)
+            if board_size > 0:
+                return current_score + (atk_bonus + hp_bonus) * min(board_size, 4)
+            return current_score
+
+        # ── Tavern buff spells (buff minions in tavern) ──
+        tavern_buff_spells = {"Shiny Ring", "Might of Stormwind", "Conflagration",
+                              "Easterly Winds", "Saloons Finest", "Time Management"}
+        if spell_name in tavern_buff_spells:
+            return current_score + 2  # Small bonus for future value
+
+        # ── Gold spells: value = gold gained - cost ──
+        gold_spells = {'Gain Gold', 'Overconfidence', 'Staff of Enrichment',
+                       'Careful Investment', 'Borrowed Rope', 'Brilliant Deal'}
+        if spell_name in gold_spells or 'Gold' in spell_name:
+            gold_gain = {'Gain Gold': 2, 'Overconfidence': 3,
+                         'Staff of Enrichment': 2}.get(spell_name, 2)
+            return current_score + (gold_gain - spell_cost) * 2
+
+        # ── Discover/Get spells: modest value from card generation ──
+        discover_spells = {'Recruit a Trainee', 'Hasty Excavation', 'A New Sprout',
+                           'Portal in a Fountain', 'Portal in a Crystal',
+                           'Chefs Choice', 'Leaf Through Pages', 'Planar Telescope',
+                           'Cloning Conch', 'Spitescale Special'}
+        if spell_name in discover_spells or 'Discover' in spell_name or 'Get' in spell_name:
+            return current_score + 3
+
+        # ── Default: modest positive value for unknown spells, encourages trying ──
+        return current_score + 1
+
     def run_full_game(self, max_turns: int = 50) -> Optional[Player]:
         """Run a complete Battlegrounds game simulation.
         Returns the winning player, or None if max_turns exceeded.
@@ -2336,7 +2768,8 @@ class Game:
 
     @staticmethod
     def create_game(hero_ids: List[str], card_db=None, apply_anomaly: bool = True,
-                    hero_power_overrides: Dict[int, str] = None) -> "Game":
+                    hero_power_overrides: Dict[int, str] = None,
+                    seed: int = None) -> "Game":
         """Factory: create a Game with players from hero card IDs.
 
         Args:
@@ -2345,13 +2778,14 @@ class Game:
             apply_anomaly: Whether to apply a random anomaly
             hero_power_overrides: Optional dict mapping player index to
                 hero power card_id override (for start-of-game choice)
+            seed: Random seed for deterministic replay
 
         Returns:
             Initialized Game ready to start.
         """
         from hsrl.core.card_db import CARDS
         db = card_db or CARDS
-        game = Game([])
+        game = Game([], seed=seed)
         game.card_db = db
         game.init_pool()
 

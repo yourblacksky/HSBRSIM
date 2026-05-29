@@ -10,7 +10,8 @@
     "card_type": 4,
     "triple_upgrade_id": 70801,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG20_100",
@@ -23,7 +24,8 @@
     "card_type": 4,
     "triple_upgrade_id": 70150,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG20_203",
@@ -36,7 +38,8 @@
     "card_type": 4,
     "triple_upgrade_id": 70155,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG20_301",
@@ -49,20 +52,22 @@
     "card_type": 4,
     "triple_upgrade_id": 70148,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG21_005",
     "dbf_id": 72067,
     "name": "Famished Felbat",
-    "health": 5,
-    "atk": 9,
+    "health": 3,
+    "atk": 6,
     "card_set": 1453,
     "card_race": 15,
     "card_type": 4,
     "triple_upgrade_id": 72824,
-    "tech_level": 6,
-    "is_pool_minion": true
+    "tech_level": 5,
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG21_014",
@@ -75,7 +80,8 @@
     "card_type": 4,
     "triple_upgrade_id": 73452,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG21_015",
@@ -88,7 +94,8 @@
     "card_type": 4,
     "triple_upgrade_id": 73453,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG21_018",
@@ -101,7 +108,8 @@
     "card_type": 4,
     "triple_upgrade_id": 74899,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG22_202",
@@ -114,7 +122,8 @@
     "card_type": 4,
     "triple_upgrade_id": 87062,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG23_002",
@@ -128,7 +137,8 @@
     "battlecry": true,
     "triple_upgrade_id": 82646,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG23_004",
@@ -142,7 +152,8 @@
     "triple_upgrade_id": 80760,
     "tech_level": 3,
     "is_pool_minion": true,
-    "spellcraft_id": 83988
+    "spellcraft_id": 83988,
+    "cost": 3
   },
   {
     "id": "BG23_007",
@@ -156,7 +167,8 @@
     "triple_upgrade_id": 80763,
     "tech_level": 4,
     "is_pool_minion": true,
-    "spellcraft_id": 84374
+    "spellcraft_id": 84374,
+    "cost": 3
   },
   {
     "id": "BG23_008",
@@ -171,7 +183,8 @@
     "triple_upgrade_id": 80764,
     "tech_level": 5,
     "is_pool_minion": true,
-    "spellcraft_id": 84362
+    "spellcraft_id": 84362,
+    "cost": 3
   },
   {
     "id": "BG23_009",
@@ -184,7 +197,8 @@
     "card_type": 4,
     "triple_upgrade_id": 80765,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG23_013",
@@ -197,7 +211,8 @@
     "card_type": 4,
     "triple_upgrade_id": 80769,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG23_017",
@@ -226,7 +241,8 @@
     "card_type": 4,
     "triple_upgrade_id": 80774,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG23_318",
@@ -239,7 +255,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 90430,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG24_005",
@@ -253,7 +270,8 @@
     "reborn": true,
     "triple_upgrade_id": 92423,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG24_009",
@@ -267,7 +285,8 @@
     "battlecry": true,
     "triple_upgrade_id": 92427,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG24_018",
@@ -279,7 +298,8 @@
     "card_type": 4,
     "triple_upgrade_id": 92436,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG24_500",
@@ -293,7 +313,8 @@
     "card_type": 4,
     "triple_upgrade_id": 95010,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG24_707",
@@ -306,7 +327,8 @@
     "card_type": 4,
     "triple_upgrade_id": 97116,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG24_715",
@@ -318,7 +340,8 @@
     "card_type": 4,
     "triple_upgrade_id": 97605,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_001",
@@ -333,7 +356,8 @@
     "reborn": true,
     "triple_upgrade_id": 95248,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_008",
@@ -346,7 +370,8 @@
     "card_type": 4,
     "triple_upgrade_id": 95262,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_009",
@@ -361,7 +386,8 @@
     "reborn": true,
     "triple_upgrade_id": 95264,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_010",
@@ -375,7 +401,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 95266,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_011",
@@ -389,7 +416,8 @@
     "battlecry": true,
     "triple_upgrade_id": 95268,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_013",
@@ -402,7 +430,8 @@
     "card_type": 4,
     "triple_upgrade_id": 95272,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BG25_016",
@@ -416,7 +445,8 @@
     "card_type": 4,
     "triple_upgrade_id": 95287,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_022",
@@ -431,7 +461,8 @@
     "reborn": true,
     "triple_upgrade_id": 95281,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_032",
@@ -444,7 +475,8 @@
     "card_type": 4,
     "triple_upgrade_id": 97536,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_034",
@@ -472,7 +504,8 @@
     "card_type": 4,
     "triple_upgrade_id": 97550,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_040",
@@ -485,7 +518,8 @@
     "card_type": 4,
     "triple_upgrade_id": 97552,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_041",
@@ -499,7 +533,8 @@
     "battlecry": true,
     "triple_upgrade_id": 97554,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_155",
@@ -513,7 +548,8 @@
     "battlecry": true,
     "triple_upgrade_id": 101595,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_354",
@@ -525,7 +561,8 @@
     "card_type": 4,
     "triple_upgrade_id": 97409,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG25_520",
@@ -538,7 +575,9 @@
     "card_type": 4,
     "triple_upgrade_id": 101558,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "health_cost_demon": true,
+    "cost": 3
   },
   {
     "id": "BG25_806",
@@ -552,7 +591,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 101591,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_135",
@@ -566,20 +606,22 @@
     "battlecry": true,
     "triple_upgrade_id": 98502,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_137",
     "dbf_id": 98509,
     "name": "Bream Counter",
-    "health": 4,
-    "atk": 4,
+    "health": 5,
+    "atk": 5,
     "card_set": 1453,
     "card_race": 14,
     "card_type": 4,
     "triple_upgrade_id": 98513,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_147",
@@ -593,7 +635,8 @@
     "magnetic": true,
     "triple_upgrade_id": 98581,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_148",
@@ -607,7 +650,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 98593,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_149",
@@ -620,7 +664,8 @@
     "card_type": 4,
     "triple_upgrade_id": 98718,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_157",
@@ -634,7 +679,8 @@
     "triple_upgrade_id": 100999,
     "tech_level": 6,
     "is_pool_minion": true,
-    "avenge": 1
+    "avenge": 1,
+    "cost": 3
   },
   {
     "id": "BG26_159",
@@ -648,7 +694,8 @@
     "battlecry": true,
     "triple_upgrade_id": 98934,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_160",
@@ -662,7 +709,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 98947,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_174",
@@ -675,7 +723,8 @@
     "card_type": 4,
     "triple_upgrade_id": 100950,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_175",
@@ -689,7 +738,8 @@
     "card_type": 4,
     "triple_upgrade_id": 101281,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_354",
@@ -702,7 +752,8 @@
     "card_type": 4,
     "triple_upgrade_id": 98950,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_360",
@@ -716,7 +767,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 100931,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_501",
@@ -730,7 +782,8 @@
     "triple_upgrade_id": 98882,
     "tech_level": 2,
     "is_pool_minion": true,
-    "spellcraft_id": 98881
+    "spellcraft_id": 98881,
+    "cost": 3
   },
   {
     "id": "BG26_502",
@@ -744,7 +797,8 @@
     "triple_upgrade_id": 98887,
     "tech_level": 3,
     "is_pool_minion": true,
-    "spellcraft_id": 98916
+    "spellcraft_id": 98916,
+    "cost": 3
   },
   {
     "id": "BG26_505",
@@ -757,7 +811,8 @@
     "card_type": 4,
     "triple_upgrade_id": 99066,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_523",
@@ -770,7 +825,8 @@
     "card_type": 4,
     "triple_upgrade_id": 99229,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_524",
@@ -783,7 +839,8 @@
     "card_type": 4,
     "triple_upgrade_id": 99220,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_525",
@@ -797,7 +854,8 @@
     "battlecry": true,
     "triple_upgrade_id": 99233,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_529",
@@ -810,7 +868,8 @@
     "card_type": 4,
     "triple_upgrade_id": 101115,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BG26_800",
@@ -824,7 +883,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 98834,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_801",
@@ -839,7 +899,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 98830,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_802",
@@ -852,7 +913,8 @@
     "card_type": 4,
     "triple_upgrade_id": 98827,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_805",
@@ -865,7 +927,8 @@
     "card_type": 4,
     "triple_upgrade_id": 98941,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_810",
@@ -878,7 +941,8 @@
     "card_type": 4,
     "triple_upgrade_id": 98890,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_814",
@@ -892,7 +956,8 @@
     "battlecry": true,
     "triple_upgrade_id": 99012,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_817",
@@ -905,7 +970,9 @@
     "card_type": 4,
     "triple_upgrade_id": 99036,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cleave": true,
+    "cost": 3
   },
   {
     "id": "BG26_867",
@@ -919,7 +986,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 114487,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG26_ICC_901",
@@ -945,7 +1013,8 @@
     "battlecry": true,
     "triple_upgrade_id": 103671,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG27_004",
@@ -959,7 +1028,8 @@
     "triple_upgrade_id": 103675,
     "tech_level": 1,
     "is_pool_minion": true,
-    "spellcraft_id": 105949
+    "spellcraft_id": 105949,
+    "cost": 3
   },
   {
     "id": "BG27_005",
@@ -972,7 +1042,8 @@
     "card_type": 4,
     "triple_upgrade_id": 103677,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG27_016",
@@ -1015,7 +1086,8 @@
     "card_type": 4,
     "triple_upgrade_id": 108910,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG27_514",
@@ -1043,7 +1115,8 @@
     "card_type": 4,
     "triple_upgrade_id": 108930,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_300",
@@ -1057,7 +1130,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 104554,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_303",
@@ -1070,7 +1144,8 @@
     "battlecry": true,
     "triple_upgrade_id": 104611,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_309",
@@ -1084,7 +1159,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 109003,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_550",
@@ -1097,19 +1173,21 @@
     "battlecry": true,
     "triple_upgrade_id": 104467,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_551",
     "dbf_id": 104468,
     "name": "Nalaa the Redeemer",
-    "health": 7,
+    "health": 6,
     "atk": 5,
     "card_set": 1453,
     "card_type": 4,
     "triple_upgrade_id": 104471,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_583",
@@ -1123,7 +1201,8 @@
     "card_type": 4,
     "triple_upgrade_id": 104767,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_595",
@@ -1136,7 +1215,8 @@
     "card_type": 4,
     "triple_upgrade_id": 105853,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_707",
@@ -1149,21 +1229,23 @@
     "card_type": 4,
     "triple_upgrade_id": 107940,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_741",
     "dbf_id": 110321,
     "name": "Charging Czarina",
-    "health": 2,
-    "atk": 6,
+    "health": 1,
+    "atk": 4,
     "card_set": 1453,
     "divine_shield": true,
     "card_race": 17,
     "card_type": 4,
     "triple_upgrade_id": 110322,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG28_905",
@@ -1176,7 +1258,8 @@
     "card_type": 4,
     "triple_upgrade_id": 105702,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_300",
@@ -1190,7 +1273,8 @@
     "card_type": 4,
     "triple_upgrade_id": 109881,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_611",
@@ -1205,7 +1289,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 110102,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_806",
@@ -1218,7 +1303,8 @@
     "card_type": 4,
     "triple_upgrade_id": 107938,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_807",
@@ -1231,7 +1317,8 @@
     "card_type": 4,
     "triple_upgrade_id": 107934,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_808",
@@ -1247,7 +1334,8 @@
     "reborn": true,
     "triple_upgrade_id": 108455,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_813",
@@ -1261,7 +1349,8 @@
     "card_type": 4,
     "triple_upgrade_id": 108464,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_815",
@@ -1276,7 +1365,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 110089,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG29_816",
@@ -1289,7 +1379,8 @@
     "card_type": 4,
     "triple_upgrade_id": 109807,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG30_102",
@@ -1302,7 +1393,8 @@
     "card_type": 4,
     "triple_upgrade_id": 113127,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG30_121",
@@ -1315,20 +1407,22 @@
     "card_type": 4,
     "triple_upgrade_id": 113153,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG30_122",
     "dbf_id": 114391,
     "name": "Mrglin' Burglar",
-    "health": 8,
+    "health": 10,
     "atk": 10,
     "card_set": 1453,
     "card_race": 14,
     "card_type": 4,
     "triple_upgrade_id": 114392,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG30_123",
@@ -1341,7 +1435,8 @@
     "card_type": 4,
     "triple_upgrade_id": 113155,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG30_125",
@@ -1355,7 +1450,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 113159,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG30_129",
@@ -1368,7 +1464,8 @@
     "card_type": 4,
     "triple_upgrade_id": 114380,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_035",
@@ -1381,33 +1478,51 @@
     "card_type": 4,
     "triple_upgrade_id": 114817,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_171",
     "dbf_id": 115666,
     "name": "Moonsteel Juggernaut",
-    "health": 6,
-    "atk": 6,
+    "health": 8,
+    "atk": 8,
     "card_set": 1453,
     "card_race": 17,
     "card_type": 4,
     "triple_upgrade_id": 115667,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
+  },
+  {
+    "id": "BG31_175",
+    "dbf_id": 115674,
+    "name": "Holo Rover",
+    "health": 4,
+    "atk": 4,
+    "card_set": 1453,
+    "divine_shield": true,
+    "card_race": 17,
+    "card_type": 4,
+    "triple_upgrade_id": 115675,
+    "tech_level": 4,
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_178",
     "dbf_id": 115680,
     "name": "Marquee Ticker",
-    "health": 5,
-    "atk": 1,
+    "health": 7,
+    "atk": 3,
     "card_set": 1453,
     "card_race": 17,
     "card_type": 4,
     "triple_upgrade_id": 115681,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_330",
@@ -1421,7 +1536,8 @@
     "battlecry": true,
     "triple_upgrade_id": 117554,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_810",
@@ -1434,7 +1550,8 @@
     "card_type": 4,
     "triple_upgrade_id": 115582,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_812",
@@ -1448,7 +1565,8 @@
     "card_type": 4,
     "triple_upgrade_id": 115586,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_815",
@@ -1462,7 +1580,8 @@
     "battlecry": true,
     "triple_upgrade_id": 116735,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_816",
@@ -1475,7 +1594,8 @@
     "card_type": 4,
     "triple_upgrade_id": 116737,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_818",
@@ -1488,7 +1608,8 @@
     "card_type": 4,
     "triple_upgrade_id": 117668,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_824",
@@ -1501,7 +1622,8 @@
     "card_type": 4,
     "triple_upgrade_id": 115709,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_835",
@@ -1516,7 +1638,8 @@
     "triple_upgrade_id": 115611,
     "tech_level": 6,
     "is_pool_minion": true,
-    "avenge": 1
+    "avenge": 1,
+    "cost": 3
   },
   {
     "id": "BG31_859",
@@ -1530,7 +1653,8 @@
     "magnetic": true,
     "triple_upgrade_id": 119203,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_871",
@@ -1543,7 +1667,8 @@
     "card_type": 4,
     "triple_upgrade_id": 116698,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG31_920",
@@ -1557,7 +1682,8 @@
     "triple_upgrade_id": 115556,
     "tech_level": 5,
     "is_pool_minion": true,
-    "spellcraft_id": 116478
+    "spellcraft_id": 116478,
+    "cost": 3
   },
   {
     "id": "BG31_999",
@@ -1571,7 +1697,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 119669,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_111",
@@ -1586,21 +1713,23 @@
     "battlecry": true,
     "triple_upgrade_id": 120758,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_170",
     "dbf_id": 120021,
     "name": "Metallic Hunter",
-    "health": 1,
-    "atk": 2,
+    "health": 2,
+    "atk": 4,
     "card_set": 1453,
     "card_race": 17,
     "card_type": 4,
     "deathrattle": true,
     "triple_upgrade_id": 120022,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_172",
@@ -1615,20 +1744,22 @@
     "magnetic": true,
     "triple_upgrade_id": 120026,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_234",
     "dbf_id": 119992,
     "name": "Dastardly Drust",
-    "health": 3,
+    "health": 4,
     "atk": 5,
     "card_set": 1453,
     "card_race": 23,
     "card_type": 4,
     "triple_upgrade_id": 119993,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_235",
@@ -1641,7 +1772,8 @@
     "card_type": 4,
     "triple_upgrade_id": 119995,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_236",
@@ -1656,7 +1788,8 @@
     "battlecry": true,
     "triple_upgrade_id": 119997,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_237",
@@ -1668,13 +1801,14 @@
     "card_type": 4,
     "triple_upgrade_id": 120224,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_324",
     "dbf_id": 120104,
     "name": "Drustfallen Butcher",
-    "health": 9,
+    "health": 7,
     "atk": 2,
     "card_set": 1453,
     "card_race": 11,
@@ -1682,7 +1816,9 @@
     "triple_upgrade_id": 120105,
     "tech_level": 5,
     "is_pool_minion": true,
-    "avenge": 1
+    "avenge": 1,
+    "avenge_target": 3,
+    "cost": 3
   },
   {
     "id": "BG32_330",
@@ -1695,7 +1831,8 @@
     "card_type": 4,
     "triple_upgrade_id": 120678,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_341",
@@ -1708,7 +1845,8 @@
     "card_type": 4,
     "triple_upgrade_id": 121642,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_430",
@@ -1722,7 +1860,24 @@
     "deathrattle": true,
     "triple_upgrade_id": 120032,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
+  },
+  {
+    "id": "BG32_433",
+    "dbf_id": 120708,
+    "name": "Dreaming Thornweaver",
+    "health": 8,
+    "atk": 2,
+    "card_set": 1453,
+    "card_race": 43,
+    "card_type": 4,
+    "triple_upgrade_id": 120709,
+    "tech_level": 4,
+    "is_pool_minion": true,
+    "avenge": 1,
+    "avenge_target": 3,
+    "cost": 3
   },
   {
     "id": "BG32_434",
@@ -1737,7 +1892,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 120711,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_821",
@@ -1750,7 +1906,8 @@
     "card_type": 4,
     "triple_upgrade_id": 120300,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_822",
@@ -1763,7 +1920,8 @@
     "card_type": 4,
     "triple_upgrade_id": 120302,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_835",
@@ -1777,7 +1935,8 @@
     "triple_upgrade_id": 119943,
     "tech_level": 5,
     "is_pool_minion": true,
-    "spellcraft_id": 121479
+    "spellcraft_id": 121479,
+    "cost": 3
   },
   {
     "id": "BG32_860",
@@ -1790,7 +1949,8 @@
     "card_type": 4,
     "triple_upgrade_id": 120216,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_873",
@@ -1803,7 +1963,8 @@
     "card_type": 4,
     "triple_upgrade_id": 121688,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_880",
@@ -1817,7 +1978,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 120221,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG32_891",
@@ -1832,7 +1994,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 120663,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_140",
@@ -1845,7 +2008,8 @@
     "card_type": 4,
     "triple_upgrade_id": 122093,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_241",
@@ -1858,7 +2022,8 @@
     "card_type": 4,
     "triple_upgrade_id": 122435,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_318",
@@ -1872,7 +2037,8 @@
     "triple_upgrade_id": 122220,
     "tech_level": 5,
     "is_pool_minion": true,
-    "venomous": true
+    "venomous": true,
+    "cost": 3
   },
   {
     "id": "BG33_319",
@@ -1886,7 +2052,8 @@
     "triple_upgrade_id": 122222,
     "tech_level": 4,
     "is_pool_minion": true,
-    "spellcraft_id": 122259
+    "spellcraft_id": 122259,
+    "cost": 3
   },
   {
     "id": "BG33_323",
@@ -1899,21 +2066,24 @@
     "card_type": 4,
     "triple_upgrade_id": 122230,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_371",
     "dbf_id": 122613,
     "name": "P-0UL-TR-0N",
-    "health": 8,
-    "atk": 8,
+    "health": 10,
+    "atk": 10,
     "card_set": 1453,
     "card_race": 17,
     "card_type": 4,
     "triple_upgrade_id": 122614,
     "tech_level": 6,
     "is_pool_minion": true,
-    "avenge": 1
+    "avenge": 1,
+    "avenge_target": 5,
+    "cost": 3
   },
   {
     "id": "BG33_809",
@@ -1929,7 +2099,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 123645,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_820",
@@ -1943,7 +2114,8 @@
     "card_type": 4,
     "triple_upgrade_id": 122176,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_821",
@@ -1958,7 +2130,8 @@
     "battlecry": true,
     "triple_upgrade_id": 122178,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_822",
@@ -1971,20 +2144,22 @@
     "card_type": 4,
     "triple_upgrade_id": 122180,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_823",
     "dbf_id": 122516,
     "name": "Sky Admiral Rogers",
-    "health": 6,
+    "health": 5,
     "atk": 4,
     "card_set": 1453,
     "card_race": 23,
     "card_type": 4,
     "triple_upgrade_id": 122517,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_825",
@@ -1997,7 +2172,8 @@
     "card_type": 4,
     "triple_upgrade_id": 122521,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_828",
@@ -2011,20 +2187,22 @@
     "deathrattle": true,
     "triple_upgrade_id": 123596,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_840",
     "dbf_id": 122286,
     "name": "Stomping Stegodon",
-    "health": 3,
-    "atk": 3,
+    "health": 4,
+    "atk": 4,
     "card_set": 1453,
     "card_race": 20,
     "card_type": 4,
     "triple_upgrade_id": 122287,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_888",
@@ -2037,7 +2215,8 @@
     "battlecry": true,
     "triple_upgrade_id": 122738,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_891",
@@ -2050,7 +2229,8 @@
     "card_type": 4,
     "triple_upgrade_id": 122278,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG33_893",
@@ -2063,7 +2243,8 @@
     "card_type": 4,
     "triple_upgrade_id": 122282,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_140",
@@ -2076,7 +2257,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126638,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_145",
@@ -2089,7 +2271,8 @@
     "card_type": 4,
     "triple_upgrade_id": 127495,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_175",
@@ -2102,7 +2285,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126831,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_231",
@@ -2115,7 +2299,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126803,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_312",
@@ -2129,7 +2314,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126850,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_319",
@@ -2143,7 +2329,8 @@
     "battlecry": true,
     "triple_upgrade_id": 127108,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_320",
@@ -2156,7 +2343,8 @@
     "card_type": 4,
     "triple_upgrade_id": 127110,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_321",
@@ -2169,7 +2357,8 @@
     "card_type": 4,
     "triple_upgrade_id": 127112,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_322",
@@ -2182,7 +2371,8 @@
     "card_type": 4,
     "triple_upgrade_id": 127114,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_403",
@@ -2196,7 +2386,8 @@
     "triple_upgrade_id": 129264,
     "tech_level": 5,
     "is_pool_minion": true,
-    "avenge": 1
+    "avenge": 1,
+    "cost": 3
   },
   {
     "id": "BG34_500",
@@ -2209,7 +2400,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126925,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_523",
@@ -2223,7 +2415,8 @@
     "battlecry": true,
     "triple_upgrade_id": 128169,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_604",
@@ -2235,7 +2428,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126967,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_630",
@@ -2249,7 +2443,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 126742,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_632",
@@ -2263,7 +2458,8 @@
     "triple_upgrade_id": 126746,
     "tech_level": 4,
     "is_pool_minion": true,
-    "avenge": 1
+    "avenge": 1,
+    "cost": 3
   },
   {
     "id": "BG34_633",
@@ -2278,7 +2474,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126861,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_634t",
@@ -2292,7 +2489,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126724,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_635t",
@@ -2306,7 +2504,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126725,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_636t",
@@ -2320,7 +2519,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126729,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_637t",
@@ -2334,7 +2534,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126727,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_638t",
@@ -2348,7 +2549,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126728,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_639",
@@ -2360,7 +2562,8 @@
     "card_type": 4,
     "triple_upgrade_id": 129953,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_690",
@@ -2374,7 +2577,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 126452,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_692",
@@ -2387,7 +2591,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126734,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_694",
@@ -2401,7 +2606,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 126956,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_731",
@@ -2415,7 +2621,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 127237,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_856",
@@ -2429,7 +2636,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 126170,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_858",
@@ -2442,7 +2650,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126174,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_865",
@@ -2456,7 +2665,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126176,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_920",
@@ -2471,7 +2681,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 126630,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_921",
@@ -2484,7 +2695,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126632,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_922",
@@ -2497,7 +2709,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126634,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_925",
@@ -2510,7 +2723,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126917,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_926",
@@ -2525,7 +2739,8 @@
     "battlecry": true,
     "triple_upgrade_id": 126919,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG34_950",
@@ -2538,7 +2753,8 @@
     "card_type": 4,
     "triple_upgrade_id": 126960,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_122",
@@ -2552,7 +2768,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 130883,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_123",
@@ -2564,7 +2781,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130885,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_140",
@@ -2578,7 +2796,8 @@
     "battlecry": true,
     "triple_upgrade_id": 131146,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_141",
@@ -2592,7 +2811,8 @@
     "battlecry": true,
     "triple_upgrade_id": 131148,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_142",
@@ -2605,7 +2825,8 @@
     "card_type": 4,
     "triple_upgrade_id": 131150,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_143",
@@ -2620,7 +2841,8 @@
     "battlecry": true,
     "triple_upgrade_id": 131217,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_150",
@@ -2634,7 +2856,8 @@
     "battlecry": true,
     "triple_upgrade_id": 130080,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_151",
@@ -2647,7 +2870,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130081,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_152",
@@ -2661,7 +2885,8 @@
     "battlecry": true,
     "triple_upgrade_id": 130082,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_153",
@@ -2674,20 +2899,22 @@
     "card_type": 4,
     "triple_upgrade_id": 130083,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_155",
     "dbf_id": 130662,
     "name": "Twisted Wrathguard",
-    "health": 4,
-    "atk": 4,
+    "health": 8,
+    "atk": 8,
     "card_set": 1453,
     "card_race": 15,
     "card_type": 4,
     "triple_upgrade_id": 130663,
-    "tech_level": 5,
-    "is_pool_minion": true
+    "tech_level": 6,
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_334",
@@ -2701,14 +2928,15 @@
     "triple_upgrade_id": 130553,
     "tech_level": 5,
     "is_pool_minion": true,
-    "avenge": 1
+    "avenge": 1,
+    "cost": 3
   },
   {
     "id": "BG35_340",
     "dbf_id": 130794,
     "name": "Alert Alarmist",
-    "health": 1,
-    "atk": 1,
+    "health": 2,
+    "atk": 2,
     "card_set": 1453,
     "taunt": true,
     "card_race": 17,
@@ -2716,7 +2944,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 130795,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_341",
@@ -2730,7 +2959,8 @@
     "magnetic": true,
     "triple_upgrade_id": 130797,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_342",
@@ -2744,7 +2974,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130799,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_431",
@@ -2758,7 +2989,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130150,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_432",
@@ -2773,7 +3005,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 130146,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_433",
@@ -2786,7 +3019,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130154,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_434",
@@ -2799,7 +3033,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130152,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_437",
@@ -2812,7 +3047,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130158,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_601",
@@ -2825,7 +3061,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130710,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_602",
@@ -2838,7 +3075,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130712,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_604",
@@ -2852,7 +3090,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 130997,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_700",
@@ -2865,20 +3104,22 @@
     "card_type": 4,
     "triple_upgrade_id": 130702,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_701",
     "dbf_id": 130703,
     "name": "Brazen Buccaneer",
-    "health": 4,
-    "atk": 4,
+    "health": 6,
+    "atk": 6,
     "card_set": 1453,
     "card_race": 23,
     "card_type": 4,
     "triple_upgrade_id": 130704,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_702",
@@ -2892,7 +3133,8 @@
     "battlecry": true,
     "triple_upgrade_id": 130706,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_801",
@@ -2904,7 +3146,8 @@
     "card_type": 4,
     "triple_upgrade_id": 129746,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_814",
@@ -2917,7 +3160,8 @@
     "card_type": 4,
     "triple_upgrade_id": 129750,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_881",
@@ -2932,7 +3176,8 @@
     "battlecry": true,
     "triple_upgrade_id": 130295,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_882",
@@ -2946,7 +3191,8 @@
     "battlecry": true,
     "triple_upgrade_id": 130297,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_883",
@@ -2958,7 +3204,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130299,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG35_921",
@@ -2972,7 +3219,8 @@
     "card_type": 4,
     "triple_upgrade_id": 130659,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG_BOT_911",
@@ -2988,7 +3236,8 @@
     "magnetic": true,
     "triple_upgrade_id": 60327,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG_DAL_775",
@@ -3002,7 +3251,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 92881,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG_DEEP_015",
@@ -3017,7 +3267,8 @@
     "reborn": true,
     "triple_upgrade_id": 112366,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG_GVG_085",
@@ -3032,7 +3283,8 @@
     "card_type": 4,
     "triple_upgrade_id": 103653,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BG_GVG_100",
@@ -3072,7 +3324,8 @@
     "card_type": 4,
     "triple_upgrade_id": 108435,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGDUO31_201",
@@ -3085,7 +3338,8 @@
     "card_type": 4,
     "triple_upgrade_id": 117327,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO31_202",
@@ -3098,7 +3352,8 @@
     "card_type": 4,
     "triple_upgrade_id": 117493,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO31_203",
@@ -3112,7 +3367,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 117329,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO31_205",
@@ -3126,7 +3382,8 @@
     "battlecry": true,
     "triple_upgrade_id": 117333,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO31_207",
@@ -3140,7 +3397,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 117354,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO31_208",
@@ -3153,7 +3411,8 @@
     "card_type": 4,
     "triple_upgrade_id": 117335,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO31_209",
@@ -3166,8 +3425,9 @@
     "card_type": 4,
     "triple_upgrade_id": 117356,
     "tech_level": 4,
-    "is_pool_minion": true,
-    "spellcraft_id": 117504
+    "is_pool_minion": false,
+    "spellcraft_id": 117504,
+    "cost": 3
   },
   {
     "id": "BGDUO31_211",
@@ -3181,7 +3441,8 @@
     "magnetic": true,
     "triple_upgrade_id": 117360,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO31_212",
@@ -3193,7 +3454,8 @@
     "card_type": 4,
     "triple_upgrade_id": 117337,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO33_140",
@@ -3206,7 +3468,8 @@
     "card_type": 4,
     "triple_upgrade_id": 123638,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO33_150",
@@ -3219,7 +3482,8 @@
     "card_type": 4,
     "triple_upgrade_id": 123842,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_100",
@@ -3231,7 +3495,8 @@
     "card_type": 4,
     "triple_upgrade_id": 103620,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_104",
@@ -3244,7 +3509,8 @@
     "battlecry": true,
     "triple_upgrade_id": 104539,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_105",
@@ -3258,7 +3524,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 104541,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_107",
@@ -3271,7 +3538,8 @@
     "card_type": 4,
     "triple_upgrade_id": 104549,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_108",
@@ -3284,7 +3552,8 @@
     "card_type": 4,
     "triple_upgrade_id": 104552,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_109",
@@ -3297,7 +3566,8 @@
     "card_type": 4,
     "triple_upgrade_id": 104563,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_110",
@@ -3311,7 +3581,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 104627,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_111",
@@ -3325,7 +3596,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 104958,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_112",
@@ -3338,8 +3610,9 @@
     "card_type": 4,
     "triple_upgrade_id": 104962,
     "tech_level": 4,
-    "is_pool_minion": true,
-    "avenge": 1
+    "is_pool_minion": false,
+    "avenge": 1,
+    "cost": 3
   },
   {
     "id": "BGDUO_114",
@@ -3351,7 +3624,8 @@
     "card_type": 4,
     "triple_upgrade_id": 105254,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_115",
@@ -3364,7 +3638,8 @@
     "card_type": 4,
     "triple_upgrade_id": 105436,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_117",
@@ -3377,7 +3652,8 @@
     "card_type": 4,
     "triple_upgrade_id": 105649,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_118",
@@ -3390,7 +3666,8 @@
     "card_type": 4,
     "triple_upgrade_id": 105715,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_119",
@@ -3403,7 +3680,8 @@
     "battlecry": true,
     "triple_upgrade_id": 105808,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_120",
@@ -3415,8 +3693,9 @@
     "card_type": 4,
     "triple_upgrade_id": 105837,
     "tech_level": 5,
-    "is_pool_minion": true,
-    "spellcraft_id": 105836
+    "is_pool_minion": false,
+    "spellcraft_id": 105836,
+    "cost": 3
   },
   {
     "id": "BGDUO_121",
@@ -3430,7 +3709,8 @@
     "battlecry": true,
     "triple_upgrade_id": 106544,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_122",
@@ -3443,7 +3723,8 @@
     "card_type": 4,
     "triple_upgrade_id": 107883,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGDUO_125",
@@ -3455,7 +3736,8 @@
     "card_type": 4,
     "triple_upgrade_id": 107945,
     "tech_level": 7,
-    "is_pool_minion": true
+    "is_pool_minion": false,
+    "cost": 3
   },
   {
     "id": "BGS_004",
@@ -3468,7 +3750,8 @@
     "card_type": 4,
     "triple_upgrade_id": 59679,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_012",
@@ -3481,7 +3764,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 59976,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_018",
@@ -3495,7 +3779,8 @@
     "deathrattle": true,
     "triple_upgrade_id": 59956,
     "tech_level": 6,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_020",
@@ -3509,21 +3794,23 @@
     "battlecry": true,
     "triple_upgrade_id": 60027,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_030",
     "dbf_id": 60247,
     "name": "King Bagurgle",
-    "health": 3,
-    "atk": 2,
+    "health": 4,
+    "atk": 4,
     "card_set": 1453,
     "card_race": 14,
     "card_type": 4,
     "battlecry": true,
     "triple_upgrade_id": 60396,
-    "tech_level": 3,
-    "is_pool_minion": true
+    "tech_level": 4,
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_041",
@@ -3536,7 +3823,8 @@
     "card_type": 4,
     "triple_upgrade_id": 60667,
     "tech_level": 5,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_049",
@@ -3550,7 +3838,8 @@
     "triple_upgrade_id": 62187,
     "tech_level": 2,
     "is_pool_minion": true,
-    "sell_value": 3
+    "sell_value": 3,
+    "cost": 3
   },
   {
     "id": "BGS_071",
@@ -3564,7 +3853,8 @@
     "card_type": 4,
     "triple_upgrade_id": 61932,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_078",
@@ -3577,7 +3867,8 @@
     "card_type": 4,
     "triple_upgrade_id": 62231,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_115",
@@ -3590,7 +3881,8 @@
     "card_type": 4,
     "triple_upgrade_id": 64041,
     "tech_level": 2,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_116",
@@ -3604,7 +3896,8 @@
     "battlecry": true,
     "triple_upgrade_id": 64045,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_119",
@@ -3619,7 +3912,8 @@
     "card_type": 4,
     "triple_upgrade_id": 64055,
     "tech_level": 1,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_123",
@@ -3633,7 +3927,8 @@
     "battlecry": true,
     "triple_upgrade_id": 64079,
     "tech_level": 4,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_126",
@@ -3646,7 +3941,8 @@
     "card_type": 4,
     "triple_upgrade_id": 64190,
     "tech_level": 3,
-    "is_pool_minion": true
+    "is_pool_minion": true,
+    "cost": 3
   },
   {
     "id": "BGS_131",
@@ -3659,6 +3955,19 @@
     "triple_upgrade_id": 65122,
     "tech_level": 3,
     "is_pool_minion": true,
-    "venomous": true
+    "venomous": true,
+    "cost": 3
+  },
+  {
+    "id": "BG31_817",
+    "dbf_id": 112345,
+    "name": "Windfall Tornado",
+    "health": 4,
+    "atk": 4,
+    "card_set": 1453,
+    "card_race": 4,
+    "card_type": 4,
+    "tech_level": 5,
+    "is_pool_minion": false
   }
 ]
