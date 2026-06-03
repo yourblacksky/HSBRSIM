@@ -7,7 +7,7 @@ Each script class must be CORRECT (exact semantic match) or DEFERRED (return Non
 
 from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
-from hsrl.core.enums import GameTag, Race
+from hsrl.core.enums import GameTag, Race, Zone
 from hsrl.core.actions import Action, GainGold, AddToHand, DiscoverMinion, DiscoverSpell
 
 if TYPE_CHECKING:
@@ -98,52 +98,6 @@ class TemperanceScript:
             p.set_tag(GameTag.GOLD, 9)
 
 
-class CurseOfAggramarScript:
-    """
-    Natural language: Start at 5 HP and 5 Gold. Hero only takes 1 damage.
-
-    Formal spec: Set HP=5, gold=5 for all players.
-    Note: "hero only takes 1 damage" requires damage-cap engine modification → DEFERRED.
-    Test: all players at 5 HP, 5 gold.
-    """
-
-    @staticmethod
-    def on_apply(source, game):
-        for p in game.players:
-            p.set_tag(GameTag.HEALTH, 5)
-            p.set_tag(GameTag.GOLD, 5)
-
-
-class SecretsOfNorgannonScript:
-    """
-    Natural language: Tier 7 exists. Start with +10 Armor.
-
-    Formal spec: Set armor+=10 and TIER_7_UNLOCKED=True for all players.
-    Test: all players have +10 armor and can upgrade to tier 7.
-    """
-
-    @staticmethod
-    def on_apply(source, game):
-        for p in game.players:
-            p.set_tag(GameTag.ARMOR, p.get_tag(GameTag.ARMOR, 0) + 10)
-            p.set_tag(GameTag.TIER_7_UNLOCKED, True)
-
-
-class UncompensatedUpsetScript:
-    """
-    Natural language: Start at 1 Gold. Minions cost (1), sell for (0). Upgrade costs -2.
-
-    Formal spec: Set gold=1 for all players.
-    Note: minion cost override and sell-for-0 require engine modifications → DEFERRED.
-    Test: all players start at 1 gold.
-    """
-
-    @staticmethod
-    def on_apply(source, game):
-        for p in game.players:
-            p.set_tag(GameTag.GOLD, 1)
-
-
 class StartWithPiggyBanksScript:
     """
     Natural language: Start with 2 Piggy Banks that upgrade over time.
@@ -170,7 +124,6 @@ class Get3Tier2MinionsScript:
     @staticmethod
     def on_apply(source, game):
         from hsrl.core.card_db import CARDS
-        import random
         pool = [cid for cid, data in CARDS._cards.items()
                 if data.cardtype == 4 and data.tech_level == 2
                 and not cid.startswith("EXAMPLE")]
@@ -259,14 +212,16 @@ def _make_tribe_anomaly(race_value: int):
         """
         Natural language: Only <tribe> minions in the Tavern.
 
-        Formal spec: Set anomaly's RACE tag to the tribe filter value.
-        Note: actual pool filtering is engine-level → requires refresh_tavern modification.
-        Test: RACE tag is set on anomaly.
+        Formal spec:
+          1. Set source._single_tribe so engine uses this as the sole active tribe.
+          2. Engine (_select_active_tribes) reads this flag and sets active_tribes = {tribe}.
+
+        Test: after on_apply, source._single_tribe == race_value.
         """
 
         @staticmethod
         def on_apply(source, game):
-            source.set_tag(GameTag.RACE, race_value)
+            source._single_tribe = race_value
     return _TribeAnomaly
 
 
@@ -300,7 +255,6 @@ class AfterSellTransferStatsAnomalyScript:
     @staticmethod
     def on_apply(source, game):
         from hsrl.core.events import MINION_SOLD, EventListener
-        import random
 
         class _SellAction(Action):
             def do(self, s, g, target=None):
@@ -332,7 +286,6 @@ class RefreshExtraSpellAnomalyScript:
     def on_apply(source, game):
         from hsrl.core.events import TAVERN_REFRESH, EventListener
         from hsrl.core.card_db import CARDS
-        import random
 
         class _RefreshAction(Action):
             def do(self, s, g, target=None):
@@ -371,7 +324,6 @@ class AfterRefreshBuffTavernAnomalyScript:
     @staticmethod
     def on_apply(source, game):
         from hsrl.core.events import TAVERN_REFRESH, EventListener
-        import random
         from hsrl.core.actions import Buff, GainKeyword
 
         class _RefreshAction(Action):
@@ -580,25 +532,22 @@ class GoldenArrowEvery3TurnsScript:
 
 class PrizeEvery4TurnsScript:
     """
-    Natural language: Every 4 turns, Discover a Darkmoon Prize.
+    Natural language: Every 4 turns, Discover a Darkmoon Faire Prize.
 
     Formal spec:
       1. on_apply: schedule callbacks for turns 4, 8, 12, ...
-      2. Each callback: for each alive player, DiscoverSpell (prize proxy)
-    Note: full implementation needs dedicated Darkmoon Prize card pool.
-      Status: DEFERRED — requires Darkmoon Prize pool (separate card set).
-      Currently uses DiscoverSpell as proxy.
+      2. Each callback: for each alive player, queue DiscoverPrize
 
-    Test: on turn 4, player discovers a spell (prize proxy).
+    Test: on turn 4, each player discovers a prize (3 random effects).
     """
 
     @staticmethod
     def on_apply(source, game):
         def _on_turn(g, t):
+            from hsrl.core.actions import DiscoverPrize
             for p in g.players:
                 if p.is_alive:
-                    from hsrl.core.actions import DiscoverSpell
-                    g.queue_action(DiscoverSpell(p))
+                    g.queue_action(DiscoverPrize(p))
 
         for turn in range(4, 20, 4):
             game.schedule_turn_action(turn, _on_turn)
@@ -669,31 +618,50 @@ class SoTDiscoverSpellScript:
 class SoTGetEvolvingScrollScript:
     """
     Natural language: At the start of your turn, get an Evolving Scroll.
-    Each turn, the scroll transforms into a spell of the next higher tier.
+    Each turn in hand, it transforms into a Tavern spell from a higher Tier.
+    (Starts at Tier 1!)
 
     Formal spec:
-      1. on_apply: set _evolving_tier = 1 on anomaly entity
-      2. start_of_turn: for each player, DiscoverSpell at _evolving_tier tier
-      3. Increment _evolving_tier (max 6) each turn
-    Status: DEFERRED — requires Evolving Scroll card entity with per-card
-      tracking engine subsystem. Uses DiscoverSpell of increasing tier as proxy.
+      1. start_of_turn: for each player, transform any Evolving Scrolls in hand
+         into random tavern spells at tier = TURNS_IN_HAND + 1
+      2. Then give each player a new Evolving Scroll for next turn.
 
-    Test: each turn, players discover spells of increasing tiers.
+    Test: scrolls in hand are replaced with actual tavern spells, tier advances.
     """
 
     @staticmethod
     def on_apply(source, game):
-        source._evolving_tier = 1
+        return None
 
     @staticmethod
     def start_of_turn(source, game):
-        tier = getattr(source, '_evolving_tier', 1)
-        from hsrl.core.actions import DiscoverSpell
+        from hsrl.core.enums import CardType
         actions = []
         for p in game.players:
-            if p.is_alive:
-                actions.append(DiscoverSpell(p, max_tier=tier))
-        source._evolving_tier = min(tier + 1, 6)
+            if not p.is_alive:
+                continue
+            # Transform existing Evolving Scrolls in hand
+            for m in list(p.hand):
+                if m.data.id != "BG31_Anomaly_102t":
+                    continue
+                tier = m.get_tag(GameTag.TURNS_IN_HAND, 0) + 1
+                tier = min(tier, 7)
+                p.hand.remove(m)
+                candidates = []
+                for cid, data in game.card_db._cards.items():
+                    if data.cardtype != CardType.SPELL:
+                        continue
+                    if data.tech_level != tier:
+                        continue
+                    if cid.startswith("EXAMPLE"):
+                        continue
+                    candidates.append(cid)
+                if candidates:
+                    chosen = game.rng.choice(candidates)
+                    actions.append(AddToHand(p, chosen))
+            # Give new Evolving Scroll
+            if len(p.hand) < 10:
+                actions.append(AddToHand(p, "BG31_Anomaly_102t"))
         return actions if actions else None
 
 
@@ -888,16 +856,14 @@ class AfterCombatDiscoverScript:
 
 class UpgradeDiscoverPrizeAnomalyScript:
     """
-    Natural language: After you upgrade the Tavern, Discover a Darkmoon Prize
-    of tier {1}. (Improves over time.)
+    Natural language: After you upgrade the Tavern, Discover a Darkmoon Prize.
+    (Improves over time.)
 
     Formal spec:
-      1. on_upgrade: for the upgrading player, DiscoverSpell at new tier
-    Note: full implementation needs dedicated Darkmoon Prize card pool.
-      Status: DEFERRED — requires Darkmoon Prize pool (separate card set).
-      Currently uses DiscoverSpell as proxy.
+      1. on_upgrade: for the upgrading player, queue DiscoverPrize
+      2. DiscoverPrize presents 3 random effects from the 7-effect prize pool
 
-    Test: after upgrade, player discovers a spell at the new tier.
+    Test: after upgrade, player discovers a Darkmoon Prize.
     """
 
     @staticmethod
@@ -905,8 +871,8 @@ class UpgradeDiscoverPrizeAnomalyScript:
         player = game.active_player
         if player is None:
             return None
-        from hsrl.core.actions import DiscoverSpell
-        return DiscoverSpell(player, max_tier=player.tavern_tier)
+        from hsrl.core.actions import DiscoverPrize
+        return DiscoverPrize(player)
 
 
 class Refresh5GoldenApeScript:
@@ -1299,7 +1265,6 @@ class RandomKeywordAnomalyScript:
     @staticmethod
     def on_apply(source, game):
         from hsrl.core.events import TAVERN_REFRESH, EventListener
-        import random
         keywords = [GameTag.TAUNT, GameTag.WINDFURY, GameTag.DIVINE_SHIELD, GameTag.REBORN]
         from hsrl.core.actions import GainKeyword
 
@@ -1464,19 +1429,21 @@ class NoRefreshAutoAfterBuyScript:
 
 class TripleGivesPrizeScript:
     """
-    Natural language: Triple rewards give a Darkmoon Prize instead of a minion.
-    (Improves over time.)
+    Natural language: Instead of a minion, Triple Rewards Discover a
+    Darkmoon Prize. (Improves over time.)
 
     Formal spec:
-      1. on_apply: set _triple_gives_prize=True on anomaly entity
-      2. Engine checks this flag during _check_for_triple (DEFERRED: prize pool)
-    Note: full implementation needs Darkmoon Prize pool subsystem.
-    Test: flag is set on anomaly.
+      1. on_apply: set TRIPLE_REWARD_IS_PRIZE tag on all players
+      2. Engine (_grant_triple_reward) checks this tag and calls DiscoverPrize
+         instead of DiscoverMinion when granting triple rewards.
+
+    Test: after a triple, player discovers a Darkmoon Prize instead of a minion.
     """
 
     @staticmethod
     def on_apply(source, game):
-        source._triple_gives_prize = True
+        for p in game.players:
+            p.set_tag(GameTag.TRIPLE_REWARD_IS_PRIZE, True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1656,7 +1623,6 @@ class SharedYoggWheelScript:
     @staticmethod
     def start_of_turn(source, game):
         from hsrl.core.actions import CastYoggWheel
-        import random
         # Pick ONE effect and apply to all players
         actions = []
         for p in game.players:
@@ -1731,7 +1697,6 @@ class GuessWinnerAnomalyScript:
     @staticmethod
     def on_apply(source, game):
         from hsrl.core.events import END_OF_COMBAT, EventListener
-        import random
 
         class _GuessAction(Action):
             def do(self, s, g, target=None):
@@ -1766,7 +1731,6 @@ class PlayerChoiceCardScript:
     def on_apply(source, game):
         from hsrl.core.events import EventListener
         from hsrl.core.card_db import CARDS
-        import random
         source._chosen_card = None
 
         class _SoTAction(Action):
@@ -1823,30 +1787,27 @@ class DiscoverSecondHPAnomalyScript:
 class SoTDeepBluesAnomalyScript:
     """
     Natural language: At the start of your turn, get 2 temporary Deep Blues.
-    Each use improves the buff!
+    Each use improves the buff, starting at +2/+2.
 
     Formal spec:
-      1. on_apply: set _deep_blue_counter = 1 on anomaly entity
-      2. start_of_turn: for each player, GetBloodGem × 2 (proxy for Deep Blue)
-      3. Increment _deep_blue_counter each turn
-    Status: DEFERRED — requires Deep Blue spell card with per-use improve
-      tracking engine subsystem. Uses Blood Gems as proxy (not identical:
-      Blood Gems don't improve with each use like Deep Blues do).
+      1. start_of_turn: for each alive player, add 2 "BG26_502t" spell tokens
+      2. DeepBluesScript handles self-improvement via IMPROVE_COUNTER
 
-    Test: each turn, players get 2 Blood Gems representing Deep Blues.
+    Test: each turn, players get 2 Deep Blues that improve with each casting.
     """
 
     @staticmethod
     def on_apply(source, game):
-        source._deep_blue_counter = 1
+        return None
 
     @staticmethod
     def start_of_turn(source, game):
-        from hsrl.core.actions import GetBloodGem
+        from hsrl.core.actions import AddToHand
         actions = []
         for p in game.players:
             if p.is_alive:
-                actions.append(GetBloodGem(p, count=2))
+                for _ in range(2):
+                    actions.append(AddToHand(p, "BG26_502t"))
         return actions if actions else None
 
 
@@ -2076,7 +2037,6 @@ class TwistExtraRandomTurnScript:
 
     @staticmethod
     def on_apply(source, game):
-        import random
         extra_turn = game.rng.randint(5, 12)
 
         def _extra_twist(g, t):
@@ -2144,6 +2104,248 @@ class BroodOfNozdormuScript:
 # DEFERRED — engine support not yet available
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Patch 35.6 — Newly implemented anomalies (previously DEFERRED)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class CurseOfAggramarScript:
+    """
+    Natural language: Start at 5 Health and 5 Gold. Your hero can only take
+    1 damage at a time.
+
+    Formal spec:
+      1. on_apply: set each player's HP to 5, Gold to 5
+      2. Set source._damage_cap_override = 1 (always caps damage at 1)
+      3. Engine (_get_damage_cap) checks this override first
+
+    Test: players start with 5 HP, 5 Gold; all combat damage is capped at 1.
+    """
+
+    @staticmethod
+    def on_apply(source, game):
+        source._damage_cap_override = 1
+        source._start_gold = 5             # engine uses this in _start_recruit_phase
+        for p in game.players:
+            p.health = 5
+            p.set_tag(GameTag.MAX_HEALTH, 5)
+            p.set_tag(GameTag.BASE_HEALTH, 5)
+        return None
+
+
+class ElvenEliteScript:
+    """
+    Natural language: The Tavern only offers cards of your Tier.
+
+    Formal spec:
+      1. on_apply: set source._only_current_tier = True
+      2. Engine (refresh_tavern) checks this flag and filters to only
+         cards matching the player's current tavern tier.
+
+    Test: after refresh, all tavern minions are at the player's exact tier.
+    """
+
+    @staticmethod
+    def on_apply(source, game):
+        source._only_current_tier = True
+        return None
+
+
+class IncubationMutationScript:
+    """
+    Natural language: Minions with no type have all minion types.
+
+    Formal spec:
+      1. on_apply: set source._no_type_has_all = True
+      2. Engine (entity.py property `race`) already checks this flag:
+         if Race.NONE and anomaly._no_type_has_all → return Race.ALL
+
+    Test: tribeless minions count as all tribes for tribe-based buffs.
+    """
+
+    @staticmethod
+    def on_apply(source, game):
+        source._no_type_has_all = True
+        return None
+
+
+class SecretsOfNorgannonScript:
+    """
+    Natural language: Tavern Tier 7 exists. Start with 10 extra Armor.
+
+    Formal spec:
+      1. Set TIER_7_UNLOCKED tag on all players
+      2. Grant +10 armor to all players
+
+    Test: players can upgrade to Tier 7 and have +10 armor.
+    """
+
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.TIER_7_UNLOCKED, True)
+            current_armor = p.get_tag(GameTag.ARMOR, 0)
+            p.set_tag(GameTag.ARMOR, current_armor + 10)
+        return None
+
+
+class UncompensatedUpsetScript:
+    """
+    Natural language: Start at 1 Gold. Minions cost (1) but sell for (0).
+    Upgrading costs (2) less.
+
+    Formal spec:
+      1. Set source._start_gold = 1 (engine applies in _start_recruit_phase)
+      2. Set source._minions_cost_1 = True (engine buy_minion checks this)
+      3. Set source._sell_price_0 = True (engine sell_minion checks this)
+      4. Set source._upgrade_cost_less_2 = True (engine UpgradeTavern checks this)
+
+    Test: minions cost 1, sell 0, upgrades 2 cheaper, start with 1 gold.
+    """
+
+    @staticmethod
+    def on_apply(source, game):
+        source._start_gold = 1
+        source._minions_cost_1 = True
+        source._sell_price_0 = True
+        source._upgrade_cost_less_2 = True
+        return None
+
+
+class FlyTheFlagScript:
+    """
+    Natural language: Every 4 turns, get a spell that adds plain copies of a
+    minion to your minion types.
+
+    Formal spec:
+      1. Schedule callback every 4 turns (4, 8, 12, ...)
+      2. Each callback: for each alive player, add a copy spell to hand
+         (uses BG35_Anomaly_001t token spell)
+
+    Test: every 4th turn, players receive the copy spell.
+    """
+    SPELL_CARD_ID = "BG35_Anomaly_001t"
+
+    @staticmethod
+    def on_apply(source, game):
+        def _give_spell(g, turn):
+            for p in g.players:
+                if p.is_alive and len(p.hand) < 10:
+                    g.queue_action(AddToHand(p, FlyTheFlagScript.SPELL_CARD_ID))
+
+        for turn in range(4, 20, 4):
+            game.schedule_turn_action(turn, _give_spell)
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Patch 35.6 — Hero replacement anomalies
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class AllHeroesNguyenScript:
+    """All heroes are Master Nguyen — discover a hero power each turn.
+    Engine already supports this via _all_heroes_nguyen flag."""
+    @staticmethod
+    def on_apply(source, game):
+        source._all_heroes_nguyen = True
+        return None
+
+
+class AllHeroesMarinScript:
+    """All heroes are Marin the Manager — override primary hero power."""
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.HERO_POWER, 113311)  # Fantastic Treasure DBF
+            p.set_tag(GameTag.HERO_POWER_COST, 0)
+        return None
+
+
+class DenathriusAnimaReservesScript:
+    """Start with 'Whodunit?' as second Hero Power."""
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_ID, "BG24_HERO_100p")
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_COST, 1)
+        return None
+
+
+class AnomalousCubeScript:
+    """Start with Mystery Cube as second HP (unlocks turn 5)."""
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_ID, "BG35_Anomaly_002t")
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_COST, 0)
+        return None
+
+
+class AnomalousConfluxScript:
+    """Start with Warped Conflux as second Hero Power."""
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_ID, "BG34_HERO_004p")
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_COST, 0)
+        return None
+
+
+class AnomalousTimelineScript:
+    """Start with Alternate Timeline as second Hero Power."""
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_ID, "BG34_HERO_000p")
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_COST, 0)
+        return None
+
+
+class LesserFortuneScript:
+    """Start with Lesser Crystal Ball as second HP (transforms into bought Lesser Trinket)."""
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_ID, "BG35_Anomaly_007t")
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_COST, 0)
+        return None
+
+
+class GreaterFortuneScript:
+    """Start with Greater Crystal Ball as second HP (transforms into bought Greater Trinket)."""
+    @staticmethod
+    def on_apply(source, game):
+        for p in game.players:
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_ID, "BG35_Anomaly_008t")
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_COST, 0)
+        return None
+
+
+class AnomalousExpeditionScript:
+    """
+    Natural language: At the start of the game, Discover minions from
+    Tiers 6, 4, and 2 to get at those Tiers.
+
+    Formal spec:
+      1. on_apply: for each player, queue 3 DiscoverMinion actions:
+         - Tier 6 only (min=6, max=6)
+         - Tier 4 only (min=4, max=4)
+         - Tier 2 only (min=2, max=2)
+      2. Hand limit handled by DiscoverMinion (MAX_HAND_SIZE=10)
+
+    Test: each player receives 3 minions (one from each tier 6, 4, 2).
+    """
+
+    @staticmethod
+    def on_apply(source, game):
+        actions = []
+        for p in game.players:
+            if p.is_alive:
+                actions.append(DiscoverMinion(p, min_tier=6, max_tier=6))
+                actions.append(DiscoverMinion(p, min_tier=4, max_tier=4))
+                actions.append(DiscoverMinion(p, min_tier=2, max_tier=2))
+        return actions if actions else None
+
+
 class DeferredAnomalyScript:
     """
     Status: DEFERRED — requires engine subsystem not yet implemented.
@@ -2195,11 +2397,11 @@ ANOMALY_SCRIPT_REGISTRY: dict = {
     "BG27_Anomaly_303": FirstMinionFreeAnomaly,
 
     # ── CORRECT: Game modes (marker tags) ──
-    "BG27_Anomaly_822": EnableQuestsDenathriusScript,    # Quests+Rwards enabled (engine flag)
+    "BG27_Anomaly_822": DenathriusAnimaReservesScript,  # Start with Whodunit? as second HP
     "BG27_Anomaly_Quests": EnableQuestsScript,  # Quests enabled
     "BG27_Anomaly_Buddies": EnableBuddiesScript, # Buddies enabled
     "BG27_Anomaly_Prizes2": PrizeEvery4TurnsScript,  # Prize every 4 turns
-    "BG31_Anomaly_106": EnableTrinketsMarinScript,     # Trinkets enabled
+    "BG31_Anomaly_106": AllHeroesMarinScript,          # All heroes are Marin
 
     # ── CORRECT: Refresh pool filtering (engine flags set on anomaly) ──
     "BG27_Anomaly_101": TierFilterOnly135Script,     # Tiers 1,3,5 only
@@ -2243,11 +2445,11 @@ ANOMALY_SCRIPT_REGISTRY: dict = {
     "BG27_Anomaly_002": PrudenceOfAmitusScript,     # Prudence of Amitus: minions have +2 HP
     "BG27_Anomaly_575": EleventhHourScript,     # Eleventh Hour
     "BG27_Anomaly_715": AfterCombatDiscoverScript,     # Win/lose combat discover
-    "BG27_Anomaly_716": UpgradeDiscoverPrizeAnomalyScript,     # Upgrade → discover prize (DEFERRED: needs prize)
+    "BG27_Anomaly_716": UpgradeDiscoverPrizeAnomalyScript,     # Upgrade → discover prize
     "BG27_Anomaly_718": UpgradeRefreshTribeScript,  # Upgrade → refresh with majority tribe
     "BG27_Anomaly_754": Refresh5GoldenApeScript,     # Refresh 5 → golden ape
-    "BG27_Anomaly_755": TripleGivesPrizeScript,     # Triple → prize (engine flag)
-    "BG27_Anomaly_820": SoTDeepBluesAnomalyScript,     # SoT get 2 Deep Blues
+    "BG27_Anomaly_755": TripleGivesPrizeScript,     # Triple → prize
+    "BG27_Anomaly_820": SoTDeepBluesAnomalyScript,     # SoT get 2 Deep Blues (self-improving)
     "BG27_Anomaly_805": GuessWinnerAnomalyScript,     # Guess winner → coins
     "BG27_Anomaly_561": AfterSellTransferStatsAnomalyScript,  # After sell → tavern minion gets its stats
     "BG27_Anomaly_558": DiscoverFromDeadHeroAnomalyScript,     # Discover from dead hero
@@ -2299,9 +2501,19 @@ ANOMALY_SCRIPT_REGISTRY: dict = {
     "BG34_Anomaly_809": TwistExtraRandomTurnScript,
 
     # ── DEFERRED: Missing text data ──
-    "BG31_Anomaly_111": DeferredAnomalyScript,     # Elven Elite
-    "BG31_Anomaly_112": DeferredAnomalyScript,     # Incubation Mutation
-    "BG31_Anomaly_114": DeferredAnomalyScript,     # Factory Line
+    "BG31_Anomaly_111": ElvenEliteScript,              # Elven Elite: only current tier
+    "BG31_Anomaly_112": IncubationMutationScript,       # Incubation Mutation: no-type → all types
+    "BG31_Anomaly_114": CopyLeftmostEvery2TurnsScript,  # Factory Line: copy leftmost every 2 turns
+
+    # ── Patch 35.6.0 — New anomalies ──
+    "BG35_Anomaly_001": FlyTheFlagScript,              # Fly the Flag: every 4 turns get copy spell
+    "BG35_Anomaly_002": AnomalousCubeScript,        # Start with Mystery Cube as second HP
+    "BG35_Anomaly_004": AnomalousConfluxScript,     # Start with Warped Conflux as second HP
+    "BG35_Anomaly_005": AnomalousTimelineScript,    # Start with Alternate Timeline as second HP
+    "BG35_Anomaly_006": AnomalousExpeditionScript,  # Game start: Discover T6, T4, T2
+    "BG35_Anomaly_007": LesserFortuneScript,        # Lesser Crystal Ball as second HP
+    "BG35_Anomaly_008": GreaterFortuneScript,       # Greater Crystal Ball as second HP
+
     # ── OUT_OF_SCOPE: Duos ──
     "BGDUO_Anomaly_003": DeferredAnomalyScript,
     "BGDUO_Anomaly_005": DeferredAnomalyScript,

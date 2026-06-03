@@ -94,6 +94,15 @@ class Player(BaseEntity):
     def hero_power_cost(self) -> int:
         return self.get_tag(GameTag.HERO_POWER_COST, 0)
 
+    @property
+    def secondary_hero_power_cost(self) -> int:
+        return self.get_tag(GameTag.SECONDARY_HERO_POWER_COST, 0)
+
+    @property
+    def has_secondary_hero_power(self) -> bool:
+        hp_id = self.get_tag(GameTag.SECONDARY_HERO_POWER_ID, 0)
+        return bool(hp_id and hp_id != 0)
+
     # ── Board helpers ──
 
     def get_board_minions(self) -> List["Minion"]:

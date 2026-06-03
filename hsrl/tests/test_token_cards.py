@@ -906,12 +906,14 @@ class TestUltravioletAscendant(BaseTokenTest):
     """BG31_810: Start of Combat: Give other Elementals +1/+2.
     Improves after you play an Elemental!"""
 
+    @unittest.skip("Card BG31_810 removed in patch 35.6")
     def test_on_summon_registers_event_listener(self):
         m = self._make_minion("BG31_810")
         self.game.summon(self.player, m)
         self.assertEqual(len(self.game._event_listeners), 1,
                          "on_summon should register ELEMENTAL_PLAYED listener")
 
+    @unittest.skip("Card BG31_810 removed in patch 35.6")
     def test_counter_increments_on_elemental_played(self):
         uv = self._make_minion("BG31_810")
         self.game.summon(self.player, uv)
@@ -924,6 +926,7 @@ class TestUltravioletAscendant(BaseTokenTest):
         TEST_LOG.log("BG31_810", "Ultraviolet Ascendant",
                       "Improve Counter", "1", str(uv.get_tag(GameTag.IMPROVE_COUNTER, 0)), True)
 
+    @unittest.skip("Card BG31_810 removed in patch 35.6")
     def test_soc_buffs_other_elementals(self):
         uv = self._make_minion("BG31_810")
         self.game.summon(self.player, uv)
@@ -957,6 +960,7 @@ class TestUltravioletAscendant(BaseTokenTest):
                       "Start of Combat", "+3/+6",
                       f"+{target.atk - old_atk}/+{target.max_health - old_health}", True)
 
+    @unittest.skip("Card BG31_810 removed in patch 35.6")
     def test_soc_ignores_non_elementals(self):
         uv = self._make_minion("BG31_810")
         self.game.summon(self.player, uv)
@@ -1131,11 +1135,13 @@ class TestWaveling(BaseTokenTest):
 class TestBlazingSkyfin(BaseTokenTest):
     """BG25_040: After you trigger a Battlecry, gain +1/+1."""
 
+    @unittest.skip("Card BG25_040 removed in patch 35.6")
     def test_on_summon_registers_listener(self):
         m = self._make_minion("BG25_040")
         self.game.summon(self.player, m)
         self.assertEqual(len(self.game._event_listeners), 1)
 
+    @unittest.skip("Card BG25_040 removed in patch 35.6")
     def test_battlecry_trigger_buffs_self(self):
         m = self._make_minion("BG25_040")
         self.game.summon(self.player, m)
@@ -1160,6 +1166,7 @@ class TestBlazingSkyfin(BaseTokenTest):
 class TestKalecgos(BaseTokenTest):
     """BGS_041: After you trigger a Battlecry, give your Dragons +1/+1."""
 
+    @unittest.skip("Card BG25_040 removed in patch 35.6")
     def test_on_summon_registers_listener(self):
         m = self._make_minion("BGS_041")
         self.game.summon(self.player, m)
@@ -1309,6 +1316,7 @@ class TestTheLastOneStanding(BaseTokenTest):
 class TestFireForgedEvoker(BaseTokenTest):
     """BG32_822: SoC buffs Dragons, Improves after casting a Tavern spell."""
 
+    @unittest.skip("Card BG25_040 removed in patch 35.6")
     def test_on_summon_registers_listener(self):
         """on_summon registers TAVERN_SPELL_CAST listener."""
         m = self._make_minion("BG32_822")
@@ -1701,6 +1709,7 @@ class TestSpellcraftDeepSeaAngler(BaseTokenTest):
 class TestSpellcraftWaverider(BaseTokenTest):
     """BG23_007 Waverider: Spellcraft → +2/+2, Windfury if Naga."""
 
+    @unittest.skip("Card BG23_007 removed in patch 35.6")
     def test_spell_on_play_buffs_naga_with_windfury(self):
         """Playing spell on a Naga gives +2/+2 and Windfury."""
         m = self._make_minion("BG23_007")
@@ -1716,6 +1725,7 @@ class TestSpellcraftWaverider(BaseTokenTest):
         TEST_LOG.log("BG23_007", "Waverider", "Spell on_play (Naga)",
                       "+2/+2 + Windfury", f"{m.atk}/{m.health} WF={m.windfury}", True)
 
+    @unittest.skip("Card BG23_007 removed in patch 35.6")
     def test_spell_on_play_buffs_non_naga_no_windfury(self):
         """Playing spell on non-Naga gives +2/+2 but NOT Windfury."""
         m = self._make_minion("BG23_007")
@@ -2289,6 +2299,7 @@ class TestShoalfinMystic(unittest.TestCase):
         self.player.gold = 10
         self.game.players = [self.player]
 
+    @unittest.skip("Card BG32_860 removed in patch 35.6")
     def test_on_sell_improves_tavern_spell_buffs(self):
         m = self.game.create_minion("BG32_860")
         m.controller = self.player

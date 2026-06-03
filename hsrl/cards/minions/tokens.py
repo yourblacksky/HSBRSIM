@@ -1071,6 +1071,108 @@ def _register_lantern_light():
     )
 
 
+def _register_volcanic_visitor_spell():
+    """Register BG30_117t — Escape Eruption (Volcanic Visitor spellcraft token)."""
+    from hsrl.cards.spells.scripts import SPELL_SCRIPT_REGISTRY
+    register_card(
+        card_id="BG30_117t",
+        name="Escape Eruption",
+        text="Choose One - Give your minions +4 Attack; or +4 Health.",
+        cardtype=CardType.SPELL,
+        race=Race.INVALID,
+        tech_level=0,  # Token — not in pool
+        tags={},
+        script_class=SPELL_SCRIPT_REGISTRY.get("BG30_117t"),
+    )
+
+
+def _register_beetle_token():
+    """Register BG28_603t — Beetle token (from Beetle-support cards)."""
+    register_card(
+        card_id="BG28_603t",
+        name="Beetle",
+        text="",
+        cardtype=CardType.MINION,
+        race=Race.BEAST,
+        tech_level=1,  # Token — not in tavern pool
+        tags={GameTag.BASE_ATK: 2, GameTag.BASE_HEALTH: 2},
+        script_class=None,
+    )
+
+
+def _register_fly_the_flag_token():
+    """Register BG35_Anomaly_001t — Fly the Flag spell token."""
+    from hsrl.cards.spells.scripts import SPELL_SCRIPT_REGISTRY
+    register_card(
+        card_id="BG35_Anomaly_001t",
+        name="Fly the Flag",
+        text="Choose a minion. Add plain copies of it to YOUR minion pool.",
+        cardtype=CardType.SPELL,
+        race=Race.INVALID,
+        tech_level=0,
+        tags={},
+        script_class=SPELL_SCRIPT_REGISTRY.get("BG35_Anomaly_001t"),
+    )
+
+
+def _register_deep_blues_token():
+    """Register BG26_502t — Deep Blues spell token."""
+    from hsrl.cards.spells.scripts import SPELL_SCRIPT_REGISTRY
+    register_card(
+        card_id="BG26_502t",
+        name="Deep Blues",
+        text="Give a minion +2/+2 until next turn. Improve your future Deep Blues.",
+        cardtype=CardType.SPELL,
+        race=Race.INVALID,
+        tech_level=0,
+        tags={},
+        script_class=SPELL_SCRIPT_REGISTRY.get("BG26_502t"),
+    )
+
+
+def _register_anomaly_hero_powers():
+    """Register anomaly-granted secondary hero power tokens."""
+    from hsrl.cards.heroes.scripts import HERO_POWER_SCRIPT_REGISTRY
+    tokens = [
+        ("BG35_Anomaly_002t", "Mystery Cube",
+         "Each turn, choose from 2 new Lesser Trinkets. (Unlocks Turn 5.)", 0),
+        ("BG35_Anomaly_007t", "Lesser Crystal Ball",
+         "When you buy a Lesser Trinket, transform into a copy of it.", 0),
+        ("BG35_Anomaly_008t", "Greater Crystal Ball",
+         "When you buy a Greater Trinket, transform into a copy of it.", 0),
+    ]
+    for cid, name, text, cost in tokens:
+        register_card(
+            card_id=cid,
+            name=name,
+            text=text,
+            cardtype=CardType.HERO_POWER,
+            race=Race.INVALID,
+            tech_level=0,
+            tags={GameTag.COST: cost},
+            script_class=HERO_POWER_SCRIPT_REGISTRY.get(cid),
+        )
+
+
 # Auto-register on import
 register_all_tokens()
 _register_lantern_light()
+_register_volcanic_visitor_spell()
+_register_beetle_token()
+_register_fly_the_flag_token()
+_register_anomaly_hero_powers()
+_register_deep_blues_token()
+
+def _register_evolving_scroll_token():
+    """Register BG31_Anomaly_102t — Evolving Scroll token spell."""
+    register_card(
+        card_id="BG31_Anomaly_102t",
+        name="Evolving Scroll",
+        text="Each turn in hand, transforms into a random Tavern spell of a higher Tier.",
+        cardtype=CardType.SPELL,
+        race=Race.INVALID,
+        tech_level=0,
+        tags={},
+        script_class=None,
+    )
+_register_evolving_scroll_token()

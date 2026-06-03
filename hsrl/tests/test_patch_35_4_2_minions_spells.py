@@ -69,8 +69,8 @@ class Patch3542TestCase(unittest.TestCase):
 
 class TestPatch3542MinionData(Patch3542TestCase):
     EXPECTED = {
-        "BG33_371": ("P-0UL-TR-0N", 10, 10, 6, Race.MECH, 5),
-        "BG33_840": ("Stomping Stegodon", 4, 4, 4, Race.BEAST, None),
+        # BG33_371 (P-0UL-TR-0N) — removed in patch 35.6
+        # BG33_840 (Stomping Stegodon) — removed in patch 35.6
         "BG35_155": ("Twisted Wrathguard", 8, 8, 6, Race.DEMON, None),
         "BG21_005": ("Famished Felbat", 6, 3, 5, Race.DEMON, None),
         "BG35_340": ("Alert Alarmist", 2, 2, 2, Race.MECH, None),
@@ -105,6 +105,7 @@ class TestPatch3542MinionData(Patch3542TestCase):
 
 
 class TestPatch3542MinionScripts(Patch3542TestCase):
+    @unittest.skip("Card BG33_840 removed in patch 35.6")
     def test_stomping_stegodon_rally_gives_other_beasts_plus_3_attack(self):
         stegodon = self._minion("BG33_840", self.player)
         beast = self._vanilla(atk=2, health=3, race=Race.BEAST)

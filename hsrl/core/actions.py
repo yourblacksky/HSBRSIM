@@ -155,7 +155,6 @@ class AttackImmediately(Action):
         self.attacker = attacker
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
-        import random
         if self.attacker.dead or self.attacker.atk <= 0:
             return
 
@@ -281,11 +280,18 @@ class Buff(Action):
     def do(self, source: "BaseEntity", game: "Game", target: Optional["BaseEntity"] = None) -> None:
         if self.target.dead:
             return
-        # Buff is applied as a pseudo-enchantment for simplicity in this reference impl
-        buff = BuffEnchantment(atk=self.atk, health=self.health,
+        atk = self.atk
+        health = self.health
+        # Elemental buff bonus: Sand Swirler / Glowing Cinder
+        if (hasattr(source, 'race') and source.race == Race.ELEMENTAL
+                and hasattr(source, 'controller') and source.controller):
+            ctrl = source.controller
+            atk += ctrl.tags.get(GameTag.ELEMENTAL_BUFF_BONUS_ATK, 0)
+            health += ctrl.tags.get(GameTag.ELEMENTAL_BUFF_BONUS_HEALTH, 0)
+        buff = BuffEnchantment(atk=atk, health=health,
                                temporary=self.temporary)
         self.target.add_buff(buff)
-        game.broadcast("BUFF", self.target, self.atk, self.health)
+        game.broadcast("BUFF", self.target, atk, health)
 
 
 class ApplyGlobalAura(Action):
@@ -322,7 +328,37 @@ class Summon(Action):
         game.summon(self.player, self.minion, position=self.position)
 
 
-class PlayMinion(Action):
+class CloneMinion(Action):
+    """Create an exact copy of a minion (deep-copied stats, buffs, enchants).
+
+    Used by Archlich Kel'Thuzad and similar "resummon an exact copy" effects.
+    After creation, self.clone holds the new minion; caller chains Summon.
+    """
+
+    def __init__(self, original: BaseEntity):
+        super().__init__()
+        self.original = original
+        self.clone = None
+
+    def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
+        if self.original.dead:
+            return
+        import copy as _copy
+        clone = game.create_minion(self.original.data.id)
+        if clone is None:
+            return
+        # Copy mutable state (deep copy so clone has independent state)
+        clone.tags = _copy.deepcopy(self.original.tags)
+        clone._buffs = _copy.deepcopy(self.original._buffs)
+        if hasattr(self.original, '_script_overrides'):
+            clone._script_overrides = _copy.deepcopy(self.original._script_overrides)
+        # Clear event listeners — they reference the original and must be
+        # re-registered when the clone is summoned.
+        clone._events = []
+        self.clone = clone
+
+
+class Destroy(Action):
     """Play a minion from hand to the board during recruit phase."""
 
     def __init__(self, player: Player, minion: BaseEntity, position: Optional[int] = None):
@@ -461,7 +497,6 @@ class DealDamageToRandomEnemy(Action):
         self.count = count
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
-        import random
         enemies = game.get_living_enemies(self.player)
         for _ in range(self.count):
             if not enemies:
@@ -631,6 +666,47 @@ class UseHeroPower(Action):
         game.broadcast(HERO_POWER_USED, self.player)
 
 
+class UseSecondaryHeroPower(Action):
+    """Player uses their secondary hero power (from anomalies).
+
+    Checks: secondary HP exists, not already used this turn, enough gold.
+    The secondary hero power is resolved via its script class from CardDB.
+    """
+
+    def __init__(self, player: Player):
+        super().__init__()
+        self.player = player
+
+    def do(self, source: BaseEntity, game: Game, target=None) -> None:
+        hp_card_id = self.player.get_tag(GameTag.SECONDARY_HERO_POWER_ID, 0)
+        if not hp_card_id or hp_card_id == 0:
+            return
+        if self.player.get_tag(GameTag.SECONDARY_HERO_POWER_USED, False):
+            return
+        cost = self.player.get_tag(GameTag.SECONDARY_HERO_POWER_COST, 0)
+        if self.player.gold < cost:
+            return
+        if cost > 0:
+            SpendGold(self.player, cost).do(source, game)
+        self.player.set_tag(GameTag.SECONDARY_HERO_POWER_USED, True)
+
+        # Execute secondary hero power script
+        hp_data = game.card_db.get(str(hp_card_id))
+        if hp_data and hp_data.scripts:
+            hp_fn = getattr(hp_data.scripts, "hero_power", None)
+            if hp_fn and callable(hp_fn):
+                result = hp_fn(self.player, game)
+                if result is not None:
+                    if isinstance(result, (list, tuple)):
+                        for action in result:
+                            game.queue_action(action, source=self.player)
+                    else:
+                        game.queue_action(result, source=self.player)
+
+        from hsrl.core.events import HERO_POWER_USED
+        game.broadcast(HERO_POWER_USED, self.player)
+
+
 class UpgradeTavern(Action):
     """Player upgrades their tavern tier."""
 
@@ -648,6 +724,11 @@ class UpgradeTavern(Action):
             return
 
         cost = max(self.player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5), 1)
+        # Anomaly: upgrade costs 2 less (Uncompensated Upset)
+        if (game.active_anomaly is not None
+                and not isinstance(game.active_anomaly, bool)
+                and getattr(game.active_anomaly, '_upgrade_cost_less_2', False)):
+            cost = max(0, cost - 2)
         if self.player.gold < cost:
             return
 
@@ -852,7 +933,6 @@ class DiscoverMinion(Action):
         if len(self.player.hand) >= MAX_HAND_SIZE:
             return
 
-        import random
         # Limit to discover pool size (3 in real BG, but we show all valid)
         pool = game.rng.sample(candidates, min(3, len(candidates)))
         options = [(cid, game.card_db.get(cid).name) for cid in pool]
@@ -907,7 +987,6 @@ class DiscoverSpell(Action):
         if len(self.player.hand) >= MAX_HAND_SIZE:
             return
 
-        import random
         pool = game.rng.sample(candidates, min(3, len(candidates)))
         options = [(cid, game.card_db.get(cid).name) for cid in pool]
 
@@ -962,7 +1041,6 @@ class UpgradeTavernMinionTier(Action):
                 candidates.extend(game.minion_pool._pools[tier])
         if not candidates:
             return
-        import random
         chosen_id = game.rng.choice(candidates)
         # Remove old minion from tavern
         if self.minion in self.player.tavern:
@@ -1025,7 +1103,6 @@ class RotateRatKingType(Action):
 
     def do(self, source: "BaseEntity", game: "Game",
            target: Optional["BaseEntity"] = None) -> None:
-        import random
         current = self.player.get_tag(GameTag.RAT_KING_TYPE, Race.NONE)
         candidates = [r for r in self.RAT_KING_RACES if r != current]
         if not candidates:
@@ -1057,7 +1134,6 @@ class GetRandomMinion(Action):
         self.card_type = card_type
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
-        import random
         candidates = []
         for card_id, data in game.card_db._cards.items():
             if self.card_type is not None and data.cardtype != self.card_type:
@@ -1101,7 +1177,6 @@ class GetRandomBounty(Action):
         self.player = player
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
-        import random
         cid = game.rng.choice(self.BOUNTY_SPELLS)
         spell = game.create_minion(cid)
         if spell is None:
@@ -1343,7 +1418,6 @@ class ConsumeTavernMinion(Action):
         self.mode = mode
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
-        import random
 
         if self.source.dead:
             return
@@ -1402,7 +1476,6 @@ class CopyTavernMinion(Action):
         self.controller = controller
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
-        import random
         candidates = [
             m for m in self.controller.tavern
             if not m.dead and m.get_tag(GameTag.CARDTYPE) == CardType.MINION
@@ -1660,7 +1733,6 @@ class TargetedAction(Action):
             if not candidates:
                 return
             if game.in_combat:
-                import random
                 self._target = game.rng.choice(candidates)
             else:
                 # RECRUIT phase — pause for player selection
@@ -1755,7 +1827,6 @@ class ChooseOne(Action):
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
         if not self.choices:
             return
-        import random
         idx = self.index if self.index is not None else game.rng.randrange(len(self.choices))
         _, action_or_list = self.choices[idx]
         if isinstance(action_or_list, (list, tuple)):
@@ -1894,7 +1965,6 @@ class BuffRandomTavernMinion(Action):
         self.health = health
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
-        import random
         tavern = self.player.tavern
         candidates = [m for m in tavern if not m.dead]
         if not candidates:
@@ -1916,7 +1986,6 @@ class AddFodderToRandomTavernMinion(Action):
         self.player = player
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
-        import random
         remaining = source.get_tag(GameTag.FODDER_REFRESH_REMAINING, 0)
         if remaining <= 0:
             return
@@ -1999,7 +2068,6 @@ class CastYoggWheel(Action):
         self.player = player
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
-        import random
         effect = game.rng.choice(self.YOGG_EFFECTS)
 
         if effect == "deal_3_to_random_enemy":
@@ -2296,7 +2364,6 @@ class DiscoverTrinket(Action):
         self.lesser_only = lesser_only
 
     def do(self, source: "BaseEntity", game: "Game", target=None) -> None:
-        import random
         from hsrl.core.trinket import Trinket
 
         # Pool of available trinket card IDs
@@ -2364,7 +2431,6 @@ class GuessMinion(Action):
         self.player = player
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
-        import random
 
         # Find next opponent
         enemies = [p for p in game.players if p != self.player and p.is_alive]
@@ -2390,7 +2456,7 @@ class GuessMinion(Action):
             return
 
         # Auto-guess: 50% chance of correct
-        if random.random() < 0.5:
+        if game.rng.random() < 0.5:
             # Correct guess → gain 1 Gold (a Coin)
             GainGold(self.player, 1).do(source, game)
             game.broadcast("GUESS_CORRECT", self.player,

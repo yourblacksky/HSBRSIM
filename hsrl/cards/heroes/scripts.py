@@ -2080,7 +2080,10 @@ class EmbraceTheElementsScript:
                 self.element = element
 
             def do(self, source_ent, game_ref, target=None):
-                board = self.player.get_board_minions()
+                player = self.player
+                if hasattr(player, 'controller') and player.controller is not None:
+                    player = player.controller
+                board = player.get_board_minions()
                 living = [m for m in board if not m.dead]
                 if not living:
                     return
@@ -4881,6 +4884,156 @@ def _make_buff_hp(atk, health, keyword=None):
     return _Buff
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# TB_BaconShop_HP_009: Skilled Bartender (passive — reduce upgrade cost by 1)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class SkilledBartenderScript:
+    """Passive Hero Power: Reduce the Cost of upgrading the Tavern by (1).
+
+    Formal spec:
+      - Cost: 0 (passive)
+      - on_summon: reduce TAVERN_UPGRADE_COST by 1, register TAVERN_UPGRADED listener
+      - TAVERN_UPGRADED: reduce new upgrade cost by 1
+      - hero_power returns None
+
+    Test: game start → upgrade cost = 4. Upgrade to T2 → upgrade cost = 4 (not 5).
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TAVERN_UPGRADED, EventListener
+
+        current = source.get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
+        source.set_tag(GameTag.TAVERN_UPGRADE_COST, max(0, current - 1))
+
+        class _ReduceNextCost(Action):
+            def __init__(self, hero):
+                super().__init__()
+                self.hero = hero
+
+            def do(self, source_ent, game_ref, target=None):
+                current_cost = self.hero.get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
+                self.hero.set_tag(GameTag.TAVERN_UPGRADE_COST, max(0, current_cost - 1))
+
+        game.register_listener(source, EventListener(
+            event_name=TAVERN_UPGRADED,
+            action=_ReduceNextCost(source),
+        ))
+
+    @staticmethod
+    def hero_power(source, game):
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TB_BaconShop_HP_036t: Nether Portal (passive — get 2 random Demons each turn)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class NetherPortalScript:
+    """Passive Hero Power: At the start of each turn, get 2 random Demons.
+
+    Formal spec:
+      - Cost: 0 (passive)
+      - on_summon registers TURN_BEGIN listener
+      - TURN_BEGIN: GetRandomMinion(player, race=Race.DEMON) × 2
+      - hero_power returns None
+
+    Test: turn begin → 2 Demon minions in hand.
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        from hsrl.core.events import TURN_BEGIN, EventListener
+
+        class _AddTwoDemons(Action):
+            def __init__(self, hero):
+                super().__init__()
+                self.hero = hero
+
+            def do(self, source_ent, game_ref, target=None):
+                for _ in range(2):
+                    GetRandomMinion(self.hero, race=Race.DEMON).do(self.hero, game_ref)
+
+        game.register_listener(source, EventListener(
+            event_name=TURN_BEGIN,
+            action=_AddTwoDemons(source),
+        ))
+
+    @staticmethod
+    def hero_power(source, game):
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TB_BaconShop_HP_050: Banshee's Blessing (active — remove minion, buff adjacent)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class BansheesBlessingScript:
+    """Hero Power: Remove a friendly minion. Give adjacent minions +1/+1.
+
+    Formal spec:
+      - Cost: active (cost from hero power data)
+      - Targets a friendly minion on board
+      - Destroy(target)
+      - Buff adjacent minions +1/+1
+      - Returns None if board empty
+
+    Test: board with 3 minions, use on middle → middle removed, left+right get +1/+1.
+    """
+
+    @staticmethod
+    def hero_power(source, game):
+        from hsrl.core.actions import get_adjacent_minions
+
+        board = source.get_board_minions()
+        if not board:
+            return None
+
+        def filter_fn():
+            return [m for m in board if not m.dead]
+
+        def action_factory(target):
+            actions = []
+            left, right = get_adjacent_minions(board, target)
+            if left and not left.dead:
+                actions.append(Buff(left, atk=1, health=1))
+            if right and not right.dead:
+                actions.append(Buff(right, atk=1, health=1))
+            actions.append(Destroy(target))
+            return actions
+
+        return TargetedAction(filter_fn, action_factory,
+                              label="Banshee's Blessing — remove minion, buff adjacent")
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# TB_BaconShop_HP_065t2: Spectral Sight (passive — first buy each turn free)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class SpectralSightScript:
+    """Passive Hero Power: The first minion you buy each turn is free.
+
+    Uses FIRST_MINION_FREE tag (engine already supports this).
+    Resets at the start of each turn.
+
+    Formal spec:
+      - Cost: 0 (passive)
+      - on_summon: set player tag FIRST_MINION_FREE = True
+      - hero_power returns None
+
+    Test: first buy each turn costs 0 gold, second buy costs normal cost.
+    """
+
+    @staticmethod
+    def on_summon(source, game):
+        source.set_tag(GameTag.FIRST_MINION_FREE, True)
+
+    @staticmethod
+    def hero_power(source, game):
+        return None
+
+
 # ── Registry ──
 
 HERO_POWER_SCRIPT_REGISTRY = {
@@ -5053,4 +5206,9 @@ HERO_POWER_SCRIPT_REGISTRY = {
     "BG24_HERO_100p": DenathriusQuestScript,               # Denathrius: Choose Quest
     "BG25_HERO_100p": PutricideCraftScript,                 # Putricide: Discover Undead
     "BG31_HERO_811p": KerriganZergScript,                   # Kerrigan: Zerg buffs
+    # ── Phase 1 audit: 4 missing hero powers ──
+    "TB_BaconShop_HP_009": SkilledBartenderScript,          # Skilled Bartender: -1 upgrade cost
+    "TB_BaconShop_HP_036t": NetherPortalScript,             # Nether Portal: 2 Demons/turn
+    "TB_BaconShop_HP_050": BansheesBlessingScript,          # Banshee's Blessing: remove→buff adjacent
+    "TB_BaconShop_HP_065t2": SpectralSightScript,           # Spectral Sight: first buy free
 }

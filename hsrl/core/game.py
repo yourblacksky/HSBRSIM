@@ -269,6 +269,8 @@ class Game:
                 cost = minion.data.tech_level
             if getattr(anomaly, '_minions_cost_2', False):
                 cost = 2
+            if getattr(anomaly, '_minions_cost_1', False):
+                cost = 1
         # Electrode Attractor: magnetic mechs cost (2)
         if minion.has_tag(GameTag.MAGNETIC) and player.get_tag(GameTag.MAGNETIC_COST_OVERRIDE, 0) > 0:
             cost = player.get_tag(GameTag.MAGNETIC_COST_OVERRIDE)
@@ -399,8 +401,12 @@ class Game:
                     self.queue_action(action, source=minion)
             else:
                 self.queue_action(sell_action, source=minion)
-        # Return 1 Gold
-        self.queue_action(GainGold(player, 1))
+        # Return 1 Gold (or 0 if anomaly overrides)
+        sell_price = 0 if (self.active_anomaly is not None
+                           and not isinstance(self.active_anomaly, bool)
+                           and getattr(self.active_anomaly, '_sell_price_0', False)) else 1
+        if sell_price > 0:
+            self.queue_action(GainGold(player, sell_price))
         # Broadcast MINION_SOLD event
         self.broadcast("MINION_SOLD", minion, player)
         # Dispatch counter-based trinket triggers
@@ -1041,22 +1047,34 @@ class Game:
     def _apply_anomaly(self) -> None:
         """Apply a random anomaly at game start (if any are registered).
 
-        An anomaly modifies global game rules. Pick one at random from card_db
+        Anomaly modifies global game rules. Pick one at random from card_db
         and trigger its on_apply script.
+        Only anomalies with non-DEFERRED scripts are eligible.
         """
         if self.active_anomaly is not None:
             return
 
         from hsrl.core.anomaly import Anomaly
 
-        available_ids = [
-            cid for cid, data in self.card_db._cards.items()
-            if data.cardtype == CardType.ANOMALY
-        ]
+        available_ids = []
+        for cid, data in self.card_db._cards.items():
+            if data.cardtype != CardType.ANOMALY:
+                continue
+            if cid.startswith("EXAMPLE"):
+                continue
+            if "BGDUO" in cid:
+                continue
+            # Skip DEFERRED anomalies (no functional script)
+            if data.scripts is None:
+                continue
+            doc = (data.scripts.__doc__ or "").lower()
+            if "deferred" in doc:
+                continue
+            available_ids.append(cid)
+
         if not available_ids:
             return
 
-        import random
         anomaly_id = self.rng.choice(available_ids)
         anomaly_data = self.card_db.get(anomaly_id)
         anomaly = Anomaly(anomaly_data, game=self)
@@ -1478,6 +1496,7 @@ class Game:
             self._dispatch_trinket_event(p, "on_turn_begin")
             # Reset hero power usage
             p.set_tag(GameTag.HERO_POWER_USED, False)
+            p.set_tag(GameTag.SECONDARY_HERO_POWER_USED, False)
             # Anomaly: all heroes are Nguyen — discover a hero power each turn
             anomaly = self.active_anomaly
             if (anomaly is not None and not isinstance(anomaly, bool)
@@ -1501,6 +1520,13 @@ class Game:
                 m.set_tag(GameTag.TURNS_IN_HAND, current + 1)
             # Gain gold (3 on turn 1, +1 each turn, max 10)
             gold_gained = min(3 + self.turn - 1, 10)
+            # Anomaly override: set specific starting gold (Curse of Aggramar)
+            if (self.turn == 1
+                    and self.active_anomaly is not None
+                    and not isinstance(self.active_anomaly, bool)):
+                override = getattr(self.active_anomaly, '_start_gold', None)
+                if override is not None:
+                    gold_gained = override
             # Gold carryover: unspent gold carries to next turn (BG27_Anomaly_002)
             if (self.active_anomaly is not None
                     and hasattr(self.active_anomaly, '_gold_carryover')):
@@ -2293,6 +2319,12 @@ class Game:
 
     def _get_damage_cap(self) -> Optional[int]:
         """Return the current damage cap, or None if removed."""
+        # Anomaly override: Curse of Aggramar
+        if (self.active_anomaly is not None
+                and not isinstance(self.active_anomaly, bool)):
+            override = getattr(self.active_anomaly, '_damage_cap_override', None)
+            if override is not None:
+                return override
         alive_count = sum(1 for p in self.players if p.is_alive)
         if alive_count <= 4:
             return None

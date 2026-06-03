@@ -31,6 +31,7 @@ from hsrl.core.actions import (
     Action, Buff, Destroy, GainGold, GetRandomMinion, DiscoverMinion, DiscoverSpell,
     BuffTavern, DealDamageToRandomEnemy, GainKeyword, BuffRandomTavernMinion,
     PlayBloodGems, GetBloodGem, AddToHand, TargetedAction, Summon, Transform,
+    ChooseOne,
 )
 from hsrl.core.enums import CardType as CardTypeEnum  # for local use
 
@@ -811,6 +812,68 @@ class StealTavernScript:
 # ── Spell Script Registry ───────────────────────────────────────────────────
 # Maps card_id → script_class with on_play(source, game) → Action
 
+class DeepBluesScript:
+    """
+    Natural language: Give a minion +2/+2 until next turn. Improve your future
+    Deep Blues.
+
+    Formal spec:
+      1. Get IMPROVE_COUNTER from player; base bonus = 2 (from XML data)
+      2. Increment counter for future uses
+      3. Apply targeted buff: + (2 + counter) ATK, + (2 + counter) HEALTH, temporary=True
+      4. Temporary buffs are cleared at end of combat / end of recruit phase
+
+    Test: first use gives +2/+2 temp; second gives +3/+3 temp.
+    """
+    BASE_ATK = 2
+    BASE_HEALTH = 2
+
+    @staticmethod
+    def on_play(source, game):
+        player = source.controller
+        counter = player.get_tag(GameTag.IMPROVE_COUNTER, 0)
+        player.set_tag(GameTag.IMPROVE_COUNTER, counter + 1)
+        bonus_atk = DeepBluesScript.BASE_ATK + counter
+        bonus_health = DeepBluesScript.BASE_HEALTH + counter
+
+        def filter_fn():
+            return [m for m in player.board if not m.dead]
+
+        def action_factory(target):
+            return Buff(target, atk=bonus_atk, health=bonus_health, temporary=True)
+
+        return TargetedAction(filter_fn, action_factory,
+                            label=f"Deep Blues (+{bonus_atk}/+{bonus_health})")
+
+
+class EscapeEruptionScript:
+    """
+    Natural language: Choose One - Give your minions +4 Attack; or +4 Health.
+
+    Formal spec:
+      1. Present ChooseOne with two options:
+         a. "+4 Attack" → Buff each friendly minion +4 ATK
+         b. "+4 Health" → Buff each friendly minion +4 Health
+      2. Apply the chosen buff to all friendly minions on the board.
+
+    Test: verify choosing Attack gives all +4 ATK; choosing Health gives all +4 Health.
+    """
+    @staticmethod
+    def on_play(source, game):
+        player = source.controller
+        board = [m for m in player.board if not m.dead]
+        if not board:
+            return None
+
+        atk_buffs = [Buff(m, atk=4, health=0) for m in board]
+        hp_buffs = [Buff(m, atk=0, health=4) for m in board]
+
+        return ChooseOne([
+            ("+4 Attack to all", atk_buffs),
+            ("+4 Health to all", hp_buffs),
+        ])
+
+
 class _NotYetImplementedScript:
     """Placeholder for spells that require new engine mechanics.
 
@@ -1038,4 +1101,12 @@ SPELL_SCRIPT_REGISTRY: dict = {
     "BG31_889": SharingIsCaringScript,      # SoC: Summon copy of left-most minion
     "BG31_896": HallowedRitualScript,       # Hallowed Ritual: Discover T7
     "BG34_272": MenagerieTablewareScript,   # Menagerie Tableware: +3/+3 per type
+
+    # ── Token spells ──
+    "BG30_117t": EscapeEruptionScript,      # Escape Eruption: Choose One +4 ATK or +4 Health
+    "BG35_Anomaly_001t": _NotYetImplementedScript,  # Fly the Flag: choose minion → add copies to pool
+    "BG26_502t": DeepBluesScript,           # Deep Blues: +2/+2 temp, self-improving
+
+    # ── Patch 35.6.0 — New ──
+    "BG34_689": _NotYetImplementedScript,   # Blood Gem Barrage: after refresh → tavern blood gems
 }

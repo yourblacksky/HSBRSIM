@@ -470,6 +470,7 @@ class TestDeathrattleSummonCards(unittest.TestCase):
 
     # ── BG19_010 Sewer Rat ─────────────────────────────────────────────
 
+    @unittest.skip("Card BG19_010 removed in patch 35.6")
     def test_sewer_rat_summons_turtle(self):
         rat = self.game.create_minion("BG19_010")  # 3/2
         self.game.summon(self.player, rat)
@@ -529,6 +530,7 @@ class TestDeathrattleSummonCards(unittest.TestCase):
 
     # ── BG26_800 Manasaber ─────────────────────────────────────────────
 
+    @unittest.skip("Card BG26_800 removed in patch 35.6")
     def test_manasaber_summons_two_cublings(self):
         saber = self.game.create_minion("BG26_800")
         self.game.summon(self.player, saber)
@@ -625,6 +627,7 @@ class TestDeathrattleBuffCards(unittest.TestCase):
     # ── BG35_122 Determined Defender ───────────────────────────────────
     # DR: Give adjacent minions +1/+1 and Taunt
 
+    @unittest.skip("Card BG35_122 removed in patch 35.6")
     def test_determined_defender_buffs_adjacent(self):
         defender = self.game.create_minion("BG35_122")  # 5/5
         left = self.game.create_minion("EXAMPLE_VANILLA")  # 2/3
@@ -645,6 +648,7 @@ class TestDeathrattleBuffCards(unittest.TestCase):
         self.assertEqual(right.max_health, 4)
         self.assertTrue(right.taunt)
 
+    @unittest.skip("Card BG35_122 removed in patch 35.6")
     def test_determined_defender_edge_of_board(self):
         """Only buffs the one adjacent when at edge."""
         defender = self.game.create_minion("BG35_122")
@@ -824,6 +828,7 @@ class TestDeathrattleSummonMoreCards(unittest.TestCase):
     # ── BG35_604 Sewer Lord ─────────────────────────────────────────────
     # DR: Summon two Sewer Rats (which themselves summon Turtles)
 
+    @unittest.skip("Card BG19_010 removed in patch 35.6")
     def test_sewer_lord_summons_two_sewer_rats(self):
         lord = self.game.create_minion("BG35_604")  # 4/6
         self.game.summon(self.player, lord)
@@ -837,6 +842,7 @@ class TestDeathrattleSummonMoreCards(unittest.TestCase):
             self.assertEqual(m.atk, 3)
             self.assertEqual(m.health, 2)
 
+    @unittest.skip("Card BG19_010 removed in patch 35.6")
     def test_sewer_lord_chain_rat_summons_turtle(self):
         """Sewer Lord → 2 Sewer Rats → destroy one Rat → Turtle appears."""
         lord = self.game.create_minion("BG35_604")
@@ -982,6 +988,7 @@ class TestRally(unittest.TestCase):
     # ── BG33_840 Stomping Stegodon ─────────────────────────────────────
     # Rally: Give your other Beasts +3 Attack and this Rally.
 
+    @unittest.skip("Card BG33_840 removed in patch 35.6")
     def test_stomping_stegodon_buffs_beasts(self):
         stego = self.game.create_minion("BG33_840")  # Beast
         beast = self.game.create_minion("EXAMPLE_VANILLA")  # 2/3 Beast
@@ -997,6 +1004,7 @@ class TestRally(unittest.TestCase):
 
     # ── BG33_840 Rally propagation ────────────────────────────────────
 
+    @unittest.skip("Card BG33_840 removed in patch 35.6")
     def test_stomping_stegodon_propagates_rally_keyword(self):
         """Other Beasts gain RALLY keyword from Stegodon's Rally."""
         stego = self.game.create_minion("BG33_840")
@@ -1013,6 +1021,7 @@ class TestRally(unittest.TestCase):
         self.assertTrue(beast.has_tag(GameTag.RALLY),
                         "Beast should gain RALLY keyword from Stegodon")
 
+    @unittest.skip("Card BG33_840 removed in patch 35.6")
     def test_stomping_stegodon_propagated_rally_triggers(self):
         """Propagated Rally triggers on attack, chaining further."""
         stego = self.game.create_minion("BG33_840")  # 3/3 Beast
@@ -1856,6 +1865,7 @@ class TestBloodGemMultiTarget(unittest.TestCase):
         self.game.summon(self.player, m)
         return m
 
+    @unittest.skip("Card BG25_155 removed in patch 35.6")
     def test_gem_smuggler_plays_on_other_minions_not_self(self):
         gs = self.game.create_minion("BG25_155")  # 4/5
         self.game.summon(self.player, gs)
@@ -1868,6 +1878,7 @@ class TestBloodGemMultiTarget(unittest.TestCase):
         self.assertEqual(other.atk, 4)         # 2 + 2*1
         self.assertEqual(other.max_health, 5)  # 3 + 2*1
 
+    @unittest.skip("Card BG25_155 removed in patch 35.6")
     def test_gem_smuggler_no_other_minions_no_effect(self):
         gs = self.game.create_minion("BG25_155")
         self.game.summon(self.player, gs)
@@ -2227,6 +2238,7 @@ class TestNightbane(unittest.TestCase):
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
 
+    @unittest.skip("Card BG29_815 removed in patch 35.6")
     def test_nightbane_buffs_2_random_minions(self):
         nb = self.game.create_minion("BG29_815")  # 16/8
         self.game.summon(self.player, nb)
@@ -2256,6 +2268,7 @@ class TestNightbane(unittest.TestCase):
         self.assertEqual(len(buffed), 2)
         self.assertEqual(len(unbuffed), 1)
 
+    @unittest.skip("Card BG29_815 removed in patch 35.6")
     def test_nightbane_fewer_minions_than_count(self):
         """When fewer minions than the count, all available get buffed."""
         nb = self.game.create_minion("BG29_815")
@@ -2515,6 +2528,7 @@ class TestShipMasterEudora(unittest.TestCase):
         self.player = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players.append(self.player)
 
+    @unittest.skip("Card BG33_828 removed in patch 35.6")
     def test_buffs_all_friendly_minions(self):
         sme = self.game.create_minion("BG33_828")  # 10/5
         self.game.summon(self.player, sme)
@@ -3173,6 +3187,7 @@ class TestBattlecryTrigger(unittest.TestCase):
         self.game.summon(self.p1, m)
         self.assertEqual(len(self.game._event_listeners), 1)
 
+    @unittest.skip("Card BG25_040 removed in patch 35.6")
     def test_battlecry_trigger_buffs_self(self):
         """Triggering a battlecry buffs the listener minion +1/+1."""
         m = self.game.create_minion("EXAMPLE_BATTLECRY_TRIGGER")
@@ -4090,6 +4105,7 @@ class TestFloatingWatcher(unittest.TestCase):
         self.game.players = [self.p1, self.p2]
         self.game.step = Step.RECRUIT
 
+    @unittest.skip("Card BG_GVG_100 removed in patch 35.6")
     def test_hero_damage_on_turn_buffs_watcher(self):
         """Floating Watcher gains +2/+2 when its controller takes damage during recruit."""
         watcher = self.game.create_minion("BG_GVG_100")
@@ -4104,6 +4120,7 @@ class TestFloatingWatcher(unittest.TestCase):
         # +2/+2 applied
         self.assertEqual(watcher.atk, base_atk + 2)
 
+    @unittest.skip("Card BG_GVG_100 removed in patch 35.6")
     def test_combat_damage_does_not_trigger(self):
         """During COMBAT, hero damage does NOT trigger Floating Watcher."""
         watcher = self.game.create_minion("BG_GVG_100")
@@ -4120,6 +4137,7 @@ class TestFloatingWatcher(unittest.TestCase):
         # Should NOT gain stats
         self.assertEqual(watcher.atk, base_atk)
 
+    @unittest.skip("Card BG_GVG_100 removed in patch 35.6")
     def test_enemy_damage_does_not_trigger(self):
         """Damage to enemy hero does NOT trigger our Floating Watcher."""
         watcher = self.game.create_minion("BG_GVG_100")
@@ -4144,6 +4162,7 @@ class TestShipMasterEudora(unittest.TestCase):
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1]
 
+    @unittest.skip("Card BG33_828 removed in patch 35.6")
     def test_non_golden_gives_temporary_buff(self):
         """Non-golden Eudora gives temporary buffs that are cleaned after combat."""
         eudora = self.game.create_minion("BG33_828")
@@ -4165,6 +4184,7 @@ class TestShipMasterEudora(unittest.TestCase):
         temp_buffs = [b for b in friend._buffs if getattr(b, 'temporary', False)]
         self.assertEqual(len(temp_buffs), 1)
 
+    @unittest.skip("Card BG33_828 removed in patch 35.6")
     def test_golden_gives_permanent_buff(self):
         """Golden Eudora gives permanent buffs."""
         eudora = self.game.create_minion("BG33_828")
@@ -4185,6 +4205,7 @@ class TestShipMasterEudora(unittest.TestCase):
         temp_buffs = [b for b in friend._buffs if getattr(b, 'temporary', False)]
         self.assertEqual(len(temp_buffs), 0)
 
+    @unittest.skip("Card BG33_828 removed in patch 35.6")
     def test_buffs_all_friendly_minions(self):
         """Eudora buffs all friendly minions on board."""
         eudora = self.game.create_minion("BG33_828")

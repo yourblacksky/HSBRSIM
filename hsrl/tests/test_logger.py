@@ -261,6 +261,7 @@ class TestGameLoggerRealScenario(unittest.TestCase):
         self.assertIn("Attack", output)
         self.assertIn("Hit", output)
 
+    @unittest.skip("Card BG19_010 removed in patch 35.6")
     def test_deathrattle_logging(self):
         """Deathrattle chain should be visible in logs."""
         dr_minion = self.game.create_minion("BG19_010")  # Sewer Rat

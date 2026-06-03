@@ -143,9 +143,9 @@ class GameTag(IntEnum):
     BALLER_FIRE_BONUS = 144         # Fire Baller: accumulated Attack bonus for future Ballers
     BALLER_SNOW_BONUS = 150         # Snow Baller: accumulated Health bonus for future Ballers
     TAVERN_SPELL_ATK_BONUS = 148    # Extra Attack applied by Tavern spell casts this game
-    ELEMENTAL_STAT_BONUS_ATK = 151  # Extra Attack from elemental stat buffs this game
-    ELEMENTAL_STAT_BONUS_HEALTH = 152  # Extra Health from elemental stat buffs this game
-    PERMANENT_SPELLCRAFT = 153      # Minion's spellcraft spell does not expire after use
+    ELEMENTAL_STAT_BONUS_ATK = 211  # Extra Attack from elemental stat buffs this game
+    ELEMENTAL_STAT_BONUS_HEALTH = 212  # Extra Health from elemental stat buffs this game
+    PERMANENT_SPELLCRAFT = 213      # Minion's spellcraft spell does not expire after use
     BUY_EXTRA_COPIES = 199          # Extra copies granted on next minion purchases
     TRINKET_TIER = 200              # Tier tracker for trinket improvement (Marine Signet)
     NEXT_PURCHASE_GOLDEN = 201      # Next N purchases become golden (Gold-plated Compass)
@@ -200,6 +200,21 @@ class GameTag(IntEnum):
     TRINKET_1_TURN = 196           # Turn for first trinket offer
     TRINKET_2_TURN = 197           # Turn for second trinket offer
     BLOOD_GEM_COUNT = 198          # Per-minion blood gem tracker
+    LAVA_LURKER_USED = 214         # Lava Lurker: spellcraft permanent used this turn
+    ZESTY_SHAKER_USED = 215        # Zesty Shaker: spellcraft copy used this turn
+    MALCHEZAAR_REFRESHES = 216     # Malchezaar: remaining HP-cost refreshes this turn
+    LAST_SPELLCRAFT_ID = 217       # Zesty Shaker: last spellcraft spell card_id
+    MAGICFIN_USED = 218            # Magicfin Mycologist: used this turn
+    KODO_USES = 219                # Stalwart Kodo: remaining uses this combat
+    REVENANT_GOLD_SPENT = 220      # Air Revenant: gold spent toward next trigger
+    SLAB_USED = 221                # Stone Age Slab: used this turn
+    ELEMENTAL_BUFF_BONUS_ATK = 222  # Sand Swirler: extra +ATK on Elemental buffs
+    ELEMENTAL_BUFF_BONUS_HEALTH = 223  # Glowing Cinder: extra +Health on Elemental buffs
+    BEETLE_BONUS_ATK = 224          # Beetle buffs: extra base ATK for Beetles
+    BEETLE_BONUS_HEALTH = 225       # Beetle buffs: extra base Health for Beetles
+    SECONDARY_HERO_POWER_ID = 226   # Card ID of secondary hero power
+    SECONDARY_HERO_POWER_USED = 227 # Whether secondary HP was used this turn
+    SECONDARY_HERO_POWER_COST = 228 # Gold cost of secondary hero power
 
 
 class CardType(IntEnum):

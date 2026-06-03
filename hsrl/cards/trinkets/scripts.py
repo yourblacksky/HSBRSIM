@@ -6269,6 +6269,26 @@ class DazzlingDaggerScript:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Patch 35.6.0 — New trinkets
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class ChillmereMosaicScript:
+    """Status: DEFERRED — Spellcraft: Refresh Tavern with Battlecry minions at cost (1).
+    Dependency: filtered tavern refresh + trinket spellcraft subsystem."""
+    @staticmethod
+    def spellcraft(source, game):
+        return None
+
+
+class DoubleStitchNeedleScript:
+    """Status: DEFERRED — Spellcraft: Double a minion's stats, lock in hand 1 turn.
+    Dependency: stat-doubling action + hand-lock mechanism."""
+    @staticmethod
+    def spellcraft(source, game):
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # TRINKET_SCRIPT_REGISTRY
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -6583,6 +6603,10 @@ TRINKET_SCRIPT_REGISTRY: dict = {
     "BG35_MagicItem_930": WarbandWhistleScript,  # Warband Whistle: free refresh with board copies
     "BG35_MagicItem_931": TranscribingTypewriterScript,  # Transcribing Typewriter (Lesser): extra copy of next 3 buys
     "BG35_MagicItem_931t": TranscribingTypewriterScript,  # Transcribing Typewriter (Greater): extra copy of next 3 buys
+
+    # ── Patch 35.6.0 — New trinkets ──
+    "BG35_MagicItem_755": ChillmereMosaicScript,       # Chillmere Mosaic: Spellcraft refresh with Battlecry
+    "BG35_MagicItem_838": DoubleStitchNeedleScript,     # Double Stitch Needle: Spellcraft double stats + lock
 
     "BGDUO_MagicItem_001": OutOfScopeDuosScript,  # OUT_OF_SCOPE (Duos)
     "BGDUO_MagicItem_002": OutOfScopeDuosScript,  # OUT_OF_SCOPE (Duos)
