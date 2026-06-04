@@ -54,6 +54,9 @@ class CursesApp:
         hero_name = zhcn.name(hero_id) or hero_id
         recorder = GameRecorder(hero_id=hero_id, hero_name=hero_name, output_dir=self.output_dir)
 
+        # Disable auto-resolve so we can show discover UI to the user
+        game._auto_resolve_choices = False
+
         self._log(f"英雄: {hero_name} | 种子: {self.seed}", INFO)
 
         # Main game loop
@@ -63,6 +66,7 @@ class CursesApp:
                 break
 
             game.turn = turn
+            game._auto_resolve_choices = False  # human turn: manual discover UI
             self.runner.start_turn()
 
             action_count = 0
@@ -143,6 +147,43 @@ class CursesApp:
 
                 result = decode_action(action_id, game, player)
                 action_count += 1
+
+                # Handle pending choice for human player
+                choice = game._pending_choice
+                if choice is not None and choice.player is player:
+                    choice = game._pending_choice
+                    stdscr.clear()
+                    h, w = stdscr.getmaxyx()
+                    # Show game state + discover options
+                    y = render_all(stdscr, game, player, 0, w, self.log)
+                    _addstr(stdscr, y, 0, f"── 发现: {choice.choice_type} {'─' * (w - 10)}"[:w - 1],
+                            curses.color_pair(HEADER))
+                    y += 1
+                    for i, (cid, name) in enumerate(choice.options):
+                        cn_name = zhcn.name(cid) or name
+                        cn_text = zhcn.text(cid)
+                        _addstr(stdscr, y, 0, f" [{i}] {cn_name}", curses.color_pair(SPELL))
+                        y += 1
+                        if cn_text:
+                            cleaned = cn_text.replace('<b>','').replace('</b>','').replace('\n',' ')[:w-5]
+                            _addstr(stdscr, y, 0, f"     {cleaned}"[:w - 1], curses.color_pair(DIM))
+                            y += 1
+                    _addstr(stdscr, y + 1, 0, " 选择 0-2: ", 0)
+                    stdscr.refresh()
+
+                    # Get choice
+                    curses.echo()
+                    curses.curs_set(1)
+                    try:
+                        ch = stdscr.getstr(y + 1, 12, 2).decode("utf-8", "ignore").strip()
+                        idx = int(ch) if ch.isdigit() and 0 <= int(ch) < len(choice.options) else 0
+                    except (ValueError, TypeError):
+                        idx = 0
+                    curses.noecho()
+                    curses.curs_set(0)
+                    game.resolve_pending_choice(idx)
+                    resolved_name = zhcn.name(choice.options[idx][0]) or choice.options[idx][1]
+                    self._log(f"  发现: 选择了 {resolved_name}", INFO)
 
                 action_name = self._action_name(action_id)
                 self._log(f"  {action_name}", INFO)

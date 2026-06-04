@@ -68,6 +68,8 @@ class GameRunner:
     def auto_play_opponents(self):
         """Auto-play all non-human players (1-7) with greedy Q-score heuristic."""
         game = self.game
+        # Auto-resolve discovers for AI opponents
+        game._auto_resolve_choices = True
         for idx in range(1, 8):
             player = game.players[idx]
             if not player.is_alive:
@@ -193,6 +195,7 @@ class GameRunner:
     def run_combat(self):
         """Run combat phase for this turn."""
         game = self.game
+        game._auto_resolve_choices = True  # auto-resolve any combat discovers
         # Pair up alive players for combat
         alive = [p for p in game.players if p.is_alive]
         if len(alive) < 2:
@@ -207,9 +210,11 @@ class GameRunner:
 
     def human_end_turn(self, player_idx: int = 0):
         game = self.game
+        game._auto_resolve_choices = True  # reset for end-of-turn resolution
         player = game.players[player_idx]
         self._auto_play_hand(player)
         decode_action(END_TURN, game, player)
+        game._auto_resolve_choices = False  # back to manual for next turn
 
     @staticmethod
     def _auto_play_hand(p):

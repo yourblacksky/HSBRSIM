@@ -861,6 +861,23 @@ class GetBloodGem(Action):
             game.broadcast("BLOOD_GEM_RECEIVED", self.player, spell)
 
 
+# ── Pool validation helper ───────────────────────────────────────────
+
+def _is_valid_pool_card(card_id: str) -> bool:
+    """Check if a card_id represents a valid pool minion (excludes tokens,
+    buddy cards, golden-only cards, and examples)."""
+    import re
+    if card_id.startswith("EXAMPLE_"):
+        return False
+    if re.search(r't\d*$', card_id) and len(card_id) > 3:
+        return False  # Token cards (e.g. BG19_010t, BG27_004t2)
+    if "Buddy" in card_id or "buddy" in card_id.lower():
+        return False  # Hero buddy cards
+    if card_id.endswith("_G"):
+        return False  # Golden-only cards
+    return True
+
+
 # ── Discover Actions ──
 
 class PendingChoice:
@@ -926,6 +943,8 @@ class DiscoverMinion(Action):
             if self.min_tier is not None and data.tech_level < self.min_tier:
                 continue
             if self.card_id_filter is not None and card_id != self.card_id_filter:
+                continue
+            if not _is_valid_pool_card(card_id):
                 continue
             candidates.append(card_id)
         if not candidates:
@@ -1135,6 +1154,7 @@ class GetRandomMinion(Action):
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
         candidates = []
+        import re
         for card_id, data in game.card_db._cards.items():
             if data.cardtype != self.card_type:
                 continue
@@ -1143,6 +1163,8 @@ class GetRandomMinion(Action):
             if self.min_tier is not None and data.tech_level < self.min_tier:
                 continue
             if self.max_tier is not None and data.tech_level > self.max_tier:
+                continue
+            if not _is_valid_pool_card(card_id):
                 continue
             candidates.append(card_id)
         if candidates:
