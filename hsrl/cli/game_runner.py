@@ -175,10 +175,11 @@ class GameRunner:
             p.set_tag(GameTag.GOLD, gold_cap)
             p.set_tag(GameTag.HERO_POWER_USED, False)
             p.set_tag(GameTag.SECONDARY_HERO_POWER_USED, False)
-            # Reduce upgrade cost
-            cost = p.get_tag(GameTag.TAVERN_UPGRADE_COST, 0)
-            if cost > 0:
-                p.set_tag(GameTag.TAVERN_UPGRADE_COST, cost - 1)
+            # Reduce upgrade cost each turn after the first
+            if turn > 1:
+                cost = p.get_tag(GameTag.TAVERN_UPGRADE_COST, 0)
+                if cost > 0:
+                    p.set_tag(GameTag.TAVERN_UPGRADE_COST, cost - 1)
 
         # Refresh all taverns and auto-play hand minions
         for p in game.players:

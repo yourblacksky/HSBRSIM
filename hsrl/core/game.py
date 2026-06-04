@@ -1538,10 +1538,12 @@ class Game:
                 if unspent >= 5:
                     gold_gained += 1  # bonus for keeping 5+
             p.set_tag(GameTag.GOLD, gold_gained)
-            # Reduce tavern upgrade cost by 1 (if not already 0)
-            current_cost = p.get_tag(GameTag.TAVERN_UPGRADE_COST, 0)
-            if current_cost > 0:
-                p.set_tag(GameTag.TAVERN_UPGRADE_COST, current_cost - 1)
+            # Reduce tavern upgrade cost by 1 each turn after the first
+            # (skip turn 1 — the initial cost of 5 is already correct)
+            if self.turn > 1:
+                current_cost = p.get_tag(GameTag.TAVERN_UPGRADE_COST, 0)
+                if current_cost > 0:
+                    p.set_tag(GameTag.TAVERN_UPGRADE_COST, current_cost - 1)
 
         # ── Trigger Start of Turn effects ──
         self._trigger_start_of_turn()

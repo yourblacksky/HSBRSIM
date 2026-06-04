@@ -43,6 +43,12 @@ def display_state(game: "Game", player: "Player") -> str:
 
     lines.append(DSEP)
 
+    # ── Active buffs ──
+    buffs = _get_active_buffs(player)
+    if buffs:
+        lines.append(f"  {', '.join(buffs)}")
+        lines.append("")
+
     # Trinket offers (show before anything else — must resolve)
     offers = getattr(player, "_pending_trinket_offers", [])
     if offers:
@@ -144,6 +150,7 @@ def _format_card(idx: int, entity, show_cost: bool = True) -> str:
     text = zhcn.text(card_id)
     if text:
         cleaned = _clean(text)
+        cleaned = _resolve_token_refs(cleaned, entity, show_cost)
         if len(cleaned) > 70:
             cleaned = cleaned[:67] + "..."
         parts.append(f"       {cleaned}")
@@ -172,13 +179,35 @@ def _format_board_minion(idx: int, m) -> str:
     return "\n".join(parts)
 
 
+def _resolve_token_refs(text: str, entity, show_cost: bool) -> str:
+    """Resolve {0}, {1} placeholders with known token stats when possible."""
+    # Blood Gem bonuses are stored on the player entity
+    player = getattr(entity, 'controller', None)
+    if player is not None:
+        gem_atk = 1 + player.get_tag(120, 0)  # base 1 + bonus
+        gem_hp = 1 + player.get_tag(121, 0)
+        text = text.replace("鲜血宝石", f"鲜血宝石(+{gem_atk}/+{gem_hp})")
+
+    # Common token references with known stats
+    _TOKEN_STATS = {
+        "甲虫": (1, 1),   # BG19_010t 半甲龟
+        "雏龙": (1, 1),   # various whelps
+        "微型机器人": (1, 1),  # microbots
+        "触须": (2, 2),   # tentacles
+    }
+    for token, (atk, hp) in _TOKEN_STATS.items():
+        if token in text:
+            text = text.replace("{0}/{1}", f"{atk}/{hp}")
+
+    return text
+
+
 def _clean(text: str) -> str:
-    """Clean HTML tags for terminal display."""
+    """Clean HTML tags for terminal display, keep template placeholders."""
     text = (text.replace("<b>", "").replace("</b>", "")
                 .replace("<i>", "").replace("</i>", "")
                 .replace("[x]", "").replace("&lt;", "<").replace("&gt;", ">")
-                .replace("\n", " ").replace("\r", " ")
-                .replace("{0}", "X").replace("{1}", "Y"))
+                .replace("\n", " ").replace("\r", " "))
     return " ".join(text.split())
 
 
@@ -222,6 +251,25 @@ def _get_anomaly(game: "Game") -> str:
     if name:
         return f"{name} — {_clean(text)}" if text else name
     return cid
+
+
+def _get_active_buffs(player: "Player") -> list[str]:
+    """Collect active player-level buff values for display."""
+    parts = []
+    gem_atk = player.get_tag(120, 0)  # BLOOD_GEM_BONUS_ATK
+    gem_hp = player.get_tag(121, 0)   # BLOOD_GEM_BONUS_HEALTH
+    if gem_atk > 0 or gem_hp > 0:
+        parts.append(f"鲜血宝石 +{gem_atk}/+{gem_hp}")
+    spell_disc = player.get_tag(138, 0)  # NEXT_SPELL_COST_REDUCTION
+    if spell_disc > 0:
+        parts.append(f"下一张法术减{spell_disc}费")
+    free = player.get_tag(GameTag.FREE_REFRESH_REMAINING, 0)
+    if free > 0:
+        parts.append(f"免费刷新×{free}")
+    triple_tier = player.get_tag(111, 0)  # TRIPLE_REWARD_TIER
+    if triple_tier > 0:
+        parts.append(f"三连奖励等级: T{triple_tier}")
+    return parts
 
 
 def _trinket_cost(game: "Game", card_id: str) -> int:
