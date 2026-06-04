@@ -31,6 +31,10 @@ class SpellPool:
                 continue
             if data.cardtype != CardType.SPELL:
                 continue
+            # Only include pool spells (skip tokens like Blood Gems,
+            # The Goldenizer, Siren's Song, etc.)
+            if not data.tags.get("is_pool_spell", False):
+                continue
             tier = data.tech_level
             if tier not in self.POOL_SIZES:
                 continue

@@ -46,6 +46,7 @@ for spell_data in _pool_spells:
         tags={
             GameTag.COST: cost,
             GameTag.TECH_LEVEL: tech_level,
+            "is_pool_spell": True,  # Only pool spells share this tag
         },
         script_class=script_class,
     )
