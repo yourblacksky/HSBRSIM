@@ -89,8 +89,12 @@ def parse_hdt_game_file(filepath: str) -> Optional[Trajectory]:
     for turn_num in sorted(turns.keys()):
         msg = turns[turn_num]
         player = msg.get("player", {})
-        # NOTE: Due to HDT plugin bug, board minions are in "tavern" field
-        board_data = msg.get("tavern", msg.get("board", []))
+        # Use "board" field (C# plugin v2.3+ correctly separates board/tavern).
+        # Fall back to "tavern" for old data affected by the pre-2.3 bug where
+        # board minions leaked into the tavern field.
+        board_data = msg.get("board", [])
+        if not board_data:
+            board_data = msg.get("tavern", [])
         trinkets_data = msg.get("trinkets", [])
 
         # Convert board slots to MinionSnapshots

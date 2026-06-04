@@ -455,25 +455,15 @@ namespace HrSRLAdviser
                 .ToList();
         }
 
-        /// <summary>Get player's own board minions — entities in the PLAY zone
-        /// with CARDTYPE MINION that do NOT have TECH_LEVEL (shop-only tag).
-        /// In HDT 1.52, board minions may lack the CONTROLLER tag during
-        /// recruit phase, so we identify them by exclusion from shop.</summary>
-        private List<Entity> GetPlayerBoardMinions(GameV2 game, int playerId)
-        {
-            return game.Entities.Values
-                .Where(e => e.HasTag(GameTag.ZONE)
-                         && e.GetTag(GameTag.ZONE) == (int)Zone.PLAY
-                         && e.HasTag(GameTag.CARDTYPE)
-                         && e.GetTag(GameTag.CARDTYPE) == (int)CardType.MINION
-                         && !e.HasTag(GameTag.TECH_LEVEL))
-                .OrderBy(e => e.GetTag(GameTag.ZONE_POSITION))
-                .ToList();
-        }
-
-        /// <summary>Get Bob's shop entities — entities with CREATOR and TECH_LEVEL
-        /// that are NOT controlled by this player (board minions also have CREATOR
-        /// in HDT 1.52, but they ARE controlled by the player).</summary>
+        /// <summary>Get Bob's shop entities.
+        ///
+        /// Shop entities have: CREATOR tag + TECH_LEVEL + ZONE=PLAY + CARDTYPE
+        /// in {MINION, SPELL, BATTLEGROUND_SPELL}, and are NOT controlled by the
+        /// current player (CONTROLLER != playerId).
+        ///
+        /// In HDT 1.52, board minions may lack the CONTROLLER tag during the
+        /// recruit phase. When that happens, they are excluded by the board-
+        /// first method (see GetPlayerBoardMinions).</summary>
         private List<Entity> GetShopEntities(GameV2 game, int playerId)
         {
             return game.Entities.Values
@@ -486,6 +476,47 @@ namespace HrSRLAdviser
                          && e.HasTag(GameTag.TECH_LEVEL)
                          && !(e.HasTag(GameTag.CONTROLLER)
                            && e.GetTag(GameTag.CONTROLLER) == playerId))
+                .OrderBy(e => e.GetTag(GameTag.ZONE_POSITION))
+                .ToList();
+        }
+
+        /// <summary>Get player's own board minions.
+        ///
+        /// Strategy (two-tier, handles HDT 1.52 CONTROLLER-tag-missing edge case):
+        /// 1. Primary: use CONTROLLER=playerId + ZONE=PLAY + CARDTYPE=MINION.
+        ///    This works when the CONTROLLER tag is present (most cases).
+        /// 2. Fallback: if step 1 returns empty, compute shop entity IDs first,
+        ///    then board = all PLAY-zone MINIONs MINUS shop entity IDs.
+        ///    This handles the case where board minions lack CONTROLLER during
+        ///    recruit (they still have TECH_LEVEL, but are not in the shop set).
+        /// </summary>
+        private List<Entity> GetPlayerBoardMinions(GameV2 game, int playerId)
+        {
+            // Primary method: filter by CONTROLLER tag (works in most HDT versions)
+            var byController = game.Entities.Values
+                .Where(e => e.HasTag(GameTag.CONTROLLER)
+                         && e.GetTag(GameTag.CONTROLLER) == playerId
+                         && e.HasTag(GameTag.ZONE)
+                         && e.GetTag(GameTag.ZONE) == (int)Zone.PLAY
+                         && e.HasTag(GameTag.CARDTYPE)
+                         && e.GetTag(GameTag.CARDTYPE) == (int)CardType.MINION)
+                .OrderBy(e => e.GetTag(GameTag.ZONE_POSITION))
+                .ToList();
+
+            if (byController.Count > 0)
+                return byController;
+
+            // Fallback: CONTROLLER tags are missing (HDT 1.52 recruit phase).
+            // Identify board as PLAY-zone MINIONs NOT in the shop.
+            var shopEntityIds = new HashSet<int>(
+                GetShopEntities(game, playerId).Select(e => e.Id));
+
+            return game.Entities.Values
+                .Where(e => e.HasTag(GameTag.ZONE)
+                         && e.GetTag(GameTag.ZONE) == (int)Zone.PLAY
+                         && e.HasTag(GameTag.CARDTYPE)
+                         && e.GetTag(GameTag.CARDTYPE) == (int)CardType.MINION
+                         && !shopEntityIds.Contains(e.Id))
                 .OrderBy(e => e.GetTag(GameTag.ZONE_POSITION))
                 .ToList();
         }
