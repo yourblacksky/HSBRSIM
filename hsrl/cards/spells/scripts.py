@@ -428,8 +428,18 @@ class GetRandomMinionScript:
     max_tier = None
     race = None
 
+    use_discover = False  # Set True for DiscoverMinion instead of random
+
     @classmethod
     def on_play(cls, source: BaseEntity, game: Game) -> Action:
+        if cls.use_discover:
+            from hsrl.core.actions import DiscoverMinion
+            return DiscoverMinion(
+                source.controller,
+                min_tier=cls.min_tier,
+                max_tier=cls.max_tier,
+                race=cls.race,
+            )
         return GetRandomMinion(
             source.controller,
             min_tier=cls.min_tier,
@@ -449,8 +459,9 @@ class HastyExcavationScript(GetRandomMinionScript):
 
 
 class ANewSproutScript(GetRandomMinionScript):
-    """Get a random Tier 1 or 2 minion."""
+    """Discover a Tier 1-2 minion (zhCN: 发现一个等级1的随从)."""
     max_tier = 2
+    use_discover = True
 
 
 class PortalInAFountainScript(GetRandomMinionScript):
@@ -472,13 +483,14 @@ class UpperHandScript(GetRandomMinionScript):
 
 
 class HiredHeadhunterScript(GetRandomMinionScript):
-    """Get a random minion."""
+    """Discover a Battlecry minion (zhCN: 发现一张战吼随从牌)."""
     pass  # No tier filter
+    use_discover = True
 
 
 class SearchThroughTimeScript(GetRandomMinionScript):
-    """Get a random minion."""
-    pass
+    """Discover a minion of your current tier (zhCN: 发现一张你当前等级的随从牌)."""
+    use_discover = True
 
 
 class DiscoverMinionScript:
