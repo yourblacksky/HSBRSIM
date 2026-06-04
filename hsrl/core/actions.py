@@ -875,6 +875,12 @@ def _is_valid_pool_card(card_id: str) -> bool:
         return False  # Hero buddy cards
     if card_id.endswith("_G"):
         return False  # Golden-only cards
+    # Also check the actual CardData: exclude tokens with tech_level <= 0
+    # (pool minions always have tech_level >= 1)
+    from hsrl.core.card_db import CARDS
+    data = CARDS.get(card_id)
+    if data is not None and data.tech_level <= 0:
+        return False  # Token minion (e.g. BG31_817 Windfall Tornado)
     return True
 
 
