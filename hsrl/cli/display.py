@@ -37,7 +37,7 @@ def display_state(game: "Game", player: "Player") -> str:
     # ── Header: turn, gold, tier ──
     turn = game.turn
     gold = player.gold
-    max_gold = 10
+    max_gold = player.get_tag(GameTag.MAX_GOLD, min(3 + turn - 1, 10))
     tier = player.tavern_tier
     upgrade_cost = player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5)
     if upgrade_cost <= 0:

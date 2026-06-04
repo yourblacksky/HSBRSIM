@@ -169,8 +169,10 @@ class GameRunner:
         for p in game.players:
             if not p.is_alive:
                 continue
-            # Gold = min(3 + turn - 1, 10)
-            p.set_tag(GameTag.GOLD, int(min(3 + turn - 1, 10)))
+            # Gold cap = min(3 + turn - 1, 10); set MAX_GOLD + GOLD
+            gold_cap = int(min(3 + turn - 1, 10))
+            p.set_tag(GameTag.MAX_GOLD, gold_cap)
+            p.set_tag(GameTag.GOLD, gold_cap)
             p.set_tag(GameTag.HERO_POWER_USED, False)
             p.set_tag(GameTag.SECONDARY_HERO_POWER_USED, False)
             # Reduce upgrade cost

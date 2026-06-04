@@ -1520,6 +1520,9 @@ class Game:
                 m.set_tag(GameTag.TURNS_IN_HAND, current + 1)
             # Gain gold (3 on turn 1, +1 each turn, max 10)
             gold_gained = min(3 + self.turn - 1, 10)
+            # Set max gold cap for this turn (base: min(3+turn-1, 10),
+            # may be increased by hero powers, trinkets, spells).
+            p.set_tag(GameTag.MAX_GOLD, gold_gained)
             # Anomaly override: set specific starting gold (Curse of Aggramar)
             if (self.turn == 1
                     and self.active_anomaly is not None
