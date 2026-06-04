@@ -73,6 +73,11 @@ class CursesApp:
             turn_done = False
             self._log(f"── 第 {turn} 回合开始 ──", INFO)
 
+            # Handle any pending choices created during turn setup
+            choice = game._pending_choice
+            if choice is not None and choice.player is player:
+                self._handle_discover(stdscr, game, player, choice)
+
             while not turn_done and action_count < 100:
                 mask = build_action_mask(game, player)
                 legal = set(a for a in range(50) if mask[a])
@@ -151,39 +156,9 @@ class CursesApp:
                 # Handle pending choice for human player
                 choice = game._pending_choice
                 if choice is not None and choice.player is player:
-                    choice = game._pending_choice
-                    stdscr.clear()
-                    h, w = stdscr.getmaxyx()
-                    # Show game state + discover options
-                    y = render_all(stdscr, game, player, 0, w, self.log)
-                    _addstr(stdscr, y, 0, f"── 发现: {choice.choice_type} {'─' * (w - 10)}"[:w - 1],
-                            curses.color_pair(HEADER))
-                    y += 1
-                    for i, (cid, name) in enumerate(choice.options):
-                        cn_name = zhcn.name(cid) or name
-                        cn_text = zhcn.text(cid)
-                        _addstr(stdscr, y, 0, f" [{i}] {cn_name}", curses.color_pair(SPELL))
-                        y += 1
-                        if cn_text:
-                            cleaned = cn_text.replace('<b>','').replace('</b>','').replace('\n',' ')[:w-5]
-                            _addstr(stdscr, y, 0, f"     {cleaned}"[:w - 1], curses.color_pair(DIM))
-                            y += 1
-                    _addstr(stdscr, y + 1, 0, " 选择 0-2: ", 0)
-                    stdscr.refresh()
+                    self._handle_discover(stdscr, game, player, choice)
 
-                    # Get choice
-                    curses.echo()
-                    curses.curs_set(1)
-                    try:
-                        ch = stdscr.getstr(y + 1, 12, 2).decode("utf-8", "ignore").strip()
-                        idx = int(ch) if ch.isdigit() and 0 <= int(ch) < len(choice.options) else 0
-                    except (ValueError, TypeError):
-                        idx = 0
-                    curses.noecho()
-                    curses.curs_set(0)
-                    game.resolve_pending_choice(idx)
-                    resolved_name = zhcn.name(choice.options[idx][0]) or choice.options[idx][1]
-                    self._log(f"  发现: 选择了 {resolved_name}", INFO)
+                action_name = self._action_name(action_id)
 
                 action_name = self._action_name(action_id)
                 self._log(f"  {action_name}", INFO)
@@ -332,6 +307,67 @@ class CursesApp:
         stdscr.refresh()
         stdscr.getch()
 
+    def _handle_discover(self, stdscr, game, player, choice):
+        """Show a centered modal discover overlay. Blocks until user picks."""
+        h, w = stdscr.getmaxyx()
+        # Draw modal background
+        box_h = min(len(choice.options) * 3 + 7, h - 4)
+        box_w = min(w - 10, 60)
+        box_y = max(2, (h - box_h) // 2)
+        box_x = (w - box_w) // 2
+
+        # Dim background
+        for row in range(h):
+            _addstr(stdscr, row, 0, " " * (w - 1), curses.color_pair(DIM))
+
+        # Box frame
+        for row in range(box_y, box_y + box_h):
+            if row == box_y or row == box_y + box_h - 1:
+                line = "╔" + "═" * (box_w - 2) + "╗" if row == box_y else "╚" + "═" * (box_w - 2) + "╝"
+                _addstr(stdscr, row, box_x, line, curses.color_pair(HEADER))
+            else:
+                _addstr(stdscr, row, box_x, "║" + " " * (box_w - 2) + "║", curses.color_pair(HEADER))
+
+        _addstr(stdscr, box_y + 1, box_x + 2, "★ 发现 ★", curses.color_pair(HEADER))
+        _addstr(stdscr, box_y + 2, box_x + 2, "请选择 (按数字键 0-2):", curses.color_pair(DIM))
+
+        for i, (cid, name) in enumerate(choice.options):
+            cn_name = zhcn.name(cid) or name
+            cn_text = zhcn.text(cid)
+            line_y = box_y + 3 + i * 3
+            _addstr(stdscr, line_y, box_x + 2,
+                    f"[{i}] {cn_name}", curses.color_pair(SPELL))
+            if cn_text and line_y + 1 < box_y + box_h - 2:
+                cleaned = cn_text.replace('<b>','').replace('</b>','').replace('\n',' ')[:box_w - 6]
+                _addstr(stdscr, line_y + 1, box_x + 4,
+                        cleaned, curses.color_pair(DIM))
+
+        _addstr(stdscr, box_y + box_h - 2, box_x + 2, "选择 > _", 0)
+        stdscr.refresh()
+
+        # Get keyboard choice
+        curses.curs_set(1)
+        idx = 0
+        while True:
+            try:
+                ch = stdscr.getch()
+                if ch == ord('\n') or ch == ord('\r') or ch == curses.KEY_ENTER:
+                    break
+                elif ord('0') <= ch <= ord('9'):
+                    idx = ch - ord('0')
+                    if idx < len(choice.options):
+                        _addstr(stdscr, box_y + box_h - 2, box_x + 2,
+                                f"选择 > {idx} ✓", curses.color_pair(INFO))
+                        stdscr.refresh()
+                        curses.napms(300)
+                        break
+            except Exception:
+                break
+        curses.curs_set(0)
+        game.resolve_pending_choice(idx)
+        resolved_name = zhcn.name(choice.options[idx][0]) or choice.options[idx][1]
+        self._log(f"  发现: 选择了 {resolved_name}", INFO)
+
     def _init_colors(self):
         if not curses.has_colors():
             return
@@ -348,6 +384,11 @@ class CursesApp:
 
 def _addstr(win, y, x, text: str, attr: int = 0):
     try:
-        win.addstr(y, x, text, curses.color_pair(attr) if attr else curses.A_NORMAL)
+        if isinstance(attr, int) and attr > 0:
+            win.addstr(y, x, text, attr)
+        elif attr:
+            win.addstr(y, x, text, curses.color_pair(attr))
+        else:
+            win.addstr(y, x, text, curses.A_NORMAL)
     except Exception:
         pass

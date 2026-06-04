@@ -27,7 +27,6 @@ namespace HrSRLAdviser
             "BGS_022", // Foe Reaper 4000
             "BG21_046", // Wildfire Elemental
             "BG24_306", // Recurring Nightmare (cleave)
-            "BG25_022", // Holorover
             "BG26_158", // Meteor Crasher
             "BG27_029", // Gnomelia, Polarity Ace
         };

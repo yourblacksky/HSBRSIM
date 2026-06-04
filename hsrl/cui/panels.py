@@ -247,7 +247,7 @@ def _fmt_keywords(m, card_id: str) -> str:
     return " [" + "|".join(parts) + "]" if parts else ""
 
 
-_CLEAVE_IDS = {"BGS_022", "BG21_046", "BG24_306", "BG25_022", "BG26_158", "BG27_029"}
+_CLEAVE_IDS = {"BGS_022", "BG21_046", "BG24_306", "BG26_158", "BG27_029"}
 
 
 def _get_anomaly(game) -> str:

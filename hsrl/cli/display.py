@@ -235,8 +235,11 @@ def _fmt_keywords(m) -> str:
 
 
 _CLEAVE_IDS = {
-    "BGS_022", "BG21_046", "BG24_306", "BG25_022",
-    "BG26_158", "BG27_029",
+    "BGS_022",   # Foe Reaper 4000
+    "BG21_046",  # Wildfire Elemental
+    "BG24_306",  # Recurring Nightmare
+    "BG26_158",  # Meteor Crasher
+    "BG27_029",  # Gnomelia, Polarity Ace
 }
 
 

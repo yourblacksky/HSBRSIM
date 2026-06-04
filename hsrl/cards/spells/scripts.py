@@ -459,8 +459,8 @@ class HastyExcavationScript(GetRandomMinionScript):
 
 
 class ANewSproutScript(GetRandomMinionScript):
-    """Discover a Tier 1-2 minion (zhCN: 发现一个等级1的随从)."""
-    max_tier = 2
+    """Discover a Tier 1 minion (zhCN: 发现一个等级1的随从)."""
+    max_tier = 1
     use_discover = True
 
 
