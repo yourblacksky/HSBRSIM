@@ -120,6 +120,25 @@ HSBRSIM/
 │   │   ├── rewards/                   # 任务奖励卡牌
 │   │   ├── trinkets/                  # 饰品卡牌
 │   │   └── anomalies/                 # 畸变卡牌
+│   ├── agents/                        # AI 智能体 (Search, AZ MCTS, 启发式)
+│   │   ├── search_agent.py            # 混合搜索 + 价值网络智能体
+│   │   ├── az_agent.py                # AlphaZero MCTS 智能体
+│   │   ├── agent_utils.py             # 动作模拟工具
+│   │   └── *_demo.py                  # Demo 脚本
+│   ├── policy/                        # Entity-Token Transformer 策略 (5.25M)
+│   │   ├── model_5m.py                # ScaledModel: d=256, 6层 Transformer
+│   │   ├── entity_tokenizer_v2.py     # 37槽位 tokenizer + 卡牌嵌入
+│   │   ├── transformer.py             # 多头注意力 over entity tokens
+│   │   ├── heads.py                   # 分层动作头 (类型 + 指针)
+│   │   ├── value_head.py              # 分布价值头 P(排名)→V(s)
+│   │   ├── bc_train.py                # BC 训练 (启发式教师)
+│   │   └── iter_train.py              # 迭代 BC: 多轮自我提升
+│   ├── rl_env/                        # 新一代 RL 环境 (entity-centric)
+│   │   ├── observation/               # ObservationV2: 37 实体槽布局
+│   │   ├── action/                    # 分层动作空间语法
+│   │   ├── reward/                    # 场面评分 v2 + 奖励组件
+│   │   ├── envs/                      # BoardBuildingEnv, TurnRecruitEnv
+│   │   └── teachers/                  # 规划搜索教师
 │   ├── advisor/                       # HDT 插件后端
 │   │   ├── server.py                  # WebSocket 服务器
 │   │   ├── state_mapper.py            # 游戏状态 → 特征向量
@@ -127,8 +146,12 @@ HSBRSIM/
 │   │   ├── overlay_protocol.py        # C# ↔ Python 消息协议
 │   │   ├── inference.py               # 模型推理 (需 sb3-contrib)
 │   │   └── cli.py                     # 命令行接口
-│   ├── utils/                         # 工具 (logger 等)
-│   └── tests/                         # 测试套件 (696 个测试)
+│   ├── trajectory/                    # 轨迹对手系统
+│   │   ├── record.py                  # MinionSnapshot, TurnSnapshot, Trajectory
+│   │   ├── generate.py                # 批量生成轨迹
+│   │   ├── opponent.py                # 轨迹对手加载
+│   │   └── pool.py                    # 轨迹池采样
+│   └── tests/                         # 测试套件 (772 个测试)
 │       ├── test_core_mechanics.py      # 核心机制测试
 │       ├── test_token_cards.py        # 衍生卡牌测试
 │       ├── test_heroes.py             # 英雄技能测试
@@ -274,7 +297,7 @@ python -m pytest hsrl/tests/ --cov=hsrl --cov-report=html
 
 ### 测试统计
 
-- **696 个测试** 通过，1 个跳过
+- **772 个测试** 通过，1 个跳过
 - 分类：核心机制 (352)、英雄技能 (145)、衍生卡牌 (77)、advisor、logger
 - 覆盖目标：每个机制和卡牌脚本都有对应的测试用例
 
@@ -404,6 +427,40 @@ python -m hsrl.advisor.cli --model path/to/checkpoint.zip
 - **自动重连**：WebSocket 客户端在连接断开时以指数退避策略自动重连
 - **优雅降级**：如果 Python 服务器未运行，插件仅不显示建议 — HDT 正常工作不受影响
 
+## RL 训练
+
+项目包含一个 entity-token Transformer 策略 (5.25M 参数) 和迭代 BC 训练流水线：
+
+```bash
+# Phase 0: 启发式 BC 训练 (单轮)
+python hsrl/policy/bc_train.py
+
+# Phase 1: 迭代 BC (多轮自我提升)
+python hsrl/policy/iter_train.py
+```
+
+### 策略架构
+
+```
+build_observation_v2() → 37 entity slots → EntityTokenizerV2 → EntityTransformer → Heads
+  ├─ EntityTokenizerV2: 卡牌嵌入 (1500×128) + 实体 MLP + 摘要投影
+  ├─ EntityTransformer: d=256, h=4, 6层 — 多头注意力 over entity tokens
+  ├─ HierarchicalActionHead: 8路类型 + 24路指针 → Discrete(50)
+  └─ DistributionalValueHead: P(rank=1..8) → V(s)
+```
+
+动作空间是分层的 — 一个 Discrete(50) 动作 ID 分解为 8 路类型 (买/卖/打/刷新/升级/冻结/技能/结束) 和 24 路指针 (买/卖/打哪个)。
+
+### 当前结果
+
+| 方法 | avg board_score | avg raw (atk+hp) | vs 随机 |
+|------|----------------|-------------------|---------|
+| 迭代 BC (第 0 轮: 启发式) | 2.2 | 33 | +0.8 |
+| 迭代 BC (第 3 轮: BC→BC) | 2.3 | 38 | +0.7 |
+| 随机基线 | 1.4 | 25-39 | — |
+
+详见 `docs/AGENT_TRAINING_STATUS.md`。
+
 ## 设计哲学
 
 1. **语义精确性**：代码实现必须与卡牌文本的操作语义精确一致。"获取" ≠ "打出"、"召唤" ≠ "置入手牌"。
@@ -416,7 +473,7 @@ python -m hsrl.advisor.cli --model path/to/checkpoint.zip
 
 卡牌数据来源于 HearthSim 的 [hsdata](https://github.com/HearthSim/hsdata)（CardDefs.xml）和 [Amalgadon API](https://bgknowhow.com/)，经清洗后缓存为 `data/` 目录下的结构化 JSON 文件。
 
-**数据版本**：Patch 35.2.2.241135 | 赛季：第 13 赛季 "Cataclysm Calls"
+**数据版本**：Patch 35.6.0.243002 | 赛季 15
 
 ## 许可证
 

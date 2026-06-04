@@ -119,6 +119,25 @@ HSBRSIM/
 │   │   ├── rewards/                   # Quest reward cards
 │   │   ├── trinkets/                  # Trinket cards
 │   │   └── anomalies/                 # Anomaly cards
+│   ├── agents/                        # AI agents (Search, AZ MCTS, heuristic)
+│   │   ├── search_agent.py            # Hybrid search + value network agent
+│   │   ├── az_agent.py                # AlphaZero MCTS agent
+│   │   ├── agent_utils.py             # Action simulation utilities
+│   │   └── *_demo.py                  # Demo scripts
+│   ├── policy/                        # Entity-Token Transformer policy (5.25M)
+│   │   ├── model_5m.py                # ScaledModel: d=256, 6-layer Transformer
+│   │   ├── entity_tokenizer_v2.py     # 37-slot tokenizer w/ card embeddings
+│   │   ├── transformer.py             # Multi-head attention over entity tokens
+│   │   ├── heads.py                   # Hierarchical action head (type + pointer)
+│   │   ├── value_head.py              # Distributional value head P(rank)→V(s)
+│   │   ├── bc_train.py                # BC training from heuristic teacher
+│   │   └── iter_train.py              # Iterative BC: multi-round self-improvement
+│   ├── rl_env/                        # Next-gen RL environment (entity-centric)
+│   │   ├── observation/               # ObservationV2: 37 entity-slot layout
+│   │   ├── action/                    # Hierarchical action space grammar
+│   │   ├── reward/                    # Board score v2 + reward components
+│   │   ├── envs/                      # BoardBuildingEnv, TurnRecruitEnv
+│   │   └── teachers/                  # Plan search teacher
 │   ├── advisor/                       # HDT plugin backend
 │   │   ├── server.py                  # WebSocket server
 │   │   ├── state_mapper.py            # Game state → feature vector
@@ -126,8 +145,12 @@ HSBRSIM/
 │   │   ├── overlay_protocol.py        # C# ↔ Python message schema
 │   │   ├── inference.py               # Model inference (requires sb3-contrib)
 │   │   └── cli.py                     # Command-line interface
-│   ├── utils/                         # Utilities (logger, etc.)
-│   └── tests/                         # Test suite (696 tests)
+│   ├── trajectory/                    # Trajectory opponent system
+│   │   ├── record.py                  # MinionSnapshot, TurnSnapshot, Trajectory
+│   │   ├── generate.py                # Batch trajectory generation
+│   │   ├── opponent.py                # Trajectory opponent loader
+│   │   └── pool.py                    # Trajectory pool sampling
+│   └── tests/                         # Test suite (772 tests)
 │       ├── test_core_mechanics.py      # Core mechanics tests
 │       ├── test_token_cards.py        # Token card tests
 │       ├── test_heroes.py             # Hero power tests
@@ -272,7 +295,7 @@ python -m pytest hsrl/tests/ --cov=hsrl --cov-report=html
 
 ### Test Statistics
 
-- **696 tests** passed, 1 skipped
+- **772 tests** passed, 1 skipped
 - Categories: core mechanics (352), heroes (145), token cards (77), advisor, logger
 - Coverage target: every mechanism and card script has a corresponding test
 
@@ -406,7 +429,41 @@ The `state` object contains the full game state extracted from HDT: player statu
 
 Card data is sourced from HearthSim's [hsdata](https://github.com/HearthSim/hsdata) (CardDefs.xml) and the [Amalgadon API](https://bgknowhow.com/), cleaned and cached in `data/` as structured JSON files.
 
-**Data version**: Patch 35.2.2.241135 | Season 13 "Cataclysm Calls"
+**Data version**: Patch 35.6.0.243002 | Season 15
+
+## RL Training
+
+The project includes an entity-token Transformer policy (5.25M parameters) and iterative BC training pipeline:
+
+```bash
+# Phase 0: BC from heuristic teacher (single round)
+python hsrl/policy/bc_train.py
+
+# Phase 1: Iterative BC (multi-round self-improvement)
+python hsrl/policy/iter_train.py
+```
+
+### Policy Architecture
+
+```
+build_observation_v2() → 37 entity slots → EntityTokenizerV2 → EntityTransformer → Heads
+  ├─ EntityTokenizerV2: card embedding (1500×128) + entity MLP + summary projectors
+  ├─ EntityTransformer: d=256, h=4, 6 layers — MHA over entity tokens
+  ├─ HierarchicalActionHead: 8-way type + 24-way pointer → Discrete(50)
+  └─ DistributionalValueHead: P(rank=1..8) → V(s)
+```
+
+The action space is hierarchical — a Discrete(50) action ID decomposes into an 8-way type (BUY/SELL/PLAY/REFRESH/UPGRADE/FREEZE/HERO_POWER/END_TURN) and a 24-way pointer (which minion to buy/sell/play).
+
+### Current Results
+
+| Method | avg board_score | avg raw (atk+hp) | vs Random |
+|--------|----------------|-------------------|-----------|
+| Iterative BC (Round 0: heuristic) | 2.2 | 33 | +0.8 |
+| Iterative BC (Round 3: BC→BC) | 2.3 | 38 | +0.7 |
+| Random baseline | 1.4 | 25-39 | — |
+
+See `docs/AGENT_TRAINING_STATUS.md` for detailed training history and next steps.
 
 ## Design Philosophy
 

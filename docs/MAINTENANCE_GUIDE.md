@@ -2,7 +2,7 @@
 
 > **目标读者**：用于维护和更新 HrSRL 酒馆战棋模拟器的 AI Agent。
 > **最后更新**：2026-06-03
-> **当前基线版本**：Patch 35.4.2.242566 (hsdata) / 35.2.2.241135 (JSON 数据文件)
+> **当前基线版本**：Patch 35.6.0.243002
 
 ---
 
@@ -489,7 +489,7 @@ hsdata/                              # Git 子模块 (HearthSim 官方数据)
 ├── Strings/                         # 14 种语言本地化
 │   ├── enUS/, zhCN/, zhTW/, ...
 ├── RaceTagMap.xml                   # 种族名称 → XML 标签号映射
-└── README.md                        # 版本号 (当前: 35.4.2.242566)
+└── README.md                        # 版本号 (当前: 35.6.0.243002)
 
 data/                                # 预处理 JSON (从 CardDefs.xml 派生)
 ├── bg_cards.json                    # 全量 5,189 张 BG 卡牌
@@ -526,8 +526,8 @@ git pull origin master
 ```
 
 **版本号来源**：
-- `hsdata/README.md` → 当前 CardDefs.xml 的版本 (如 `35.4.2.242566`)
-- `data/bg_summary.json` → JSON 文件的生成版本 (如 `35.2.2.241135`)
+- `hsdata/README.md` → 当前 CardDefs.xml 的版本 (如 `35.6.0.243002`)
+- `data/bg_summary.json` → JSON 文件的生成版本 (如 `35.6.0.243002`)
 
 > **注意**：`hsdata/README.md` 和 `bg_summary.json` 中的版本号**通常不一致**，因为 JSON 文件是手动重新生成的，可能滞后于 hsdata 更新。
 
@@ -595,11 +595,11 @@ hsrl/cards/__init__.py → init_cards()
 ```bash
 # 方法 A: 从 hsdata 读取
 cat /home/glt/HrSRL/hsdata/README.md
-# 输出: 35.4.2.242566
+# 输出: 35.6.0.243002
 
 # 方法 B: 检查 bg_summary.json
 python3 -c "import json; print(json.load(open('data/bg_summary.json'))['patch'])"
-# 输出: 35.2.2.241135
+# 输出: 35.6.0.243002
 ```
 
 #### 步骤 2：交叉验证官方最新版本
@@ -617,7 +617,7 @@ python3 -c "import json; print(json.load(open('data/bg_summary.json'))['patch'])
 
 版本号格式：`{major}.{minor}.{patch}.{build}`
 
-- 如 `35.4.2.242566`：
+- 如 `35.6.0.243002`：
   - `35.4.2` = 游戏版本 (扩展包 + 大补丁 + 小补丁)
   - `242566` = 内部构建号
 
@@ -874,7 +874,7 @@ for cid, data in CARDS._cards.items():
 
 ### Q1: hsdata 版本和 JSON 版本不一致
 
-**症状**：`hsdata/README.md` 显示 `35.4.2.242566`，`bg_summary.json` 显示 `35.2.2.241135`
+**症状**：`hsdata/README.md` 显示 `35.6.0.243002`，`bg_summary.json` 显示 `35.6.0.243002`
 
 **原因**：JSON 数据文件是手动生成的，更新滞后于 hsdata 子模块
 
