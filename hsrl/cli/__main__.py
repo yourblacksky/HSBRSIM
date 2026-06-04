@@ -35,7 +35,6 @@ import hsrl.cards.trinkets.scripts as _ts  # noqa
 import hsrl.cards.rewards.scripts as _rs  # noqa
 import hsrl.cards.anomalies.scripts as _as  # noqa
 
-from hsrl.agents.agent_utils import simulate_action, populate_tavern
 from hsrl.cli.display import display_state
 from hsrl.cli.game_runner import GameRunner
 from hsrl.cli.recorder import GameRecorder
@@ -49,6 +48,7 @@ from hsrl.env.action import (
     SELL_OFFSET,
     PLAY_OFFSET,
     build_action_mask,
+    decode_action,
 )
 
 HELP_TEXT = """
@@ -263,12 +263,11 @@ def main():
             obs = build_observation_v2(game, player)
             recorder.record_action(turn, obs, action_id)
 
-            # Execute
-            simulate_action(player, action_id)
+            # Execute via game engine (triggers Battlecry, spell effects, etc.)
+            result = decode_action(action_id, game, player)
 
             if action_id == REFRESH:
-                populate_tavern(player, game.rng)
-                # Auto-play hand after refresh
+                # Engine already refreshed via _do_refresh → game.refresh_tavern
                 runner._auto_play_hand(player)
 
             action_count += 1

@@ -21,7 +21,6 @@ import hsrl.cards.trinkets.scripts  # noqa
 import hsrl.cards.rewards.scripts  # noqa
 import hsrl.cards.anomalies.scripts  # noqa
 
-from hsrl.agents.agent_utils import simulate_action, populate_tavern
 from hsrl.core.card_db import CARDS
 from hsrl.core.enums import CardType, GameTag
 from hsrl.core.game import Game
@@ -85,14 +84,13 @@ class GameRunner:
                 if action == END_TURN:
                     break
 
-                simulate_action(player, action)
+                decode_action(action, game, player)
                 if action == REFRESH:
-                    populate_tavern(player, game.rng)
                     self._auto_play_hand(player)
                 action_count += 1
 
             self._auto_play_hand(player)
-            simulate_action(player, END_TURN)
+            decode_action(END_TURN, game, player)
 
     @staticmethod
     def _greedy_action(game, player, mask, legal):
@@ -211,7 +209,7 @@ class GameRunner:
         game = self.game
         player = game.players[player_idx]
         self._auto_play_hand(player)
-        simulate_action(player, END_TURN)
+        decode_action(END_TURN, game, player)
 
     @staticmethod
     def _auto_play_hand(p):
