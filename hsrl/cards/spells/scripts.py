@@ -489,8 +489,18 @@ class HiredHeadhunterScript(GetRandomMinionScript):
 
 
 class SearchThroughTimeScript(GetRandomMinionScript):
-    """Discover a minion of your current tier (zhCN: 发现一张你当前等级的随从牌)."""
+    """Discover a minion of your current tier, locked in hand 1 turn."""
     use_discover = True
+
+    @classmethod
+    def on_play(cls, source, game):
+        tier = source.controller.tavern_tier
+        from hsrl.core.actions import DiscoverMinion
+        return DiscoverMinion(
+            source.controller,
+            min_tier=tier,
+            max_tier=tier,
+        )
 
 
 class DiscoverMinionScript:

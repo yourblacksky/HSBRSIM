@@ -952,7 +952,7 @@ class Game:
         # If targeted queue is set but no current TargetedAction needs it,
         # clear it to unblock queue processing
         if self._pending_targeted_queue:
-            self._pending_targeted_queue = None
+            self._pending_targeted_queue.clear()
         self._resolve_queue(0)
         if self._auto_resolve_choices and self._pending_choice is not None:
             import random
