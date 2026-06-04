@@ -285,7 +285,7 @@ class Game:
         else:
             if player.gold < cost:
                 return
-            SpendGold(player, cost).do(None, self)
+            self.queue_action(SpendGold(player, cost))
         # Track gold spent this turn (for "Improves by gold spent" cards)
         current = player.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0)
         player.set_tag(GameTag.GOLD_SPENT_THIS_TURN, current + cost)
@@ -336,7 +336,7 @@ class Game:
         else:
             if player.gold < actual_cost:
                 return
-            SpendGold(player, actual_cost).do(None, self)
+            self.queue_action(SpendGold(player, actual_cost))
         # Track gold spent this turn
         current = player.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0)
         player.set_tag(GameTag.GOLD_SPENT_THIS_TURN, current + actual_cost)
@@ -947,7 +947,12 @@ class Game:
     def resolve_queue(self) -> None:
         """Public entry point — process all queued actions.
         Auto-resolves pending discover choices unless disabled by RL env.
+        Clears stale targeted queue if no targeted action is actually pending.
         """
+        # If targeted queue is set but no current TargetedAction needs it,
+        # clear it to unblock queue processing
+        if self._pending_targeted_queue:
+            self._pending_targeted_queue = None
         self._resolve_queue(0)
         if self._auto_resolve_choices and self._pending_choice is not None:
             import random

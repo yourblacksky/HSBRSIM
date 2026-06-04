@@ -152,6 +152,8 @@ class CursesApp:
 
                 gold_before = player.gold
                 tier_before = player.tavern_tier
+                # Clear any stale targeted queue from previous actions
+                game._pending_targeted_queue = None
                 decode_action(action_id, game, player)
                 action_count += 1
                 gold_after = player.gold
