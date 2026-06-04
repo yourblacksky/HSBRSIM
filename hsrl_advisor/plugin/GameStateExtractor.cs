@@ -169,9 +169,20 @@ namespace HrSRLAdviser
             int gold = resources + tempResources - resourcesUsed;
             gold = Math.Max(0, gold);
 
-            AdviserPlugin.Log(string.Format(
-                "Gold debug: RESOURCES={0} TEMP={1} USED={2} → gold={3}",
-                resources, tempResources, resourcesUsed, gold));
+            // Fallback: try reading gold from the game entity (BG may store it there)
+            if (gold == 0)
+            {
+                var gameEnt = game.Entities.Values.FirstOrDefault(
+                    e => e.GetTag(GameTag.CARDTYPE) == (int)CardType.GAME);
+                if (gameEnt != null)
+                {
+                    int gameResources = gameEnt.GetTag(GameTag.RESOURCES);
+                    int gameTemp = gameEnt.GetTag(GameTag.TEMP_RESOURCES);
+                    int gameUsed = gameEnt.GetTag(GameTag.RESOURCES_USED);
+                    gold = gameResources + gameTemp - gameUsed;
+                    gold = Math.Max(0, gold);
+                }
+            }
 
             // Hero entity (hero power card)
             int heroEntityId = ent.GetTag(GameTag.HERO_ENTITY);
@@ -444,24 +455,25 @@ namespace HrSRLAdviser
                 .ToList();
         }
 
-        /// <summary>Get player's own board minions (PLAY zone, CARDTYPE=MINION, controlled by player).</summary>
+        /// <summary>Get player's own board minions — entities in the PLAY zone
+        /// with CARDTYPE MINION that do NOT have TECH_LEVEL (shop-only tag).
+        /// In HDT 1.52, board minions may lack the CONTROLLER tag during
+        /// recruit phase, so we identify them by exclusion from shop.</summary>
         private List<Entity> GetPlayerBoardMinions(GameV2 game, int playerId)
         {
-            // Shop entities are those with CREATOR tag (Bob created them).
-            // Exclude them from the board by entity ID to avoid accidentally
-            // filtering out player minions that also have CREATOR set.
-            var shopIds = new HashSet<int>(
-                GetShopEntities(game, playerId).Select(e => e.Id));
             return game.Entities.Values
-                .Where(e => e.IsControlledBy(playerId)
-                         && e.IsInPlay
-                         && e.IsMinion
-                         && !shopIds.Contains(e.Id))
+                .Where(e => e.HasTag(GameTag.ZONE)
+                         && e.GetTag(GameTag.ZONE) == (int)Zone.PLAY
+                         && e.HasTag(GameTag.CARDTYPE)
+                         && e.GetTag(GameTag.CARDTYPE) == (int)CardType.MINION
+                         && !e.HasTag(GameTag.TECH_LEVEL))
                 .OrderBy(e => e.GetTag(GameTag.ZONE_POSITION))
                 .ToList();
         }
 
-        /// <summary>Get Bob's shop entities (tavern minions/spells — identified by CREATOR tag).</summary>
+        /// <summary>Get Bob's shop entities — entities with CREATOR and TECH_LEVEL
+        /// that are NOT controlled by this player (board minions also have CREATOR
+        /// in HDT 1.52, but they ARE controlled by the player).</summary>
         private List<Entity> GetShopEntities(GameV2 game, int playerId)
         {
             return game.Entities.Values
@@ -471,7 +483,9 @@ namespace HrSRLAdviser
                          && (e.GetTag(GameTag.CARDTYPE) == (int)CardType.MINION
                           || e.GetTag(GameTag.CARDTYPE) == (int)CardType.SPELL
                           || e.GetTag(GameTag.CARDTYPE) == (int)CardType.BATTLEGROUND_SPELL)
-                         && e.HasTag(GameTag.TECH_LEVEL))
+                         && e.HasTag(GameTag.TECH_LEVEL)
+                         && !(e.HasTag(GameTag.CONTROLLER)
+                           && e.GetTag(GameTag.CONTROLLER) == playerId))
                 .OrderBy(e => e.GetTag(GameTag.ZONE_POSITION))
                 .ToList();
         }

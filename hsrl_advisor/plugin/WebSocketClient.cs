@@ -132,7 +132,7 @@ namespace HrSRLAdviser
 
         private async Task ReceiveLoopAsync()
         {
-            var buffer = new byte[8192];
+            var buffer = new byte[65536];  // 64KB — avoid truncation of large game states
 
             while (_ws.State == System.Net.WebSockets.WebSocketState.Open &&
                    !_cts.IsCancellationRequested)

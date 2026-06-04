@@ -21,6 +21,16 @@ from typing import Optional
 
 from hsrl.trajectory.record import MinionSnapshot, TurnSnapshot, Trajectory
 
+# Ensure card database is populated before parsing any game files
+import hsrl.cards.minions.pool as _mp  # noqa
+import hsrl.cards.minions.scripts as _ms  # noqa
+import hsrl.cards.minions.tokens as _mt  # noqa
+import hsrl.cards.heroes.pool as _hp  # noqa
+import hsrl.cards.heroes.scripts as _hs  # noqa
+import hsrl.cards.trinkets.scripts as _ts  # noqa
+import hsrl.cards.rewards.scripts as _rs  # noqa
+import hsrl.cards.anomalies.scripts as _as  # noqa
+
 
 def parse_hdt_game_file(filepath: str) -> Optional[Trajectory]:
     """Parse a single HDT game JSONL file into a Trajectory.
@@ -55,11 +65,17 @@ def parse_hdt_game_file(filepath: str) -> Optional[Trajectory]:
             hero_id = msg.get("hero_card_id", "")
             hero_name = msg.get("hero_name", "")
 
-        elif msg_type == "game_state":
-            turn = msg.get("turn", 0)
+        elif msg_type in ("game_state", "step"):
+            # "step" format: state is nested; "game_state" is flat
+            state = msg.get("state", msg) if msg_type == "step" else msg
+            turn = state.get("turn", msg.get("turn", 0))
             if turn > 0:
-                # Keep only the last message per turn (end of recruit)
-                turns[turn] = msg
+                # Also extract hero from player state
+                p = state.get("player", {})
+                h = p.get("hero_card_id", "")
+                if h and not hero_id:
+                    hero_id = h
+                turns[turn] = state
 
         elif msg_type == "game_end":
             game_end_data = msg
@@ -73,8 +89,9 @@ def parse_hdt_game_file(filepath: str) -> Optional[Trajectory]:
     for turn_num in sorted(turns.keys()):
         msg = turns[turn_num]
         player = msg.get("player", {})
-        board_data = player.get("board", [])
-        trinkets_data = player.get("trinkets", [])
+        # NOTE: Due to HDT plugin bug, board minions are in "tavern" field
+        board_data = msg.get("tavern", msg.get("board", []))
+        trinkets_data = msg.get("trinkets", [])
 
         # Convert board slots to MinionSnapshots
         board = []
@@ -85,13 +102,28 @@ def parse_hdt_game_file(filepath: str) -> Optional[Trajectory]:
             card_id = slot.get("card_id", "")
             if not card_id:
                 continue  # Skip slots without card_id (old data)
+
+            # HDT reports golden cards as "XXX_G" — strip suffix, set flag
+            is_golden = slot.get("golden", False) or card_id.endswith("_G")
+            if card_id.endswith("_Gt"):
+                card_id = card_id[:-3] + "t"  # BG34_731_Gt → BG34_731t
+                is_golden = True
+            elif card_id.endswith("_G"):
+                card_id = card_id[:-2]  # BG31_035_G → BG31_035
+                is_golden = True
+
+            # Skip if card_id not in CARDS (blood gems, spells, tokens)
+            from hsrl.core.card_db import CARDS
+            if CARDS.get(card_id) is None:
+                continue
+
             ms = MinionSnapshot(
                 card_id=card_id,
+                is_golden=is_golden,
                 atk=slot.get("atk", 0),
                 health=slot.get("health", 0),
                 max_health=slot.get("max_health", 0),
                 race=_parse_race(slot.get("race", "")),
-                is_golden=slot.get("golden", False),
                 taunt=slot.get("taunt", False),
                 divine_shield=slot.get("divine_shield", False),
                 poisonous=slot.get("poisonous", False),

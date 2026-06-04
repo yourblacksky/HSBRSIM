@@ -70,7 +70,7 @@ def _beetle_bonus(player, atk=0, health=0):
     player.tags[GameTag.BEETLE_BONUS_ATK] = player.tags.get(GameTag.BEETLE_BONUS_ATK, 0) + atk
     player.tags[GameTag.BEETLE_BONUS_HEALTH] = player.tags.get(GameTag.BEETLE_BONUS_HEALTH, 0) + health
     return [Buff(m, atk=atk, health=health) for m in player.board
-            if m.name == "Beetle" and not m.dead and (atk > 0 or health > 0)]
+            if m.data.name == "Beetle" and not m.dead and (atk > 0 or health > 0)]
 
 
 def _summon_beetle(source, game, atk=0, health=0):
@@ -79,8 +79,9 @@ def _summon_beetle(source, game, atk=0, health=0):
     bonus_health = source.controller.tags.get(GameTag.BEETLE_BONUS_HEALTH, 0)
     beetle = game.create_minion("BG28_603t")
     if beetle:
+        pos = source.controller.board.index(source) if source in source.controller.board else None
         return [Buff(beetle, atk=bonus_atk + atk, health=bonus_health + health),
-                Summon(source.controller, beetle, source.position)]
+                Summon(source.controller, beetle, pos)]
     return None
 
 
@@ -6005,8 +6006,9 @@ class _ClunkerJunkerDiscoverAction(Action):
             minion.controller = p
             minion.zone = Zone.HAND
             p.hand.append(minion)
-            # Auto-play as magnetic to the chosen target
-            game.play_minion(p, minion, magnetic_target=magnetize_target)
+            # Queue AttachMagnetic directly (avoid recursive resolve_queue)
+            from hsrl.core.actions import AttachMagnetic
+            game.queue_action(AttachMagnetic(minion, magnetize_target))
             return None
 
         from hsrl.core.actions import PendingChoice

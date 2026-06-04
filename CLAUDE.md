@@ -59,14 +59,37 @@ HrSRL/
 │   │   ├── rewards/                   # 任务奖励
 │   │   ├── trinkets/                  # 饰品
 │   │   └── anomalies/                 # 异变
-│   ├── env/                           # RL 环境
+│   ├── env/                           # RL 环境 (legacy, gitignored)
 │   │   ├── action.py                  # Discrete(50) 动作空间 + mask + 解码
 │   │   ├── observation.py             # 观察空间 (374-dim flat)
 │   │   ├── reward.py                  # 奖励 (v4 per-action + v5 dense)
 │   │   └── multi_agent_env.py         # 多智能体环境 + 轨迹对手
+│   ├── rl_env/                        # ★ 新一代 RL 环境 (entity-centric)
+│   │   ├── action/                    # 分层动作: 原子动作 + 语法 + 宏观选项
+│   │   ├── observation/               # ObservationV2: 37-entity token 布局
+│   │   │   ├── entity_schema.py       # TokenGroup, 槽位偏移, 特征维度定义
+│   │   │   ├── observation_v2.py      # build_observation_v2() — 37 实体槽
+│   │   │   └── opponent_public_encoder.py
+│   │   ├── reward/
+│   │   │   └── board_score.py         # compute_board_score_v2() — 多维度场面评分
+│   │   ├── core/                      # RL 状态管理
+│   │   ├── envs/                      # BoardBuildingEnv, TurnRecruitEnv
+│   │   ├── teachers/                  # 教师策略
+│   │   └── data/                      # 回合数据集
+│   ├── policy/                        # ★ Entity-Token Transformer 策略 (5.25M)
+│   │   ├── model_5m.py                # ScaledModel: d=256, h=4, 6层 Transformer
+│   │   ├── transformer.py             # EntityTransformer — MHA over entity tokens
+│   │   ├── heads.py                   # HierarchicalActionHead: type + pointer
+│   │   ├── value_head.py              # DistributionalValueHead: P(rank) → V(s)
+│   │   ├── entity_tokenizer_v2.py     # 37-slot tokenizer w/ card embeddings
+│   │   ├── bc_train.py                # Phase 0: BC from heuristic teacher
+│   │   ├── iter_train.py              # ★ 迭代 BC: 多轮 self-improvement
+│   │   ├── gpu_train.py               # GPU 训练脚本
+│   │   └── quick_train.py             # 快速训练脚本
 │   ├── agents/                        # AI 智能体
 │   │   ├── search_agent.py            # ★ 混合 SearchAgent (avg_rank 2.17)
 │   │   ├── az_agent.py                # ★ AlphaZero MCTS Agent
+│   │   ├── agent_utils.py             # 动作模拟 + 酒馆刷新工具
 │   │   ├── heuristic_demo.py          # 全启发式 8 人对战 demo
 │   │   ├── self_play_demo.py          # 8 混合 agent 自对弈 demo
 │   │   └── agent_vs_heuristic_demo.py # 1 agent vs 7 启发式审计 demo
@@ -82,18 +105,17 @@ HrSRL/
 │   │   ├── opponent.py                # 轨迹对手加载 + 棋盘注入
 │   │   ├── group.py                   # 按种族兼容性分组
 │   │   └── pool.py                    # 轨迹池采样
-│   ├── train/                         # 训练脚本
+│   ├── train/                         # 训练脚本 (legacy, gitignored)
 │   │   ├── network.py                 # Dual-Head Network (policy + value, 374-dim)
-│   │   ├── board_eval.py              # BoardEvalNetwork — 嵌入战斗预测 (98.4%)
+│   │   ├── board_eval.py              # BoardEvalNetwork — 战斗预测 98.4%
 │   │   ├── combat_data.py             # 战斗数据收集
 │   │   ├── game_value.py              # GameValueNetwork v2 (61-dim)
 │   │   ├── game_value_sp.py           # GameValueNetwork v4 (397-dim POMDP)
-│   │   ├── value_dense.py             # DenseValueNetwork (survival+board dense reward)
-│   │   ├── bc_collector_v3.py         # BC 数据收集 (SearchAgent 决策)
+│   │   ├── value_dense.py             # DenseValueNetwork
+│   │   ├── bc_collector_v3.py         # BC 数据收集
 │   │   ├── bc_trainer_v3.py           # BC 策略训练
-│   │   ├── ppo_trainer_v2.py          # PPO 微调 (GAE + GameValue + dense reward)
-│   │   ├── self_play_trainer.py       # 自对弈 PPO 训练器
-│   │   └── wrappers.py                # 环境 Wrapper
+│   │   ├── ppo_trainer_v2.py          # PPO 微调
+│   │   └── self_play_trainer.py       # 自对弈 PPO 训练器
 │   └── tests/                         # 测试 (772 passed, 1 skipped)
 │
 ├── hsrl_advisor/plugin/               # HDT C# 插件
@@ -139,6 +161,7 @@ HrSRL/
 | `checkpoints/bc_search_agent.pt` | BC 策略 — 模仿混合 agent, val_acc 67.4% |
 | `checkpoints/ppo_finetuned.pt` | PPO 微调策略 |
 | `checkpoints/ppo_gv.pt` | PPO + GameValue 策略 |
+| `checkpoints/bc_iter_r0.pt` ~ `bc_iter_r5.pt` | 迭代 BC 模型 (强启发式→BC, 15 回合, 5.25M 参数) |
 
 ## 混合 SearchAgent 架构
 
@@ -196,6 +219,38 @@ act(game, player):
 
 存储: `data/trajectories/traj_{seed:06d}.json` + `index.jsonl`
 
+## Entity-Token Transformer 架构 (5.25M 参数)
+
+新一代策略网络，将 ObservationV2 的 37 个实体槽编码为 token，通过多头注意力建模实体间交互。
+
+```
+ScaledModel:
+  Tokenizer (EntityTokenizerV2):
+    - Card embedding: 1500 × 128
+    - Entity MLP: 8-dim stats → 128-dim
+    - Summary projectors: global(16→128), hero(12→128), opponent(12→128), history(8→128)
+  Transformer (EntityTransformer):
+    - d_model=256, heads=4, layers=6, ff=1024
+    - Multi-head self-attention over 37 entity tokens
+  Heads:
+    - HierarchicalActionHead: 8-way type + 24-way pointer → Discrete(50)
+    - DistributionalValueHead: P(rank=1..8) → E[rank] → V(s)
+```
+
+### Hierarchical Action Space
+
+```
+Discrete(50) action_id → hierarchical:
+  type (8-way): BUY(0) | SELL(1) | PLAY(2) | REFRESH(3) | UPGRADE(4) | FREEZE(5) | HERO_POWER(6) | END_TURN(7)
+  pointer (24-way): slot 0-6 for BUY/SELL, slot 0-9 for PLAY
+```
+
+### Board Score (compute_board_score_v2)
+
+```
+total = Σ(atk+health)/50 + keyword_bonuses + scaling_potential + synergy + economy
+```
+
 ## 开发命令
 
 ```bash
@@ -213,6 +268,16 @@ python -m hsrl.agents.agent_vs_heuristic_demo --seed 42
 
 # Benchmark SearchAgent (30 局)
 python -m hsrl.agents.search_agent --benchmark --games 30
+
+# ── 新一代 Policy 训练 ──
+
+# Phase 0: BC from heuristic (单轮)
+python hsrl/policy/bc_train.py
+
+# Phase 1: 迭代 BC (多轮 self-improvement, 强启发式 → BC)
+python hsrl/policy/iter_train.py
+
+# ── Legacy 训练脚本 (gitignored) ──
 
 # 训练 BoardEval
 python -m hsrl.train.combat_data --games 500

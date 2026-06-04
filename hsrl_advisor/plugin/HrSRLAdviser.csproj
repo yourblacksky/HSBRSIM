@@ -11,21 +11,22 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <HdtPath Condition="'$(HdtPath)' == ''">$(AppData)\HearthstoneDeckTracker</HdtPath>
-    <HdtAppDir Condition="'$(HdtAppDir)' == ''">$(HdtPath)\app-1.51.15</HdtAppDir>
+    <!-- HDT binaries are in LocalAppData; plugins are loaded from AppData (Roaming) -->
+    <HdtBinPath Condition="'$(HdtBinPath)' == ''">$(LocalAppData)\HearthstoneDeckTracker\app-1.52.15</HdtBinPath>
+    <HdtPluginPath Condition="'$(HdtPluginPath)' == ''">$(AppData)\HearthstoneDeckTracker\Plugins\HrSRLAdviser</HdtPluginPath>
   </PropertyGroup>
 
   <ItemGroup>
     <Reference Include="HearthstoneDeckTracker">
-      <HintPath>$(HdtAppDir)\HearthstoneDeckTracker.exe</HintPath>
+      <HintPath>$(HdtBinPath)\HearthstoneDeckTracker.exe</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="HearthDb">
-      <HintPath>$(HdtAppDir)\HearthDb.dll</HintPath>
+      <HintPath>$(HdtBinPath)\HearthDb.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="HearthMirror">
-      <HintPath>$(HdtAppDir)\HearthMirror.dll</HintPath>
+      <HintPath>$(HdtBinPath)\HearthMirror.dll</HintPath>
       <Private>false</Private>
     </Reference>
     <Reference Include="System.Net.Http" />
@@ -37,9 +38,9 @@
 
   <!-- Copy output to HDT Plugins folder after build -->
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <MakeDir Directories="$(HdtPath)\Plugins\HrSRLAdviser" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(HdtPath)\Plugins\HrSRLAdviser" />
-    <Copy SourceFiles="$(ProjectDir)plugin.json" DestinationFolder="$(HdtPath)\Plugins\HrSRLAdviser" />
+    <MakeDir Directories="$(HdtPluginPath)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(HdtPluginPath)" />
+    <Copy SourceFiles="$(ProjectDir)plugin.json" DestinationFolder="$(HdtPluginPath)" />
   </Target>
 
 </Project>

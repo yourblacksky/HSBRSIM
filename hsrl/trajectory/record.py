@@ -83,8 +83,11 @@ class TurnSnapshot:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "TurnSnapshot":
-        board = [MinionSnapshot.from_dict(m) for m in d.pop("board", [])]
-        return cls(**d, board=board)
+        board_data = d.get("board", [])
+        board = [MinionSnapshot.from_dict(m) for m in board_data]
+        # Build kwargs excluding "board" to avoid duplicate keyword
+        kwargs = {k: v for k, v in d.items() if k != "board"}
+        return cls(**kwargs, board=board)
 
 
 @dataclasses.dataclass
@@ -108,8 +111,10 @@ class Trajectory:
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "Trajectory":
-        turns = [TurnSnapshot.from_dict(t) for t in d.pop("turns", [])]
-        return cls(**d, turns=turns)
+        turns_data = d.get("turns", [])
+        turns = [TurnSnapshot.from_dict(t) for t in turns_data]
+        kwargs = {k: v for k, v in d.items() if k != "turns"}
+        return cls(**kwargs, turns=turns)
 
     def to_json(self) -> str:
         import json

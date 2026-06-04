@@ -381,6 +381,7 @@ class SearchAgent:
         device: str = "auto",
         seed: int = None,
         epsilon: float = 0.0,
+        use_vn_buy: bool = True,
     ):
         if device == "auto":
             import torch
@@ -391,6 +392,7 @@ class SearchAgent:
         self.beam_width = beam_width
         self.beam_depth = beam_depth
         self.epsilon = epsilon
+        self.use_vn_buy = use_vn_buy
 
         # Load models — detect checkpoint version
         import torch
@@ -399,7 +401,12 @@ class SearchAgent:
 
         from hsrl.train.board_eval import BoardEvalTrainer
 
-        if ckpt_version == "v4":
+        if ckpt_version == "dense":
+            from hsrl.train.value_dense import DenseValueNetwork, encode_pomdp_state as _encode_pomdp
+            self.game_value = DenseValueNetwork().to(device)
+            self.game_value.load_state_dict(ckpt["model_state_dict"])
+            self.game_value.eval()
+        elif ckpt_version == "v4":
             from hsrl.train.game_value_sp import SelfPlayGameValueTrainer
             from hsrl.train.game_value_sp import encode_pomdp_state as _encode_pomdp
             self.game_value = SelfPlayGameValueTrainer.load(game_value_path, device=device)
@@ -457,25 +464,40 @@ class SearchAgent:
         if not productive:
             return END_TURN
 
-        # ── Priority 2: Buy when board not full (Q-score heuristic) ──
+        # ── Priority 2: Buy when board not full ──
         board_count = len(player.get_board_minions())
         buy_actions = [a for a in productive if a in range(BUY_OFFSET, BUY_OFFSET + 7)]
         if board_count < 7 and buy_actions:
-            # Use heuristic Q-score to pick the best buy
-            best_buy = None
-            best_score = -1
-            for a in buy_actions:
-                slot = a - BUY_OFFSET
-                if slot < len(player.tavern):
-                    entity = player.tavern[slot]
-                    ct = entity.get_tag(GameTag.CARDTYPE, CardType.INVALID)
-                    if ct == CardType.MINION:
-                        score = entity.atk + entity.health
-                        if score > best_score:
-                            best_score = score
-                            best_buy = a
-            if best_buy is not None:
-                return best_buy
+            if self.use_vn_buy and self.game_value is not None:
+                # Value network evaluates each buy to find scaling cards
+                saved = _save_player(player)
+                best_buy = None
+                best_value = -float("inf")
+                for a in buy_actions:
+                    _restore_player(player, saved)
+                    value = self._eval_buy(game, player, a, saved)
+                    if value > best_value:
+                        best_value = value
+                        best_buy = a
+                _restore_player(player, saved)
+                if best_buy is not None:
+                    return best_buy
+            else:
+                # Q-score heuristic: pick highest ATK+HP
+                best_buy = None
+                best_score = -1
+                for a in buy_actions:
+                    slot = a - BUY_OFFSET
+                    if slot < len(player.tavern):
+                        entity = player.tavern[slot]
+                        ct = entity.get_tag(GameTag.CARDTYPE, CardType.INVALID)
+                        if ct == CardType.MINION:
+                            score = entity.atk + entity.health
+                            if score > best_score:
+                                best_score = score
+                                best_buy = a
+                if best_buy is not None:
+                    return best_buy
 
         # ── Priority 3: Upgrade when behind curve ──
         _EXPECTED_TIER = {1: 1, 2: 1, 3: 1, 4: 2, 5: 2, 6: 3, 7: 3,
@@ -780,7 +802,14 @@ class SearchAgent:
 
         obs = self._encode_pomdp(game, player, self.board_eval)
 
-        value = self.game_value.predict(obs)
+        # DenseValue network has no .predict() — call directly
+        if hasattr(self.game_value, 'predict'):
+            value = self.game_value.predict(obs)
+        else:
+            import torch
+            t = torch.as_tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
+            with torch.no_grad():
+                value = self.game_value(t).squeeze().item()
         if isinstance(value, np.ndarray):
             return float(value.item())
         return float(value)
