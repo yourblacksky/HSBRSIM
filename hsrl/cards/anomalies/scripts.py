@@ -15,6 +15,21 @@ if TYPE_CHECKING:
     from hsrl.core.entity import BaseEntity
 
 
+def _prune_minion_pool(game: "Game", allowed_tiers: set) -> None:
+    """Remove all minions from tiers NOT in allowed_tiers from the shared pool.
+
+    Called during anomaly on_apply to pre-filter the pool, so tavern refreshes
+    naturally draw only from the allowed tiers. This is more correct than
+    filtering at refresh time, because it also frees tier slots for correct
+    minion counts.
+    """
+    if game.minion_pool is None:
+        return
+    for tier in list(game.minion_pool._pools.keys()):
+        if tier not in allowed_tiers:
+            game.minion_pool._pools[tier].clear()
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CORRECT: Economy — Starting Gold / Tier
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1300,6 +1315,7 @@ class TierFilterOnly135Script:
     @staticmethod
     def on_apply(source, game):
         source._allowed_tiers = {1, 3, 5}
+        _prune_minion_pool(game, {1, 3, 5})
 
 
 class TierFilterOnly246Script:
@@ -1315,6 +1331,7 @@ class TierFilterOnly246Script:
     @staticmethod
     def on_apply(source, game):
         source._allowed_tiers = {2, 4, 6}
+        _prune_minion_pool(game, {2, 4, 6})
 
 
 class TierFilterOnly1234Script:
@@ -1407,6 +1424,7 @@ class NoTier1CostEqualsTierScript:
     def on_apply(source, game):
         source._allowed_tiers = {2, 3, 4, 5, 6}
         source._cost_equals_tier = True
+        _prune_minion_pool(game, {2, 3, 4, 5, 6})
 
 
 class NoRefreshAutoAfterBuyScript:
