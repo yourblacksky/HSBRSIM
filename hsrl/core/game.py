@@ -203,14 +203,12 @@ class Game:
             player.set_tag(GameTag.GUIDING_CANDLE_REFRESHES, guiding - 1)
             drawn = self.minion_pool.draw(6, count=count, race_filter=self.active_tribes)
         elif anomaly_allowed_tiers:
-            # Anomaly tier filter: only draw minions of allowed tiers
+            # Anomaly tier filter: draw minions only from allowed tiers.
+            # Pool is pre-pruned at game start (tiers + tribes), so we can
+            # draw exactly `count` minions without needing oversampling.
             allowed = set(anomaly_allowed_tiers)
             max_tier = min(max(allowed), player.tavern_tier)
-            drawn = self.minion_pool.draw(max_tier, count=count * 3, race_filter=self.active_tribes)
-            # Filter to only allowed tiers
-            drawn = [cid for cid in drawn
-                     if self.card_db.get(cid) is not None
-                     and self.card_db.get(cid).tech_level in allowed][:count]
+            drawn = self.minion_pool.draw(max_tier, count=count, race_filter=self.active_tribes)
         elif hasattr(player, '_tavern_min_tier') and player._tavern_min_tier > 1:
             # Player-level tier filter (e.g. Bob-blehead trinket: no tier 1-2)
             min_t = player._tavern_min_tier
@@ -1113,6 +1111,15 @@ class Game:
                      Race.MECH, Race.MURLOC, Race.NAGA, Race.PIRATE,
                      Race.QUILBOAR, Race.UNDEAD]
         self.active_tribes = set(self.rng.sample(playable, 5))
+
+        # Prune minion pool to only active tribes + neutrals
+        if self.minion_pool is not None:
+            allowed = self.active_tribes | {Race.ALL, Race.NONE, Race.INVALID}
+            for tier, cards in list(self.minion_pool._pools.items()):
+                self.minion_pool._pools[tier] = [
+                    cid for cid in cards
+                    if self.minion_pool._matches_race(cid, allowed)
+                ]
 
     # ── Trinket offering ─────────────────────────────────────────────────────
 

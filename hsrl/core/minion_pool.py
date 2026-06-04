@@ -182,14 +182,14 @@ class MinionPool:
         """Check if a card matches a race filter.
 
         race_filter can be a single Race value, a set of Race values, or None.
-        Race.ALL (Amalgam-type) always matches. Race.NONE (tribeless) only
-        matches when race_filter is None (no filter applied).
+        Race.ALL (Amalgam-type) always matches. Neutral/tribeless minions
+        (Race.NONE, Race.INVALID) always match — they are in every game.
         """
         data = self.card_db.get(card_id)
         if data is None:
             return False
-        if data.race == Race.ALL:
-            return True
+        if data.race in (Race.ALL, Race.NONE, Race.INVALID):
+            return True  # Always available regardless of active tribes
         if race_filter is None:
             return True
         if isinstance(race_filter, (set, frozenset, list, tuple)):
