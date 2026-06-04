@@ -911,13 +911,13 @@ class DiscoverMinion(Action):
         self.race = race
         self.max_tier = max_tier
         self.min_tier = min_tier
-        self.card_type = card_type
+        self.card_type = card_type if card_type is not None else CardType.MINION
         self.card_id_filter = card_id_filter
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
         candidates = []
         for card_id, data in game.card_db._cards.items():
-            if self.card_type is not None and data.cardtype != self.card_type:
+            if data.cardtype != self.card_type:
                 continue
             if self.race is not None and data.race != self.race:
                 continue
@@ -1131,12 +1131,12 @@ class GetRandomMinion(Action):
         self.race = race
         self.min_tier = min_tier
         self.max_tier = max_tier
-        self.card_type = card_type
+        self.card_type = card_type if card_type is not None else CardType.MINION
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
         candidates = []
         for card_id, data in game.card_db._cards.items():
-            if self.card_type is not None and data.cardtype != self.card_type:
+            if data.cardtype != self.card_type:
                 continue
             if self.race is not None and data.race != self.race:
                 continue
