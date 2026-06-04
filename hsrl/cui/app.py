@@ -161,7 +161,9 @@ class CursesApp:
                 action_name = self._action_name(action_id)
 
                 action_name = self._action_name(action_id)
-                self._log(f"  {action_name}", INFO)
+                gold_after = player.gold
+                tier_after = player.tavern_tier
+                self._log(f"  {action_name} (金:{gold_after} T:{tier_after})", INFO)
 
                 if action_id == REFRESH:
                     self.runner._auto_play_hand(player)
@@ -169,8 +171,6 @@ class CursesApp:
                     turn_done = True
                     self.runner._auto_play_hand(player)
                     recorder.record_turn_end(player)
-                elif action_id == UPGRADE:
-                    self._log(f"  → 升级到 T{player.tavern_tier}", INFO)
 
             if not turn_done:
                 self.runner.human_end_turn(human_idx)
