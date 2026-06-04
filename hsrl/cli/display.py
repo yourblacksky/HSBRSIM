@@ -1,7 +1,7 @@
 """Terminal display formatter for Battlegrounds game state.
 
-Renders Chinese card names, stats, keywords, and effect text in a compact
-readable layout suitable for an interactive CLI.
+Renders Chinese card names, stats, keywords, and effect text in a readable
+layout suitable for an interactive CLI.
 """
 from __future__ import annotations
 
@@ -14,17 +14,6 @@ if TYPE_CHECKING:
     from hsrl.core.player import Player
     from hsrl.core.game import Game
 
-# Keyword display abbreviations and order
-_KEYWORDS = [
-    ("taunt", "嘲讽"),
-    ("divine_shield", "圣盾"),
-    ("poisonous", "剧毒"),
-    ("venomous", "烈毒"),
-    ("reborn", "复生"),
-    ("windfury", "风怒"),
-    ("cleave", "顺劈"),
-]
-
 WIDTH = 80
 SEP = "─" * WIDTH
 DSEP = "═" * WIDTH
@@ -34,7 +23,7 @@ def display_state(game: "Game", player: "Player") -> str:
     """Render full game state for human player."""
     lines = []
 
-    # ── Header: turn, gold, tier ──
+    # ── Header ──
     turn = game.turn
     gold = player.gold
     max_gold = player.get_tag(GameTag.MAX_GOLD, min(3 + turn - 1, 10))
@@ -48,14 +37,13 @@ def display_state(game: "Game", player: "Player") -> str:
                  f"酒馆等级: T{tier}" +
                  (f" → T{tier+1} (${upgrade_cost})" if tier < 6 else " (满级)"))
 
-    # Anomaly
     anomaly = _get_anomaly(game)
     if anomaly:
         lines.append(f"  畸变: {anomaly}")
 
     lines.append(DSEP)
 
-    # Trinket offers (highest priority — need to resolve first)
+    # Trinket offers (show before anything else — must resolve)
     offers = getattr(player, "_pending_trinket_offers", [])
     if offers:
         lines.append("")
@@ -63,52 +51,55 @@ def display_state(game: "Game", player: "Player") -> str:
         for i, cid in enumerate(offers):
             name, text = zhcn.card(cid)
             cost = _trinket_cost(game, cid)
-            lines.append(f"    [{i}] {name} ({cost}铸币) — {text}")
+            lines.append(f"    [{i}] {name} ({cost}铸币)")
+            if text:
+                lines.append(f"        {_clean(text)}")
         lines.append("")
 
     # ── Tavern ──
-    lines.append(f"  {'─'*38} {'─'*38}")
-    lines.append(f"  {'酒馆随从':<38} {'手牌':<38}")
-    lines.append(f"  {'─'*38} {'─'*38}")
-
+    lines.append(f"  ── 酒馆 (T{tier}·升级${upgrade_cost}) {SEP[:40]}──")
     tavern_entities = list(player.tavern[:7])
+    if tavern_entities:
+        for i, e in enumerate(tavern_entities):
+            lines.append(_format_card(i, e, show_cost=True))
+    else:
+        lines.append("    (空)")
+    lines.append("")
+
+    # ── Hand ──
+    hand_count = sum(1 for e in player.hand if e is not None)
+    lines.append(f"  ── 手牌 ({hand_count}/10) {SEP[:55]}──")
     hand_entities = list(player.hand[:10])
-    max_rows = max(len(tavern_entities), len(hand_entities), 1)
-
-    for i in range(max_rows):
-        left = _format_tavern_slot(i, tavern_entities[i] if i < len(tavern_entities) else None)
-        right = _format_hand_slot(i, hand_entities[i] if i < len(hand_entities) else None)
-        lines.append(f"  {left:<38} {right:<38}")
-
-    lines.append(f"  {'─'*38} {'─'*38}")
+    if hand_entities:
+        for i, e in enumerate(hand_entities):
+            if e is not None:
+                lines.append(_format_card(i, e, show_cost=False))
+    else:
+        lines.append("    (空)")
+    lines.append("")
 
     # ── Board ──
     board_minions = [m for m in player.board if not m.dead]
-    lines.append("")
-    lines.append(f"  ── 场面 ({len(board_minions)}/7 随从) ──")
+    lines.append(f"  ── 场面 ({len(board_minions)}/7) {SEP[:55]}──")
     if board_minions:
-        board_parts = []
         for i, m in enumerate(board_minions):
-            card_id = m.get_tag(GameTag.CARD_ID, "")
-            name = zhcn.name(card_id) or m.data.name if hasattr(m, "data") and m.data else "?"
-            golden = "★" if m.get_tag(12, 0) > 0 else ""
-            kws = _fmt_keywords(m)
-            board_parts.append(f"  [{i}] {golden}{name}({m.atk}/{m.health}T{m.tech_level}){kws}")
-        lines.extend(board_parts)
+            lines.append(_format_board_minion(i, m))
     else:
-        lines.append("  (空)")
+        lines.append("    (空)")
+    lines.append("")
 
-    # ── Trinkets (equipped) ──
+    # ── Trinkets ──
     trinkets = getattr(player, "trinkets", [])
     if trinkets:
-        lines.append("")
-        lines.append("  ── 已装备饰品 ──")
+        lines.append(f"  ── 已装备饰品 {SEP[:52]}──")
         for t in trinkets:
             cid = t.get_tag(GameTag.CARD_ID, "")
             name, text = zhcn.card(cid)
-            lines.append(f"  {name} — {text}")
+            lines.append(f"  {name}")
+            if text:
+                lines.append(f"    {_clean(text)}")
+        lines.append("")
 
-    lines.append("")
     lines.append(SEP)
     lines.append("  操作: buy <0-6> | sell <0-6> | play <0-9> | refresh | upgrade | freeze | end | help")
     lines.append(SEP)
@@ -116,38 +107,79 @@ def display_state(game: "Game", player: "Player") -> str:
     return "\n".join(lines)
 
 
-def _format_tavern_slot(idx: int, entity) -> str:
-    if entity is None:
-        return f"[{idx}] (空)"
+def _format_card(idx: int, entity, show_cost: bool = True) -> str:
+    """Format a tavern or hand card with name, stats, and effect text."""
     card_id = entity.get_tag(GameTag.CARD_ID, "")
     name = zhcn.name(card_id) or "?"
     ct = entity.get_tag(GameTag.CARDTYPE, 0)
-    is_spell = ct in (CardType.SPELL, 42)  # BATTLEGROUND_SPELL = 42
-    frozen = " ❄" if entity.get_tag(GameTag.FROZEN, 0) > 0 else ""
+    is_spell = ct in (CardType.SPELL, 42)
+    golden = "★" if entity.get_tag(12, 0) > 0 else ""
+
+    parts = []
+    prefix = f"  [{idx}] {golden}{name}"
 
     if is_spell:
         cost = entity.get_tag(GameTag.COST, 0)
-        text = zhcn.text(card_id)
-        short = text[:40].replace("\n", " ").replace("<b>", "").replace("</b>", "")
-        return f"[{idx}] {name} T{entity.tech_level} ${cost}{frozen} {short}"
+        tier = entity.tech_level
+        prefix += f" (法术) T{tier}"
+        if show_cost:
+            prefix += f" ${cost}"
     else:
-        return f"[{idx}] {name} {entity.atk}/{entity.health} T{entity.tech_level} ${entity.get_tag(GameTag.COST, 3)}{frozen}"
+        prefix += f" {entity.atk}/{entity.health} T{entity.tech_level}"
+        if show_cost:
+            prefix += f" ${entity.get_tag(GameTag.COST, 3)}"
 
+    frozen = entity.get_tag(GameTag.FROZEN, 0) > 0 if show_cost else False
+    if frozen:
+        prefix += " ❄"
 
-def _format_hand_slot(idx: int, entity) -> str:
-    if entity is None:
-        return f"[{idx}] (空)"
-    card_id = entity.get_tag(GameTag.CARD_ID, "")
-    name = zhcn.name(card_id) or "?"
-    ct = entity.get_tag(GameTag.CARDTYPE, 0)
-    is_minion = ct == CardType.MINION
-    golden = "★" if entity.get_tag(12, 0) > 0 else ""
+    # For board minions (show_cost=False), show keywords inline
+    if not show_cost:
+        kws = _fmt_keywords(entity)
+        prefix += kws
+
+    parts.append(prefix)
+
+    # Effect text
     text = zhcn.text(card_id)
-    short = text[:45].replace("\n", " ").replace("<b>", "").replace("</b>", "")
-    if is_minion:
-        return f"[{idx}] {golden}{name} {entity.atk}/{entity.health} T{entity.tech_level}"
-    else:
-        return f"[{idx}] {golden}{name} (法术) T{entity.tech_level} ${entity.get_tag(GameTag.COST, 0)}"
+    if text:
+        cleaned = _clean(text)
+        if len(cleaned) > 70:
+            cleaned = cleaned[:67] + "..."
+        parts.append(f"       {cleaned}")
+
+    return "\n".join(parts)
+
+
+def _format_board_minion(idx: int, m) -> str:
+    """Format a board minion with stats, keywords, and effect text."""
+    card_id = m.get_tag(GameTag.CARD_ID, "")
+    name = zhcn.name(card_id) or (m.data.name if hasattr(m, "data") and m.data else "?")
+    golden = "★" if m.get_tag(12, 0) > 0 else ""
+    kws = _fmt_keywords(m)
+
+    parts = []
+    prefix = f"  [{idx}] {golden}{name}({m.atk}/{m.health}T{m.tech_level}){kws}"
+    parts.append(prefix)
+
+    text = zhcn.text(card_id)
+    if text:
+        cleaned = _clean(text)
+        if len(cleaned) > 70:
+            cleaned = cleaned[:67] + "..."
+        parts.append(f"       {cleaned}")
+
+    return "\n".join(parts)
+
+
+def _clean(text: str) -> str:
+    """Clean HTML tags for terminal display."""
+    text = (text.replace("<b>", "").replace("</b>", "")
+                .replace("<i>", "").replace("</i>", "")
+                .replace("[x]", "").replace("&lt;", "<").replace("&gt;", ">")
+                .replace("\n", " ").replace("\r", " ")
+                .replace("{0}", "X").replace("{1}", "Y"))
+    return " ".join(text.split())
 
 
 def _fmt_keywords(m) -> str:
@@ -165,7 +197,6 @@ def _fmt_keywords(m) -> str:
         parts.append("复生")
     if getattr(m, "windfury", False):
         parts.append("风怒")
-    # Cleave is not a standard attribute; check via card_id list
     cid = m.get_tag(GameTag.CARD_ID, "")
     if cid in _CLEAVE_IDS:
         parts.append("顺劈")
@@ -189,7 +220,7 @@ def _get_anomaly(game: "Game") -> str:
     cid = anomaly.get_tag(GameTag.CARD_ID, "")
     name, text = zhcn.card(cid)
     if name:
-        return f"{name} — {text}" if text else name
+        return f"{name} — {_clean(text)}" if text else name
     return cid
 
 

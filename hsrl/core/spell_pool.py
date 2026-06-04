@@ -17,7 +17,7 @@ class SpellPool:
     Unlike MinionPool, each spell has only 1 copy (spells are unique).
     """
 
-    POOL_SIZES = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
+    POOL_SIZES = {1: 8, 2: 8, 3: 8, 4: 8, 5: 8, 6: 8, 7: 8}
 
     def __init__(self, card_db, rng=None):
         self._card_db = card_db
@@ -41,7 +41,8 @@ class SpellPool:
             # Skip example/test cards
             if card_id.startswith("EXAMPLE_"):
                 continue
-            self._pools[tier].append(card_id)
+            count = self.POOL_SIZES.get(tier, 1)
+            self._pools[tier].extend([card_id] * count)
             self._active.add(card_id)
 
     def draw(self, tavern_tier: int, count: int = 1) -> List[str]:
@@ -77,15 +78,17 @@ class SpellPool:
             pool.remove(card_id)
 
     def return_card(self, card_id: str) -> bool:
-        """Return a spell to the pool (e.g., when sold or player dies)."""
+        """Return a spell copy to the pool (e.g., when sold or player dies)."""
         data = self._card_db.get(card_id)
         if data is None:
             return False
         tier = data.tech_level
         if tier not in self._pools:
             return False
-        # Don't exceed the 1-per-type limit
-        if card_id in self._pools[tier]:
+        # Don't exceed the pool limit for this tier
+        max_copies = self.POOL_SIZES.get(tier, 1)
+        current = self._pools[tier].count(card_id)
+        if current >= max_copies:
             return False
         self._pools[tier].append(card_id)
         return True
