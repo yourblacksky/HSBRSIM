@@ -285,7 +285,7 @@ class Game:
         else:
             if player.gold < cost:
                 return
-            self.queue_action(SpendGold(player, cost))
+            SpendGold(player, cost).do(None, self)
         # Track gold spent this turn (for "Improves by gold spent" cards)
         current = player.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0)
         player.set_tag(GameTag.GOLD_SPENT_THIS_TURN, current + cost)
@@ -336,7 +336,7 @@ class Game:
         else:
             if player.gold < actual_cost:
                 return
-            self.queue_action(SpendGold(player, actual_cost))
+            SpendGold(player, actual_cost).do(None, self)
         # Track gold spent this turn
         current = player.get_tag(GameTag.GOLD_SPENT_THIS_TURN, 0)
         player.set_tag(GameTag.GOLD_SPENT_THIS_TURN, current + actual_cost)

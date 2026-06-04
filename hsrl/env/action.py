@@ -312,16 +312,20 @@ def _do_refresh(game: "Game", player: "Player") -> None:
     game.refresh_tavern(player)
     if free_remaining <= 0:
         from hsrl.core.actions import SpendGold
-        game.queue_action(SpendGold(player, 1))
+        SpendGold(player, 1).do(None, game)  # deduct directly
+    else:
+        player.set_tag(GameTag.FREE_REFRESH_REMAINING, free_remaining - 1)
     game.resolve_queue()
 
 
 def _do_upgrade(game: "Game", player: "Player") -> None:
     """Upgrade the tavern tier."""
-    from hsrl.core.actions import UpgradeTavern
+    from hsrl.core.actions import UpgradeTavern, SpendGold
     upgrade_cost = max(player.get_tag(GameTag.TAVERN_UPGRADE_COST, 5), 1)
     if player.gold < upgrade_cost or player.tavern_tier >= 7:
         return
+    # Deduct gold directly (bypasses queue for reliability)
+    SpendGold(player, upgrade_cost).do(None, game)
     game.queue_action(UpgradeTavern(player))
     game.resolve_queue()
 

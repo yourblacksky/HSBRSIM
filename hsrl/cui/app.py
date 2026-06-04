@@ -150,8 +150,12 @@ class CursesApp:
                 obs = build_observation_v2(game, player)
                 recorder.record_action(turn, obs, action_id)
 
-                result = decode_action(action_id, game, player)
+                gold_before = player.gold
+                tier_before = player.tavern_tier
+                decode_action(action_id, game, player)
                 action_count += 1
+                gold_after = player.gold
+                tier_after = player.tavern_tier
 
                 # Handle pending choice for human player
                 choice = game._pending_choice
@@ -159,11 +163,11 @@ class CursesApp:
                     self._handle_discover(stdscr, game, player, choice)
 
                 action_name = self._action_name(action_id)
-
-                action_name = self._action_name(action_id)
-                gold_after = player.gold
-                tier_after = player.tavern_tier
-                self._log(f"  {action_name} (金:{gold_after} T:{tier_after})", INFO)
+                if gold_before != gold_after or tier_before != tier_after:
+                    delta = f"金{int(gold_before)}→{int(gold_after)}"
+                    self._log(f"  {action_name} ({delta} T:{tier_after})", INFO)
+                else:
+                    self._log(f"  {action_name} (金{int(gold_after)}未扣! T:{tier_after})", ERROR)
 
                 if action_id == REFRESH:
                     self.runner._auto_play_hand(player)
