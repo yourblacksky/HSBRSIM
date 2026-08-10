@@ -216,6 +216,10 @@ class GameTag(IntEnum):
     SECONDARY_HERO_POWER_USED = 227 # Whether secondary HP was used this turn
     SECONDARY_HERO_POWER_COST = 228 # Gold cost of secondary hero power
 
+    # Internal/script-only tags (kept high to avoid collisions)
+    ARANNA_ALWAYS_7 = 1000
+    MAGNETIZE_COUNT = 1002
+
 
 class CardType(IntEnum):
     """Types of cards in Battlegrounds."""

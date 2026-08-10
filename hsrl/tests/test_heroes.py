@@ -710,19 +710,27 @@ class TestPhaseIIINewHeroPowers(unittest.TestCase):
         """Zephrys: cost=3, with a pair in hand, discovers the third copy.
 
         Note: discovering the 3rd copy triggers triple combination (3→1 golden).
+
+        Uses a real pool minion (BGS_002) rather than EXAMPLE_* cards:
+        DiscoverMinion filters candidates through _is_valid_pool_card, which
+        intentionally excludes EXAMPLE_ test cards.
         """
         player = self._make_player("TB_BaconShop_HERO_91", gold=5)
         # Add 2 copies of the same card to hand
-        m1 = self.game.create_minion("EXAMPLE_VANILLA")
+        m1 = self.game.create_minion("BGS_002")
         m1.controller = player
         m1.zone = Zone.HAND
         player.hand.append(m1)
-        m2 = self.game.create_minion("EXAMPLE_VANILLA")
+        m2 = self.game.create_minion("BGS_002")
         m2.controller = player
         m2.zone = Zone.HAND
         player.hand.append(m2)
         self.game.use_hero_power(player)
         self.assertEqual(player.gold, 2)  # 5 - 3
+        # DiscoverMinion creates a PendingChoice (filtered to the pair card).
+        # With the default _auto_resolve_choices=True it is already resolved
+        # automatically; resolve_pending_choice is a safe no-op otherwise.
+        self.game.resolve_pending_choice(0)
         # 3 copies combine into 1 golden + reward discovery
         # Hand has: golden copy + reward discover card(s)
         self.assertGreaterEqual(len(player.hand), 1)

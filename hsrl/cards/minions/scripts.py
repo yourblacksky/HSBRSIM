@@ -6039,7 +6039,7 @@ class BarrensConjurerScript:
             if not data.tags.get(GameTag.BATTLECRY):
                 continue
             # Exclude tokens, golden, and the card itself
-            if cid.endswith("_G") or "t" + cid[-1:].isdigit():
+            if cid.endswith("_G") or ("t" + cid[-1:]).isdigit():
                 continue
             candidates.append(cid)
         if not candidates:

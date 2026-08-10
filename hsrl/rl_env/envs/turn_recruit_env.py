@@ -123,7 +123,10 @@ class TurnRecruitEnv:
             return self._build_state(), -0.5, True
 
         if legacy_id == REFRESH:
-            populate_tavern(p, self._game.rng)
+            # Real engine refresh (draw from the actual minion pool), NOT
+            # agent_utils.populate_tavern which fabricates fake_T* placeholders
+            # for beam-search evaluation and would poison the real game state.
+            self._game.refresh_tavern(p)
 
         # Auto-play hand minions
         self._auto_play_hand(p)

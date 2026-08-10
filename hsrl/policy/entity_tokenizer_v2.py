@@ -12,8 +12,33 @@ card embeddings + stat projections like V1.
 
 from __future__ import annotations
 
-import torch
-import torch.nn as nn
+try:
+    import torch
+    import torch.nn as nn
+    _TORCH_AVAILABLE = True
+except Exception:  # pragma: no cover - torch is optional for obs encoding
+    torch = None  # type: ignore[assignment]
+    nn = None  # type: ignore[assignment]
+    _TORCH_AVAILABLE = False
+
+    # Minimal stand-in so `class EntityTokenizerV2(nn.Module)` still parses
+    # and the module can be imported without torch. Instantiating the model
+    # without torch raises AttributeError on the first nn.* access instead.
+    class _FakeModule:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def parameters(self):
+            return []
+
+        def requires_grad_(self):
+            return self
+
+    class _FakeNN:
+        Module = _FakeModule
+
+    nn = _FakeNN()
+
 from typing import Optional
 
 from hsrl.rl_env.observation.entity_schema import (
@@ -74,7 +99,7 @@ NUM_CARD_VOCAB = 1500
 EMBED_DIM = 24
 
 
-class EntityTokenizerV2(nn.Module):
+class EntityTokenizerV2(nn.Module):  # type: ignore[misc,valid-type]
     """37-slot tokenizer for Observation V2.
 
     Summary tokens (global, hero, opponent, history) use dedicated

@@ -147,7 +147,8 @@ class PlanExecutor:
 
             gold_spent += (gold_before_step - player.gold)
             if legacy_id == REFRESH:
-                populate_tavern(player, game.rng)
+                # Real engine refresh (execute() mutates the actual game state).
+                game.refresh_tavern(player)
 
         return PlanExecutionResult(
             success=True, actions_executed=len(plan.actions),

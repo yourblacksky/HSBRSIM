@@ -17,7 +17,9 @@ class SpellPool:
     Unlike MinionPool, each spell has only 1 copy (spells are unique).
     """
 
-    POOL_SIZES = {1: 8, 2: 8, 3: 8, 4: 8, 5: 8, 6: 8, 7: 8}
+    # Unlike minions (7-16 copies each), each spell has exactly 1 copy:
+    # a tavern spell is unique once drawn until returned (see docstring).
+    POOL_SIZES = {1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1}
 
     def __init__(self, card_db, rng=None):
         self._card_db = card_db
