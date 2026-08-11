@@ -455,7 +455,7 @@ class Game:
     def _auto_register_card(self, card_id: str) -> None:
         """Auto-register a missing card from bg_cards.json data."""
         import json, os
-        data_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'bg_cards.json')
+        data_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'bg_cards.json')
         try:
             with open(data_path) as f:
                 cards = json.load(f)
