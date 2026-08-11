@@ -13,7 +13,7 @@ from hsrl.agents.agent_utils import (
     save_player_state, restore_player_state,
     simulate_action, populate_tavern,
 )
-from hsrl.env.action import REFRESH, END_TURN
+from hsrl.env.action import REFRESH, END_TURN, build_action_mask, decode_action
 from hsrl.env.reward import compute_board_strength
 from hsrl.rl_env.action.atomic_action import ActionType, action_to_legacy_id, end_turn
 from hsrl.rl_env.action.recruit_plan import (
@@ -134,8 +134,8 @@ class PlanExecutor:
                     gold_remaining=player.gold,
                     diagnostics={"reason": f"no legacy mapping for {action}"})
 
-            gold_before_step = player.gold
-            if not simulate_action(player, legacy_id):
+            mask = build_action_mask(game, player)
+            if legacy_id < 0 or legacy_id >= len(mask) or not mask[legacy_id]:
                 return PlanExecutionResult(
                     success=False, actions_executed=i,
                     terminated_by="INVALID_ACTION",
@@ -143,12 +143,20 @@ class PlanExecutor:
                     board_score_after=compute_board_strength(player),
                     gold_spent=gold_spent,
                     gold_remaining=player.gold,
-                    diagnostics={"reason": f"simulate_action failed at step {i}"})
+                    diagnostics={"reason": f"formal action illegal at step {i}"})
 
+            gold_before_step = player.gold
+            decode_action(legacy_id, game, player)
             gold_spent += (gold_before_step - player.gold)
-            if legacy_id == REFRESH:
-                # Real engine refresh (execute() mutates the actual game state).
-                game.refresh_tavern(player)
+            if game.has_pending_target() or game._pending_choice is not None:
+                return PlanExecutionResult(
+                    success=False, actions_executed=i + 1,
+                    terminated_by="PENDING_DECISION",
+                    board_score_before=board_before,
+                    board_score_after=compute_board_strength(player),
+                    gold_spent=gold_spent,
+                    gold_remaining=player.gold,
+                    diagnostics={"reason": "plan requires an explicit target/choice"})
 
         return PlanExecutionResult(
             success=True, actions_executed=len(plan.actions),

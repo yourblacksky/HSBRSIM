@@ -431,6 +431,19 @@ Card data is sourced from HearthSim's [hsdata](https://github.com/HearthSim/hsda
 
 **Data version**: Patch 35.6.0.243002 | Season 15
 
+### Action-level replay evaluation (P4)
+
+Evaluate normalized expert replays with next-action accuracy, expert-action
+Top-3 coverage, board-score regret, economy/commit/refresh/enabler/upgrade/
+positioning diagnostics, placement, and Top-4 rate:
+
+```bash
+python -m hsrl.evaluation.replay_action_eval replay.jsonl --format markdown
+```
+
+Every metric reports sample coverage; unavailable counterfactual data is shown
+as `N/A`. See `docs/REPLAY_ACTION_EVALUATION.md` for the schema and capture gaps.
+
 ## RL Training
 
 The project includes an entity-token Transformer policy (5.25M parameters) and iterative BC training pipeline:

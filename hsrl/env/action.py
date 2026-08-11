@@ -76,7 +76,7 @@ def detect_action_mode(game, player, awaiting_start_choice=False,
         return ActionMode.DISCOVER_SELECT
     if awaiting_target or game.has_pending_target():
         return ActionMode.TARGET_SELECT
-    if awaiting_trinket:
+    if awaiting_trinket or bool(getattr(player, '_pending_trinket_offers', None)):
         return ActionMode.TRINKET_SELECT
     return ActionMode.NORMAL
 
@@ -108,6 +108,12 @@ def build_action_mask(game: "Game", player: "Player",
         if choice is not None:
             for i in range(min(len(choice.options), RESERVED_START)):
                 mask[i] = True
+        return mask
+
+    # ── Deferred target selection mode ──
+    if mode == ActionMode.TARGET_SELECT:
+        for i in range(min(len(game.get_pending_target_candidates()), RESERVED_START)):
+            mask[i] = True
         return mask
 
     # ── Pending choice auto-resolve (catch-all before normal mask building) ──

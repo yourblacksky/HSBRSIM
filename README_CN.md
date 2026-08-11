@@ -475,6 +475,18 @@ build_observation_v2() → 37 entity slots → EntityTokenizerV2 → EntityTrans
 
 **数据版本**：Patch 35.6.0.243002 | 赛季 15
 
+### Replay 动作级评测（P4）
+
+规范化高手 replay 可用动作一致率、Top-3、board-score regret、经济/定阵容/
+刷新/enabler/升本/站位以及最终名次进行离线评测：
+
+```bash
+python -m hsrl.evaluation.replay_action_eval replay.jsonl --format markdown
+```
+
+每项指标都会报告样本覆盖率；缺少实际高手动作或反事实状态时显示 `N/A`。
+数据契约和现有 replay 缺口见 `docs/REPLAY_ACTION_EVALUATION.md`。
+
 ## 许可证
 
 MIT

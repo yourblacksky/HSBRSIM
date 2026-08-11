@@ -76,6 +76,7 @@ class Game:
         self.active_anomaly = None  # Optional Anomaly entity (game-wide modifier)
         self.active_tribes: Optional[set] = None  # Set of playable tribes (None = all, unset)
         self._combat_pairs: List[Tuple[Player, Player]] = []  # (player, opponent) per combat
+        self._scheduled_combat_pairs: List[Tuple[Player, Optional[Player]]] = []
         self._current_combat_opponents: Dict[Player, Player] = {}
         self._pending_targeted_queue: list = []  # TargetedActions awaiting target selection
         self._pending_choice = None  # Optional PendingChoice — discover/choose awaiting resolution
@@ -608,6 +609,15 @@ class Game:
         """Return the opponent for the combat pair currently being resolved."""
         return self._current_combat_opponents.get(player)
 
+    def rearrange_board(self, player: Player, order: list[int]) -> bool:
+        """Apply an exact permutation of the living recruit-phase board."""
+        living = player.get_board_minions()
+        if len(living) < 2 or sorted(order) != list(range(len(living))):
+            return False
+        player.board = [living[index] for index in order]
+        self._update_zone_positions(player.board)
+        return True
+
     # ── Summoning ──
 
     def summon(self, player: Player, minion: Minion, position: Optional[int] = None) -> None:
@@ -947,12 +957,11 @@ class Game:
     def resolve_queue(self) -> None:
         """Public entry point — process all queued actions.
         Auto-resolves pending discover choices unless disabled by RL env.
-        Clears stale targeted queue if no targeted action is actually pending.
+
+        Pending targeted actions are deliberate decision points. Never clear
+        them here: doing so silently discards the battlecry/spell effect before
+        an RL policy can choose its target.
         """
-        # If targeted queue is set but no current TargetedAction needs it,
-        # clear it to unblock queue processing
-        if self._pending_targeted_queue:
-            self._pending_targeted_queue.clear()
         self._resolve_queue(0)
         if self._auto_resolve_choices and self._pending_choice is not None:
             import random
@@ -1571,6 +1580,17 @@ class Game:
                 self.refresh_tavern(p, preserve_frozen=True)
         self.resolve_queue()
 
+        # Battlegrounds exposes the next opponent throughout recruit. Pair now
+        # and reuse this schedule at combat instead of choosing after everyone
+        # has already made their decisions.
+        alive = [p for p in self.players if p.is_alive]
+        self._scheduled_combat_pairs = self._pair_combat_players(alive)
+        self._current_combat_opponents = {}
+        for p1, p2 in self._scheduled_combat_pairs:
+            if p2 is not None:
+                self._current_combat_opponents[p1] = p2
+                self._current_combat_opponents[p2] = p1
+
     def end_recruit_phase(self) -> None:
         # ── Trigger End of Turn effects BEFORE combat ──
         self._trigger_end_of_turn()
@@ -1689,7 +1709,14 @@ class Game:
             if p.is_alive:
                 p.last_combat_board = [m for m in p.board if not m.dead]
 
-        pairs = self._pair_combat_players(alive_players)
+        scheduled_players = {
+            player for pair in self._scheduled_combat_pairs for player in pair
+            if player is not None
+        }
+        if scheduled_players == set(alive_players):
+            pairs = self._scheduled_combat_pairs
+        else:
+            pairs = self._pair_combat_players(alive_players)
 
         for p1, p2 in pairs:
             if p2 is not None:

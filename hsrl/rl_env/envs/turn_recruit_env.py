@@ -15,9 +15,10 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from hsrl.core.enums import GameTag, CardType
-from hsrl.agents.agent_utils import save_player_state, restore_player_state, simulate_action, populate_tavern
-from hsrl.env.action import REFRESH, END_TURN
+from hsrl.agents.agent_utils import save_player_state, restore_player_state
+from hsrl.env.action import (
+    ActionMode, END_TURN, REARRANGE, build_action_mask, decode_action, detect_action_mode,
+)
 from hsrl.rl_env.action.atomic_action import ActionType, action_to_legacy_id, end_turn
 from hsrl.rl_env.action.action_grammar import ActionGrammar
 from hsrl.rl_env.action.recruit_plan import RecruitPlan, PlanExecutionResult
@@ -83,8 +84,12 @@ class TurnRecruitEnv:
         self._gold_before = p.gold
         self._saved_start = save_player_state(p)
 
+        # Discover/choice decisions belong to the acting policy. The default
+        # engine mode is intentionally automatic for heuristic/test callers.
+        self._game._auto_resolve_choices = False
+
         obs = build_observation_v2(self._game, p)
-        mask = self._grammar.build_legacy_mask(self._game, p)
+        mask = self._build_mask()
 
         return RLState(
             game_id=str(id(self._game)),
@@ -96,11 +101,11 @@ class TurnRecruitEnv:
         )
 
     def step_atomic(
-        self, action: "AtomicAction | int",
+        self, action: "AtomicAction | int", position: int | None = None,
+        magnetic_target_slot: int | None = None, board_order: list[int] | None = None,
     ) -> tuple[RLState, float, bool]:
         """Execute one atomic action. Returns (state, reward, done)."""
         p = self.player
-        self._actions_taken += 1
 
         # Convert to legacy ID if needed
         if isinstance(action, int):
@@ -110,26 +115,63 @@ class TurnRecruitEnv:
             if legacy_id is None:
                 return self._build_state(), -0.5, True  # invalid
 
-        # Check END_TURN
-        if legacy_id == END_TURN:
+        mode = detect_action_mode(self._game, p)
+        mask = self._build_mask(mode)
+        if legacy_id < 0 or legacy_id >= len(mask) or not mask[legacy_id]:
+            return self._build_state(), -0.5, True
+        # Deferred selections complete an already-counted play and must remain
+        # resolvable even when that play consumed the final normal action.
+        if mode == ActionMode.NORMAL:
+            self._actions_taken += 1
+            if self._actions_taken > self.MAX_ACTIONS_PER_TURN:
+                return self._build_state(), -0.1, True
+
+        if mode == ActionMode.DISCOVER_SELECT:
+            self._game.resolve_pending_choice(legacy_id)
+            result = None
+        elif mode == ActionMode.TARGET_SELECT:
+            self._game.resolve_pending_target(legacy_id)
+            result = None
+        elif legacy_id == REARRANGE and board_order is not None:
+            if not self._game.rearrange_board(p, board_order):
+                return self._build_state(), -0.5, True
+            result = None
+        elif (14 <= legacy_id <= 23
+              and (position is not None or magnetic_target_slot is not None)):
+            slot = legacy_id - 14
+            if slot >= len(p.hand):
+                return self._build_state(), -0.5, True
+            card = p.hand[slot]
+            from hsrl.core.enums import CardType, GameTag
+            if card.get_tag(GameTag.CARDTYPE, CardType.INVALID) == CardType.MINION:
+                board = p.get_board_minions()
+                if position is None:
+                    position = len(board)
+                if position < 0 or position > len(board):
+                    return self._build_state(), -0.5, True
+                magnetic_target = None
+                if magnetic_target_slot is not None:
+                    if magnetic_target_slot < 0 or magnetic_target_slot >= len(board):
+                        return self._build_state(), -0.5, True
+                    magnetic_target = board[magnetic_target_slot]
+                self._game.play_minion(
+                    p, card, position=position, magnetic_target=magnetic_target,
+                )
+                result = None
+            else:
+                result = decode_action(legacy_id, self._game, p)
+        else:
+            result = decode_action(
+                legacy_id, self._game, p,
+                awaiting_trinket_selection=(mode == ActionMode.TRINKET_SELECT),
+            )
+
+        if result == "end_turn" or (legacy_id == END_TURN and mode == ActionMode.NORMAL):
             return self._build_state(), self._compute_reward(), True
 
-        # Check max actions
-        if self._actions_taken >= self.MAX_ACTIONS_PER_TURN:
-            return self._build_state(), -0.1, True
-
-        # Execute via simulate_action
-        if not simulate_action(p, legacy_id):
-            return self._build_state(), -0.5, True
-
-        if legacy_id == REFRESH:
-            # Real engine refresh (draw from the actual minion pool), NOT
-            # agent_utils.populate_tavern which fabricates fake_T* placeholders
-            # for beam-search evaluation and would poison the real game state.
-            self._game.refresh_tavern(p)
-
-        # Auto-play hand minions
-        self._auto_play_hand(p)
+        if (self._actions_taken >= self.MAX_ACTIONS_PER_TURN
+                and detect_action_mode(self._game, p) == ActionMode.NORMAL):
+            return self._build_state(), self._compute_reward(), True
 
         return self._build_state(), 0.0, False
 
@@ -159,7 +201,9 @@ class TurnRecruitEnv:
             source="policy",
         )
 
-        while not state.is_terminal and self._actions_taken < self.MAX_ACTIONS_PER_TURN:
+        while (not state.is_terminal
+               and (self._actions_taken < self.MAX_ACTIONS_PER_TURN
+                    or detect_action_mode(self._game, self.player) != ActionMode.NORMAL)):
             action = policy_fn(state.observation, state.legal_atomic_mask)
             if isinstance(action, int):
                 legacy_id = action
@@ -198,8 +242,11 @@ class TurnRecruitEnv:
     def _build_state(self) -> RLState:
         p = self.player
         obs = build_observation_v2(self._game, p)
-        mask = self._grammar.build_legacy_mask(self._game, p)
-        is_terminal = self._actions_taken >= self.MAX_ACTIONS_PER_TURN
+        mask = self._build_mask()
+        is_terminal = (
+            self._actions_taken >= self.MAX_ACTIONS_PER_TURN
+            and detect_action_mode(self._game, p) == ActionMode.NORMAL
+        )
 
         return RLState(
             game_id=str(id(self._game)),
@@ -220,13 +267,11 @@ class TurnRecruitEnv:
             reward -= 0.01 * (self._actions_taken - 20)  # efficiency penalty
         return float(reward)
 
-    @staticmethod
-    def _auto_play_hand(player: "Player") -> None:
-        board_count = len([m for m in player.board if not m.dead])
-        for m in [c for c in player.hand
-                  if c.get_tag(GameTag.CARDTYPE, 0) == CardType.MINION]:
-            if board_count >= 7:
-                break
-            player.hand.remove(m)
-            player.board.append(m)
-            board_count += 1
+    def _build_mask(self, mode: int | None = None) -> np.ndarray:
+        """Build a mode-aware mask for normal and deferred decisions."""
+        if mode is None:
+            mode = detect_action_mode(self._game, self.player)
+        return build_action_mask(
+            self._game, self.player, mode=mode,
+            awaiting_trinket_selection=(mode == ActionMode.TRINKET_SELECT),
+        )
