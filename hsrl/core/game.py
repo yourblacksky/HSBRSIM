@@ -78,6 +78,7 @@ class Game:
         self._combat_pairs: List[Tuple[Player, Player]] = []  # (player, opponent) per combat
         self._scheduled_combat_pairs: List[Tuple[Player, Optional[Player]]] = []
         self._current_combat_opponents: Dict[Player, Player] = {}
+        self._start_of_combat_global_broadcasted: bool = False
         self._pending_targeted_queue: list = []  # TargetedActions awaiting target selection
         self._pending_choice = None  # Optional PendingChoice — discover/choose awaiting resolution
         self._auto_resolve_choices: bool = True  # Auto-resolve pending choices in heuristic/test mode
@@ -548,13 +549,69 @@ class Game:
 
     # ── Event broadcasting ──
 
-    def broadcast(self, event_name: str, *args) -> None:
+    @staticmethod
+    def _entity_owner(entity) -> Optional[Player]:
+        if isinstance(entity, Player):
+            return entity
+        controller = getattr(entity, "controller", None)
+        return controller if isinstance(controller, Player) else None
+
+    def _event_owner(self, args) -> Optional[Player]:
+        for arg in args:
+            owner = self._entity_owner(arg)
+            if owner is not None:
+                return owner
+        return None
+
+    def _listener_in_scope(self, entity, listener, event_name, event_owner,
+                           include_global: bool) -> bool:
+        listener_owner = self._entity_owner(entity)
+        if listener_owner is None:
+            # Ownerless sources do not silently become global. The active
+            # anomaly slot is an explicit game-wide declaration; every other
+            # source must opt in with EventScope.GLOBAL.
+            return include_global and (
+                listener.scope == EventScope.GLOBAL
+                or entity is self.active_anomaly
+            )
+        if listener.scope == EventScope.GLOBAL:
+            return include_global
+        if listener.scope == EventScope.OWNER:
+            return event_owner is listener_owner
+        if listener.scope == EventScope.COMBAT_PAIR:
+            return (event_owner is listener_owner
+                    or self._current_combat_opponents.get(event_owner) is listener_owner)
+
+        # AUTO is deliberately conservative: Start of Combat and recruit
+        # events are owner-local; other events during a resolved combat are
+        # visible only to the two participants. Events with no identifiable
+        # owner retain their historical game-wide lifecycle semantics.
+        if event_name == START_OF_COMBAT:
+            return event_owner is listener_owner
+        if self.in_combat and self._current_combat_opponents:
+            return (event_owner is listener_owner
+                    or self._current_combat_opponents.get(event_owner) is listener_owner)
+        if event_owner is not None:
+            return event_owner is listener_owner
+        return True
+
+    def broadcast(self, event_name: str, *args, event_player=None,
+                  include_global: bool = True) -> None:
         """Broadcast an event to all registered listeners.
+
+        Owner-local events are inferred from their entity/player arguments.
+        During combat, listeners are additionally constrained to the active
+        pair. ``event_player`` makes lifecycle ownership explicit without
+        changing the arguments delivered to legacy listener conditions.
+
         The first positional arg (if any BaseEntity) is passed as target to the action trigger.
         """
+        event_owner = event_player or self._event_owner(args)
         to_remove = []
         for entity, listener in self._event_listeners:
-            if listener.check(event_name, args):
+            if (self._listener_in_scope(entity, listener, event_name, event_owner,
+                                        include_global)
+                    and listener.check(event_name, args)):
                 # Pass the first arg as target — convention is first arg is the relevant entity
                 target = args[0] if args else None
                 listener.action.trigger(entity, self, target)
@@ -583,27 +640,15 @@ class Game:
         return player.board
 
     def get_living_enemies(self, player: Player) -> List[Minion]:
-        """Return all living enemy minions across all opponents.
-        For 1v1 combat simulation this returns the specific opponent's board."""
-        # In full 8-player, this would need matchup info. For now, return all non-player boards.
-        enemies = []
-        for p in self.players:
-            if p is player:
-                continue
-            if p.is_alive:
-                enemies.extend(p.get_board_minions())
-        return enemies
+        """Return living minions belonging to the active combat opponent."""
+        opponent = self.get_current_combat_opponent(player)
+        if opponent is None:
+            return []
+        return [m for m in opponent.get_board_minions() if not m.dead]
 
     def get_opponent(self, player: Player) -> Optional[Player]:
-        """Get the current combat opponent.
-        In full game this would use matchup system; here we pick a random alive opponent."""
-        current = self.get_current_combat_opponent(player)
-        if current is not None:
-            return current
-        candidates = [p for p in self.players if p is not player and p.is_alive]
-        if not candidates:
-            return None
-        return self.rng.choice(candidates)
+        """Get the bound current combat opponent, if one exists."""
+        return self.get_current_combat_opponent(player)
 
     def get_current_combat_opponent(self, player: Player) -> Optional[Player]:
         """Return the opponent for the combat pair currently being resolved."""
@@ -872,6 +917,7 @@ class Game:
             player.board.remove(minion)
             self._update_zone_positions(player.board)
         minion.zone = Zone.GRAVEYARD
+        self.unregister_all_listeners_for_entity(minion)
 
     def _update_zone_positions(self, board: List[Minion]) -> None:
         for i, m in enumerate(board):
@@ -889,7 +935,10 @@ class Game:
         if _total_actions >= self._MAX_ACTIONS_PER_RESOLVE:
             return
         dead_minions: List[Minion] = []
-        for p in self.players:
+        players_to_scan = self.players
+        if self.in_combat and self._current_combat_opponents:
+            players_to_scan = list(self._current_combat_opponents)
+        for p in players_to_scan:
             for m in p.board:
                 if m.dead and m.zone == Zone.PLAY:
                     dead_minions.append(m)
@@ -1508,9 +1557,13 @@ class Game:
         self.step = Step.RECRUIT
         # Process turn-scheduled callbacks and deferred actions
         self.process_deferred_actions()
-        self.broadcast(RECRUIT_BEGIN, self.turn)
-        self.broadcast("TURN_BEGIN", self.turn)
-        for p in self.players:
+        alive_players = [p for p in self.players if p.is_alive]
+        for index, p in enumerate(alive_players):
+            self.broadcast(RECRUIT_BEGIN, p, event_player=p,
+                           include_global=index == 0)
+            self.broadcast(TURN_BEGIN, p, event_player=p,
+                           include_global=index == 0)
+        for p in alive_players:
             if not p.is_alive:
                 continue
             # Dispatch trinket on_turn_begin (for every-N-turns counters)
@@ -1601,8 +1654,12 @@ class Game:
         self._clear_temporary_deathrattles()
         # ── Clear unused Spellcraft spells from hand ──
         self._cleanup_spellcraft_spells()
-        self.broadcast("TURN_END", self.turn)
-        self.broadcast(RECRUIT_END, self.turn)
+        alive_players = [p for p in self.players if p.is_alive]
+        for index, p in enumerate(alive_players):
+            self.broadcast(TURN_END, p, event_player=p,
+                           include_global=index == 0)
+            self.broadcast(RECRUIT_END, p, event_player=p,
+                           include_global=index == 0)
         self._start_combat_phase()
 
     def _clear_temporary_buffs(self) -> None:
@@ -1836,6 +1893,7 @@ class Game:
             player_a: player_b,
             player_b: player_a,
         }
+        self._start_of_combat_global_broadcasted = False
 
         # Reset anomaly SoC guard so effects fire once per combat
         if self.active_anomaly is not None and not isinstance(self.active_anomaly, bool):
@@ -2266,7 +2324,13 @@ class Game:
 
     def _trigger_start_of_combat(self, board: List[Minion], player: Player) -> None:
         # Broadcast to global listeners (hero powers, etc.)
-        self.broadcast(START_OF_COMBAT, player)
+        self.broadcast(
+            START_OF_COMBAT,
+            player,
+            event_player=player,
+            include_global=not self._start_of_combat_global_broadcasted,
+        )
+        self._start_of_combat_global_broadcasted = True
 
         # Priority 0: Anomaly Start of Combat effects (global, once per combat)
         if (self.active_anomaly is not None

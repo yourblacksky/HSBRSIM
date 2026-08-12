@@ -11,9 +11,19 @@ Card scripts declare event listeners like:
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any, Callable, List, Optional
 
 from hsrl.core.enums import GameTag
+
+
+class EventScope(str, Enum):
+    """Where a listener is allowed to observe an event."""
+
+    AUTO = "auto"
+    OWNER = "owner"
+    COMBAT_PAIR = "combat_pair"
+    GLOBAL = "global"
 
 
 class EventListener:
@@ -33,11 +43,13 @@ class EventListener:
         action: "Action",
         condition: Optional[Callable[[Any], bool]] = None,
         once: bool = False,
+        scope: EventScope = EventScope.AUTO,
     ):
         self.event_name = event_name
         self.action = action
         self.condition = condition
         self.once = once
+        self.scope = EventScope(scope)
 
     def check(self, event_name: str, event_args: tuple) -> bool:
         if event_name != self.event_name:

@@ -328,11 +328,11 @@ class GameLogger:
         # Execute original
         self._original_queue_action(action, source, target)
 
-    def _wrapped_broadcast(self, event_name, *args):
+    def _wrapped_broadcast(self, event_name, *args, **kwargs):
         """Intercept broadcast to log events."""
         if self.verbosity >= 2:
             self._log_event_line(event_name, *args)
-        self._original_broadcast(event_name, *args)
+        self._original_broadcast(event_name, *args, **kwargs)
 
     # ── Phase markers ──────────────────────────────────────────────────
 

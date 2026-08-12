@@ -2562,6 +2562,10 @@ class TestAttackImmediately(unittest.TestCase):
         self.p1 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
         self.game.players = [self.p1, self.p2]
+        self.game._current_combat_opponents = {
+            self.p1: self.p2,
+            self.p2: self.p1,
+        }
 
     def test_attack_immediately_hits_enemy(self):
         """A minion summoned+attacking immediately hits an enemy minion."""
@@ -5311,6 +5315,10 @@ class TestSpellEffects(unittest.TestCase):
 
     def test_pointy_arrow_damages_enemy(self):
         """Pointy Arrow (EBG_Spell_014) deals 3 damage to random enemy."""
+        self.game._current_combat_opponents = {
+            self.p1: self.p2,
+            self.p2: self.p1,
+        }
         enemy_minion = self.game.create_minion("EXAMPLE_VANILLA")
         self.game.summon(self.p2, enemy_minion)
 

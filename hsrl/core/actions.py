@@ -164,11 +164,6 @@ class AttackImmediately(Action):
         if hasattr(game, "get_current_combat_opponent"):
             enemy = game.get_current_combat_opponent(self.attacker.controller)
         if enemy is None:
-            for p in game.players:
-                if p is not self.attacker.controller and p.board:
-                    enemy = p
-                    break
-        if enemy is None:
             return
 
         # Choose target respecting Taunt

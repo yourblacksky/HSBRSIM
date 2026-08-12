@@ -2088,11 +2088,18 @@ class TestPhase11NefariousFire(unittest.TestCase):
         self.player.gold = 10
         self.player.health = 40
         self.game.players = [self.player]
+        self.enemy_player = None
 
     def _add_enemy(self, card_id="EXAMPLE_VANILLA"):
-        enemy_player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
-        enemy_player.health = 40
-        self.game.players.append(enemy_player)
+        if self.enemy_player is None:
+            self.enemy_player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
+            self.enemy_player.health = 40
+            self.game.players.append(self.enemy_player)
+            self.game._current_combat_opponents = {
+                self.player: self.enemy_player,
+                self.enemy_player: self.player,
+            }
+        enemy_player = self.enemy_player
         m = self.game.create_minion(card_id)
         m.controller = enemy_player
         m.zone = Zone.PLAY
@@ -2142,11 +2149,18 @@ class TestPhase11FireTheCannons(unittest.TestCase):
         self.player.gold = 10
         self.player.health = 40
         self.game.players = [self.player]
+        self.enemy_player = None
 
     def _add_enemy(self, card_id="EXAMPLE_VANILLA"):
-        enemy_player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
-        enemy_player.health = 40
-        self.game.players.append(enemy_player)
+        if self.enemy_player is None:
+            self.enemy_player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
+            self.enemy_player.health = 40
+            self.game.players.append(self.enemy_player)
+            self.game._current_combat_opponents = {
+                self.player: self.enemy_player,
+                self.enemy_player: self.player,
+            }
+        enemy_player = self.enemy_player
         m = self.game.create_minion(card_id)
         m.controller = enemy_player
         m.zone = Zone.PLAY
@@ -2514,11 +2528,18 @@ class TestPhase12Deadeye(unittest.TestCase):
         self.player.gold = 10
         self.player.health = 40
         self.game.players = [self.player]
+        self.enemy_player = None
 
     def _add_enemy(self, card_id="EXAMPLE_VANILLA", health=100):
-        ep = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
-        ep.health = 40
-        self.game.players.append(ep)
+        if self.enemy_player is None:
+            self.enemy_player = Player(CARDS.get("EXAMPLE_HERO"), game=self.game)
+            self.enemy_player.health = 40
+            self.game.players.append(self.enemy_player)
+            self.game._current_combat_opponents = {
+                self.player: self.enemy_player,
+                self.enemy_player: self.player,
+            }
+        ep = self.enemy_player
         m = self.game.create_minion(card_id)
         m.controller = ep
         m.zone = Zone.PLAY

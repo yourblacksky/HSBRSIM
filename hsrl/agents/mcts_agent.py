@@ -14,6 +14,7 @@ Key features:
 
 from __future__ import annotations
 
+import copy
 import random
 from typing import Optional
 
@@ -30,12 +31,6 @@ from hsrl.env.action import (
     UPGRADE,
     build_action_mask,
 )
-
-_SAVE_TAGS = [
-    GameTag.HERO_POWER_USED,
-    GameTag.HERO_POWER_EXTRA_USES,
-    GameTag.FREE_REFRESH_REMAINING,
-]
 
 # ── Board scoring ──────────────────────────────────────────────────────
 
@@ -128,24 +123,23 @@ def _combat_board_score(board, player, rng) -> int:
 
 
 def _save_player(player):
+    entities = list(dict.fromkeys(player.board + player.hand + player.tavern))
     return {
-        "gold": player.gold,
+        "player": player.snapshot(),
         "board": list(player.board),
         "hand": list(player.hand),
         "tavern": list(player.tavern),
-        "tags": {tag: player.get_tag(tag, 0) for tag in _SAVE_TAGS},
-        "health": player.health,
+        "entities": {entity: entity.snapshot() for entity in entities},
     }
 
 
 def _restore_player(player, saved):
-    player.gold = saved["gold"]
+    player.restore_snapshot(copy.deepcopy(saved["player"]))
     player.board = list(saved["board"])
     player.hand = list(saved["hand"])
     player.tavern = list(saved["tavern"])
-    player.health = saved["health"]
-    for tag, val in saved["tags"].items():
-        player.set_tag(tag, val)
+    for entity, snapshot in saved["entities"].items():
+        entity.restore_snapshot(copy.deepcopy(snapshot))
 
 
 # ── Simulated actions (direct state manipulation, no engine events) ──
