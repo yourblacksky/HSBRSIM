@@ -2923,8 +2923,25 @@ class Game:
         Returns:
             Initialized Game ready to start.
         """
+        # A formal match may only start from the checked-in, content-addressed
+        # patch closure. The default validation is cached after the first
+        # successful check in a process.
+        from hsrl.runtime_version import RuntimeVersionError, validate_runtime_manifest
+        runtime = validate_runtime_manifest()
+
         from hsrl.core.card_db import CARDS
         db = card_db or CARDS
+        unsupported_powers = set(
+            runtime.get("unsupported_runtime_entities", {}).get("hero_powers", [])
+        )
+        for hero_id in hero_ids:
+            hero_data = db.get(hero_id)
+            power_id = hero_data.tags.get(GameTag.HERO_POWER) if hero_data else None
+            if power_id in unsupported_powers:
+                raise RuntimeVersionError(
+                    f"hero {hero_id} uses unsupported version-correct power {power_id}; "
+                    "formal match start refused"
+                )
         game = Game([], seed=seed)
         game.card_db = db
         game.init_pool()

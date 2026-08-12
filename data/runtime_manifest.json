@@ -1,0 +1,47 @@
+{
+  "manifest_id": "hsbrsim-35.6.0.243002-f5549e774a86d4cc",
+  "schema_version": 1,
+  "patch": "35.6.0.243002",
+  "hsdata_commit": "f20ef234ef004ee4fa455ccebfd2781515203385",
+  "files": {
+    "data/bg_anomalies.json": "d28606ade543ce6bddab8a14dc334b4d82f793e3501bb6b17798c965ee15e85c",
+    "data/bg_cards.json": "eee988611ae7e14ddd7d8871559a8a2a7cbf7a40f57e4f662ba4483bc0e82961",
+    "data/bg_hero_powers.json": "1acfdbfd75f81ae8e8b91d53fd9ca77fb8a15e4db2c9b1f772c79b6274f945e0",
+    "data/bg_heroes.json": "d8be237a49b673ecf7618e119692169f74acceb9a532dc23f8080cb875e0bb6c",
+    "data/bg_pool_minions.json": "6828e352eb610e87d5d9dce05498b28bd7412f7e6d8c71284e047bfc684694e4",
+    "data/bg_pool_spells.json": "9a3d5d00060eb073029f251ae18f381dddd85a1624fcf3b15bc06959260e958a",
+    "data/bg_quest_rewards.json": "50bb55ab03d665a85329f3bff613efc23f72404945ebb69efe397face8c86a68",
+    "data/bg_summary.json": "756abbcff570e87430e8906bf63a75082fe3c758584aee0eceb0a78fc9ff4191",
+    "data/bg_tavern_spells.json": "23e0b1d7f9eec807d8c52aff97e8cc327383d0cf04b303b7d78454f8e5e468fd",
+    "data/bg_trinkets.json": "3dc857ac2973f533ae9fcefbf7255584cc4c7db3f22e8452e26215b188428ba3"
+  },
+  "carddefs": {
+    "build": 243002,
+    "sha256": "64bf717f62e38542675e5306b35b8aedeaa5dd593bee8f29441e6cbfacf0b8ad"
+  },
+  "script_registry": {
+    "counts": {
+      "anomalies": 115,
+      "hero_powers": 159,
+      "minions": 258,
+      "quests": 1,
+      "rewards": 76,
+      "spells": 75,
+      "trinkets": 330
+    },
+    "sha256": "a9c599f8fa4ed289058e71d17eb17ddf208eb9a5ca8c04fc0ea22b85ad464924"
+  },
+  "action_schema": {
+    "version": "turn-recruit-50-v1",
+    "sha256": "af5bae35735681867ee8a8e416f4bedb19f528d1948f1da851456a246bd6d9fa"
+  },
+  "hero_power_mappings": {
+    "BG22_HERO_000": "BG22_HERO_000p_Alt"
+  },
+  "unsupported_runtime_entities": {
+    "hero_powers": [
+      "BG22_HERO_000p_Alt"
+    ],
+    "policy": "exclude_from_draft_until_engine_script_exists"
+  }
+}

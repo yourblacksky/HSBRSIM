@@ -87,20 +87,24 @@ def register_all_heroes():
         power = None
         power_id = None
 
-        # Method 1: Simple naming ({hero_id}p)
-        simple_power_id = hero_id + "p"
-        for p in powers:
-            if p["id"] == simple_power_id:
-                power = p
-                power_id = simple_power_id
-                break
-
-        # Method 2: CardDefs Tag 380 mapping
-        if power is None and hero_id in xml_hero_to_power_dbf:
+        # Method 1: authoritative CardDefs Tag 380 mapping. Simple naming is
+        # only a fallback; preferring it silently bound Tavish's retired
+        # Deadeye power while the 35.6 CardDefs selected Lock and Load.
+        if hero_id in xml_hero_to_power_dbf:
             power_dbf = xml_hero_to_power_dbf[hero_id]
             if power_dbf in dbf_to_power:
                 power = dbf_to_power[power_dbf]
                 power_id = power["id"]
+
+        # Method 2: legacy simple naming ({hero_id}p) when CardDefs has no
+        # usable mapping in the versioned JSON snapshot.
+        if power is None:
+            simple_power_id = hero_id + "p"
+            for p in powers:
+                if p["id"] == simple_power_id:
+                    power = p
+                    power_id = simple_power_id
+                    break
 
         # Register hero power card first (if found)
         power_cost = 0
