@@ -157,6 +157,23 @@ class TestTavernSpellTriggerProvenance(FoundationGameCase):
         self.assertFalse(self.game._action_queue)
 
 
+class TestEleventhHourTermination(FoundationGameCase):
+    def test_fatal_damage_is_prevented_only_once_per_player(self):
+        anomaly = self.game.create_minion("BG27_Anomaly_575")
+        self.game.active_anomaly = anomaly
+        anomaly._eleventh_hour = True
+        anomaly._eleventh_hour_used = set()
+        player = self.players[0]
+        player.health = 5
+
+        self.game._deal_player_damage(player, 5)
+        self.assertEqual(player.health, 1)
+        self.assertTrue(player.is_alive)
+
+        self.game._deal_player_damage(player, 1)
+        self.assertFalse(player.is_alive)
+
+
 class TestOwnerEventScope(FoundationGameCase):
     def test_recruit_event_only_reaches_owners_listeners(self):
         counts = {}

@@ -1602,7 +1602,7 @@ class EleventhHourScript:
     prevent it and gain 11 Gold next turn instead.
 
     Formal spec:
-      1. on_apply: set _eleventh_hour flag on anomaly entity
+      1. on_apply: set _eleventh_hour flag and per-player used set
       2. Engine checks this flag during combat damage resolution:
          if damage >= player.health → set health = 1, schedule GainGold(11) next turn
     Test: flag is set; engine checks it during damage calculation.
@@ -1611,6 +1611,7 @@ class EleventhHourScript:
     @staticmethod
     def on_apply(source, game):
         source._eleventh_hour = True
+        source._eleventh_hour_used = set()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

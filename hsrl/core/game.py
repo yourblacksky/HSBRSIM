@@ -2508,7 +2508,13 @@ class Game:
             # Eleventh Hour: prevent fatal combat damage, gain 11 gold next turn
             if (self.active_anomaly is not None
                     and hasattr(self.active_anomaly, '_eleventh_hour')
+                    and player.entity_id not in getattr(
+                        self.active_anomaly, '_eleventh_hour_used', set()
+                    )
                     and damage >= player.health):
+                used = getattr(self.active_anomaly, '_eleventh_hour_used', set())
+                used.add(player.entity_id)
+                self.active_anomaly._eleventh_hour_used = used
                 player.health = 1  # survive at 1 HP
                 next_turn = self.turn + 1
                 p_ref = player
