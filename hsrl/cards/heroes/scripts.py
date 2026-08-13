@@ -31,7 +31,7 @@ from hsrl.core.actions import (
     Transform,
 )
 from hsrl.core.actions import TransferStats  # imported lazily in some places
-from hsrl.core.enums import GameTag, Race, Zone
+from hsrl.core.enums import CardType, GameTag, Race, Zone
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2874,9 +2874,12 @@ class ReplaceMinionSameTierScript:
             return None
         target = game.rng.choice(board)
         tier = target.tech_level
-        from hsrl.core.card_db import CARDS
-        pool = [cid for cid, data in CARDS._cards.items()
-                if data.cardtype == 4 and data.tech_level == tier
+        # A Game owns a snapshot of the card database.  The module-global
+        # registry can gain cards after that snapshot was created, which used
+        # to let this hero power choose an id that the current game could not
+        # instantiate and crash Transform with a None minion.
+        pool = [cid for cid, data in game.card_db._cards.items()
+                if data.cardtype == CardType.MINION and data.tech_level == tier
                 and not cid.startswith("EXAMPLE")]
         if pool:
             return Transform(target, game.rng.choice(pool))

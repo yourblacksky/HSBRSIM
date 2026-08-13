@@ -2815,6 +2815,34 @@ class TestTransform(unittest.TestCase):
         new_m = self.p1.board[0]
         self.assertTrue(new_m.is_golden)
 
+    def test_same_tier_hero_power_uses_current_game_card_db(self):
+        """Malygos must not select ids from a newer module-global registry."""
+        from hsrl.cards.heroes.scripts import ReplaceMinionSameTierScript
+        from hsrl.core.card_db import CardDB
+
+        local_db = CardDB()
+        for card_id in ("LOCAL_TARGET", "LOCAL_REPLACEMENT"):
+            local_db.register(
+                card_id, card_id, cardtype=CardType.MINION, tech_level=1,
+                tags={GameTag.BASE_ATK: 1, GameTag.BASE_HEALTH: 1},
+            )
+        game = Game([], seed=0)
+        game.card_db = local_db
+        player = Player(CARDS.get("EXAMPLE_VANILLA"), game=game)
+        game.players = [player]
+        game.summon(player, game.create_minion("LOCAL_TARGET"))
+
+        class PoolCheckingRNG:
+            @staticmethod
+            def choice(values):
+                if values and isinstance(values[0], str):
+                    assert set(values) <= set(local_db._cards)
+                return values[-1]
+
+        game.rng = PoolCheckingRNG()
+        action = ReplaceMinionSameTierScript.hero_power(player, game)
+        self.assertIn(action.new_card_id, local_db._cards)
+
 
 class TestFodderConsume(unittest.TestCase):
     """Fodder: consume a minion from hand to gain its stats."""
