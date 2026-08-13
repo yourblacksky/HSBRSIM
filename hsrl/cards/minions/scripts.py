@@ -5796,13 +5796,18 @@ class ProudPrivateerScript:
                 if player is None:
                     return None
                 spell_id = target.get_tag(GameTag.CARD_ID)
-                g.queue_action(CastTavernSpell(player, spell_card_id=spell_id))
+                g.queue_action(CastTavernSpell(
+                    player, spell_card_id=spell_id, repeated=True,
+                ))
                 return None
 
         game.register_listener(source, EventListener(
             event_name=TAVERN_SPELL_CAST,
             action=_DoubleBounty(source),
-            condition=lambda player, spell: player == source.controller,
+            condition=lambda spell, player: (
+                player == source.controller
+                and not bool(getattr(game, "_tavern_spell_is_repeat", False))
+            ),
         ))
         return None
 

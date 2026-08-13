@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import hsrl.cards.minions  # noqa: F401 - populate the card registry
 from hsrl.agents.mcts_agent import BeamSearchAgent
-from hsrl.core.actions import Action, PlayBloodGems, Summon
+from hsrl.core.actions import Action, CastTavernSpell, PlayBloodGems, Summon
 from hsrl.core.card_db import CARDS
 from hsrl.core.enums import GameTag, Race, Step
 from hsrl.core.exceptions import CombatResolutionTimeout
@@ -139,6 +139,21 @@ class TestBloodGemTriggerProvenance(FoundationGameCase):
         self.game.resolve_queue()
 
         self.assertEqual((second.atk, second.health), (before[0] + 1, before[1] + 1))
+        self.assertFalse(self.game._action_queue)
+
+
+class TestTavernSpellTriggerProvenance(FoundationGameCase):
+    def test_proud_privateer_repeat_does_not_repeat_itself(self):
+        player = self.players[0]
+        privateer = self.game.create_minion("BG33_825")
+        self.game.summon(player, privateer)
+
+        self.game.queue_action(CastTavernSpell(player, "SPELL_TEST"), source=player)
+        self.game.resolve_queue()
+
+        self.assertEqual(
+            player.get_tag(GameTag.TAVERN_SPELLS_CAST_THIS_TURN, 0), 2,
+        )
         self.assertFalse(self.game._action_queue)
 
 

@@ -2052,10 +2052,12 @@ class CastTavernSpell(Action):
     increments TAVERN_SPELLS_CAST_THIS_GAME.
     """
 
-    def __init__(self, player: Player, spell_card_id: str = None):
+    def __init__(self, player: Player, spell_card_id: str = None, *,
+                 repeated: bool = False):
         super().__init__()
         self.player = player
         self.spell_card_id = spell_card_id
+        self.repeated = repeated
 
     def do(self, source: BaseEntity, game: Game, target=None) -> None:
         current = self.player.get_tag(GameTag.TAVERN_SPELLS_CAST_THIS_TURN, 0)
@@ -2064,7 +2066,12 @@ class CastTavernSpell(Action):
             self.player.set_tag(GameTag.LAST_SPELL_CARD_ID, self.spell_card_id)
             total = self.player.get_tag(GameTag.TAVERN_SPELLS_CAST_THIS_GAME, 0)
             self.player.set_tag(GameTag.TAVERN_SPELLS_CAST_THIS_GAME, total + 1)
-        game.broadcast(TAVERN_SPELL_CAST, source, self.player)
+        previous_repeat = getattr(game, "_tavern_spell_is_repeat", False)
+        game._tavern_spell_is_repeat = self.repeated
+        try:
+            game.broadcast(TAVERN_SPELL_CAST, source, self.player)
+        finally:
+            game._tavern_spell_is_repeat = previous_repeat
         # Dispatch trinket counter-based on_spell_cast triggers
         for trinket in self.player.trinkets:
             if not trinket.data.scripts:
