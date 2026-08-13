@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import hsrl.cards.minions  # noqa: F401 - populate the card registry
 from hsrl.agents.mcts_agent import BeamSearchAgent
-from hsrl.core.actions import Action, Summon
+from hsrl.core.actions import Action, PlayBloodGems, Summon
 from hsrl.core.card_db import CARDS
 from hsrl.core.enums import GameTag, Race, Step
 from hsrl.core.exceptions import CombatResolutionTimeout
@@ -105,6 +105,41 @@ class TestCombatResolutionBudget(FoundationGameCase):
 
         self.assertEqual(raised.exception.budget, "actions")
         self.assertEqual(counts, {"actions": 2})
+
+
+class TestBloodGemTriggerProvenance(FoundationGameCase):
+    def test_hot_air_surveyor_repeats_only_hand_played_gems(self):
+        player = self.players[0]
+        surveyor = self.game.create_minion("BG30_121")
+        target = self.minion(player)
+        self.game.summon(player, surveyor)
+        before = (target.atk, target.health)
+
+        self.game.queue_action(
+            PlayBloodGems(target, from_hand=True), source=player,
+        )
+        self.game.resolve_queue()
+        self.assertEqual((target.atk, target.health), (before[0] + 2, before[1] + 2))
+
+        self.game.queue_action(PlayBloodGems(target), source=player)
+        self.game.resolve_queue()
+        self.assertEqual((target.atk, target.health), (before[0] + 3, before[1] + 3))
+
+    def test_two_geomagus_bonus_gems_do_not_recurse(self):
+        player = self.players[0]
+        first = self.game.create_minion("BG28_583")
+        second = self.game.create_minion("BG28_583")
+        self.game.summon(player, first)
+        self.game.summon(player, second)
+        before = (second.atk, second.health)
+
+        self.game.queue_action(
+            PlayBloodGems(first, from_hand=True), source=player,
+        )
+        self.game.resolve_queue()
+
+        self.assertEqual((second.atk, second.health), (before[0] + 1, before[1] + 1))
+        self.assertFalse(self.game._action_queue)
 
 
 class TestOwnerEventScope(FoundationGameCase):

@@ -755,7 +755,7 @@ class BloodGemScript:
         def filter_fn():
             return [m for m in source.controller.board if not m.dead]
         def action_factory(target):
-            return PlayBloodGems(target, count=cls.count)
+            return PlayBloodGems(target, count=cls.count, from_hand=True)
         return TargetedAction(filter_fn, action_factory,
                               label=f"Play {cls.count} Blood Gem(s)")
 

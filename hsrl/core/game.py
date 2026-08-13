@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import copy
 import random
-from collections import namedtuple
+from collections import Counter, namedtuple
 from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 # ── Combat Memory ──────────────────────────────────────────────────────────
@@ -82,6 +82,7 @@ class Game:
         self.combat_action_budget = int(combat_action_budget)
         self.combat_attack_budget = int(combat_attack_budget)
         self._combat_budget_counts: Optional[Dict[str, int]] = None
+        self._combat_budget_items: Dict[str, Counter] = {}
         self._combat_budget_players: Tuple[Optional[int], Optional[int]] = (None, None)
         self.active_player: Optional[Player] = None  # Current active player during recruit
         self.minion_pool = None  # Lazy init via init_pool()
@@ -543,12 +544,16 @@ class Game:
     def _start_combat_budget(self, player_a: Player,
                              player_b: Optional[Player]) -> None:
         self._combat_budget_counts = {"events": 0, "actions": 0, "attacks": 0}
+        self._combat_budget_items = {
+            "events": Counter(), "actions": Counter(), "attacks": Counter(),
+        }
         self._combat_budget_players = (
             getattr(player_a, "entity_id", None),
             getattr(player_b, "entity_id", None),
         )
 
-    def _consume_combat_budget(self, budget: str, amount: int = 1) -> None:
+    def _consume_combat_budget(self, budget: str, amount: int = 1,
+                               item: str = "") -> None:
         if not self.in_combat or self._combat_budget_counts is None:
             return
         limits = {
@@ -557,6 +562,8 @@ class Game:
             "attacks": self.combat_attack_budget,
         }
         self._combat_budget_counts[budget] += amount
+        if item:
+            self._combat_budget_items[budget][str(item)] += amount
         observed = self._combat_budget_counts[budget]
         limit = limits[budget]
         if limit >= 0 and observed > limit:
@@ -566,6 +573,7 @@ class Game:
                 observed=observed,
                 turn=self.turn,
                 player_ids=self._combat_budget_players,
+                details={"top_items": self._combat_budget_items[budget].most_common(8)},
             )
 
     def schedule_turn_action(self, turn: int, callback) -> None:
@@ -647,7 +655,7 @@ class Game:
 
         The first positional arg (if any BaseEntity) is passed as target to the action trigger.
         """
-        self._consume_combat_budget("events")
+        self._consume_combat_budget("events", item=event_name)
         event_owner = event_player or self._event_owner(args)
         to_remove = []
         for entity, listener in self._event_listeners:
@@ -1038,7 +1046,7 @@ class Game:
             if _total_actions >= self._MAX_ACTIONS_PER_RESOLVE:
                 return
             action, source, target = self._action_queue.pop(0)
-            self._consume_combat_budget("actions")
+            self._consume_combat_budget("actions", item=type(action).__name__)
             action.trigger(source, self, target)
             _total_actions += 1
             # TargetedAction may pause the queue (recruit-phase target selection)

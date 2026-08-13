@@ -5838,12 +5838,17 @@ class ConductorPortraitScript:
                 if not board:
                     return
                 target = game.rng.choice(board)
-                game_ref.queue_action(PlayBloodGems(target, 1))
+                game_ref.queue_action(PlayBloodGems(
+                    target, 1, trigger_played_event=False,
+                ))
 
         game.register_listener(source, EventListener(
             event_name=BLOOD_GEM_PLAYED,
             action=_BonusBloodGem(),
-            condition=lambda minion, player, count=1: player == source.controller,
+            condition=lambda minion, player, count=1: (
+                player == source.controller
+                and bool(getattr(game, "_blood_gem_from_hand", False))
+            ),
         ))
 
 

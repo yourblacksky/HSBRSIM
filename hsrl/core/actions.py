@@ -763,10 +763,13 @@ class PlayBloodGems(Action):
     Base Blood Gem gives +1/+1. Bonus stats are added per gem.
     """
 
-    def __init__(self, target: BaseEntity, count: int = 1):
+    def __init__(self, target: BaseEntity, count: int = 1, *,
+                 from_hand: bool = False, trigger_played_event: bool = True):
         super().__init__()
         self.target = target
         self.count = count
+        self.from_hand = from_hand
+        self.trigger_played_event = trigger_played_event
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
         if self.target.dead:
@@ -788,8 +791,15 @@ class PlayBloodGems(Action):
         total_atk = (1 + bonus_atk) * self.count
         total_health = (1 + bonus_health) * self.count
         game.queue_action(Buff(self.target, atk=total_atk, health=total_health), source=source)
-        # Broadcast BLOOD_GEM_PLAYED for on-gem effects (Geomagus Roogug, Hired Ritualist)
-        game.broadcast("BLOOD_GEM_PLAYED", self.target, controller, self.count)
+        # Preserve the legacy three-argument event contract while exposing
+        # provenance to listeners that explicitly say "from your hand".
+        if self.trigger_played_event:
+            previous_origin = getattr(game, "_blood_gem_from_hand", False)
+            game._blood_gem_from_hand = self.from_hand
+            try:
+                game.broadcast("BLOOD_GEM_PLAYED", self.target, controller, self.count)
+            finally:
+                game._blood_gem_from_hand = previous_origin
 
 
 class ImproveBloodGem(Action):

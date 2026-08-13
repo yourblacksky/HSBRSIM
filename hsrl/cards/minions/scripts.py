@@ -4390,7 +4390,10 @@ class GeomagusRoogugScript:
                               if not m.dead and m is not source]
                 if candidates:
                     game_ref.queue_action(
-                        PlayBloodGems(game.rng.choice(candidates), count=1),
+                        PlayBloodGems(
+                            game.rng.choice(candidates), count=1,
+                            trigger_played_event=False,
+                        ),
                     )
 
         listener = EventListener(
@@ -5507,13 +5510,18 @@ class HotAirSurveyorScript:
                 if player is None:
                     return None
                 # Cast the gem an extra time on target
-                g.queue_action(PlayBloodGems(target, count=1))
+                g.queue_action(PlayBloodGems(
+                    target, count=1, trigger_played_event=False,
+                ))
                 return None
 
         game.register_listener(source, EventListener(
             event_name=BLOOD_GEM_PLAYED,
             action=_DoubleGem(source),
-            condition=lambda target, controller, count: controller == source.controller,
+            condition=lambda target, controller, count: (
+                controller == source.controller
+                and bool(getattr(game, "_blood_gem_from_hand", False))
+            ),
         ))
         return None
 

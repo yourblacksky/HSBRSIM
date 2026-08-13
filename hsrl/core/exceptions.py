@@ -18,13 +18,16 @@ class CombatResolutionTimeout(TimeoutError):
         observed: int,
         turn: int,
         player_ids: tuple[int | None, int | None],
+        details: dict | None = None,
     ) -> None:
         self.budget = budget
         self.limit = int(limit)
         self.observed = int(observed)
         self.turn = int(turn)
         self.player_ids = player_ids
+        self.details = dict(details or {})
         super().__init__(
             f"combat {budget} budget exhausted on turn {turn}: "
-            f"observed={observed}, limit={limit}, players={player_ids}"
+            f"observed={observed}, limit={limit}, players={player_ids}, "
+            f"details={self.details}"
         )
