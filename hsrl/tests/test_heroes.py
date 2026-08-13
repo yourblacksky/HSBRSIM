@@ -372,6 +372,16 @@ class TestNewHeroPowerScripts(unittest.TestCase):
         # beast ignored, no targets → script returns None
         self.assertEqual(m.atk, 2)  # unchanged
 
+    def test_yogg_wheel_accepts_player_as_hero_power_source(self):
+        player = self._make_player_with_board("TB_BaconShop_HERO_40", gold=5)
+        self._add_minion(player)
+        player.set_tag(GameTag.HERO_POWER, "TB_BaconShop_HP_039t")
+        player.set_tag(GameTag.HERO_POWER_COST, 0)
+
+        self.game.use_hero_power(player)
+
+        self.assertTrue(player.get_tag(GameTag.HERO_POWER_USED))
+
     def test_temporal_tavern_refreshes(self):
         """Infinite Toki: Refresh tavern, cost=1."""
         player = self._make_player_with_board("TB_BaconShop_HERO_28", gold=5)

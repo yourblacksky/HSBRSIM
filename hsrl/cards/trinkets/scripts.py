@@ -3480,7 +3480,10 @@ class SoTSpinYoggWheelScript:
 
     @classmethod
     def _spin(cls, source, game):
-        board = _living_board(source.controller)
+        # Trinket triggers pass the trinket entity, while Yogg's active hero
+        # power calls the same implementation with Player directly.
+        player = source if hasattr(source, "board") else source.controller
+        board = _living_board(player)
         effect = game.rng.choice([
             "_buff_all", "_damage_hero", "_gain_gold",
             "_random_minion", "_buff_one", "_free_refresh",
@@ -3488,30 +3491,31 @@ class SoTSpinYoggWheelScript:
         if effect == "_buff_all":
             return [Buff(m, atk=4, health=4) for m in board] if board else None
         elif effect == "_damage_hero":
-            enemies = [p for p in game.players
-                       if p is not source.controller and p.is_alive]
+            enemies = [p for p in game.players if p is not player and p.is_alive]
             if enemies:
                 from hsrl.core.actions import DealDamageToHero
                 return DealDamageToHero(game.rng.choice(enemies), 5)
             return None
         elif effect == "_gain_gold":
-            return GainGold(source.controller, 4)
+            return GainGold(player, 4)
         elif effect == "_random_minion":
-            tier = source.controller.tavern_tier
+            tier = player.tavern_tier
             from hsrl.core.card_db import CARDS
             pool = [cid for cid, data in CARDS._cards.items()
                     if data.cardtype == 4 and data.tech_level == tier
                     and not cid.startswith("EXAMPLE")]
             if pool:
-                return AddToHand(source.controller, game.rng.choice(pool))
+                return AddToHand(player, game.rng.choice(pool))
             return None
         elif effect == "_buff_one":
             if board:
                 return Buff(game.rng.choice(board), atk=8, health=8)
             return None
         elif effect == "_free_refresh":
-            source.controller.set_tag(GameTag.FREE_REFRESH_REMAINING,
-                                      source.controller.get_tag(GameTag.FREE_REFRESH_REMAINING, 0) + 1)
+            player.set_tag(
+                GameTag.FREE_REFRESH_REMAINING,
+                player.get_tag(GameTag.FREE_REFRESH_REMAINING, 0) + 1,
+            )
             return None
         return None
 
