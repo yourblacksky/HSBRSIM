@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import hsrl.cards.minions  # noqa: F401 - populate the card registry
 from hsrl.agents.mcts_agent import BeamSearchAgent
-from hsrl.core.actions import Action
+from hsrl.core.actions import Action, Summon
 from hsrl.core.card_db import CARDS
 from hsrl.core.enums import GameTag, Race, Step
 from hsrl.core.events import (
@@ -52,6 +52,12 @@ class FoundationGameCase(unittest.TestCase):
         minion.set_tag(GameTag.HEALTH, health)
         self.game.summon(player, minion)
         return minion
+
+    def test_missing_patch_token_summon_is_safe_noop(self):
+        before = list(self.players[0].board)
+        self.game.queue_action(Summon(self.players[0], None))
+        self.game.resolve_queue()
+        self.assertEqual(self.players[0].board, before)
 
 
 class TestOwnerEventScope(FoundationGameCase):

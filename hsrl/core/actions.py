@@ -320,6 +320,12 @@ class Summon(Action):
         self.position = position
 
     def do(self, source: BaseEntity, game: Game, target: Optional[BaseEntity] = None) -> None:
+        # Some partially implemented card scripts reference tokens absent from
+        # the active patch registry. create_minion() then returns None. Treat
+        # that unsupported summon as an explicit no-op instead of crashing the
+        # entire combat and corrupting evaluation completion rates.
+        if self.minion is None:
+            return
         game.summon(self.player, self.minion, position=self.position)
 
 
