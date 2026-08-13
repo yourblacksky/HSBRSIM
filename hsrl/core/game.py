@@ -96,6 +96,7 @@ class Game:
         self._pending_targeted_queue: list = []  # TargetedActions awaiting target selection
         self._pending_choice = None  # Optional PendingChoice — discover/choose awaiting resolution
         self._auto_resolve_choices: bool = True  # Auto-resolve pending choices in heuristic/test mode
+        self._combat_draw_streaks: Dict[Tuple[int, int], int] = {}
 
         # Combat memory: per-player per-opponent last-seen board snapshots.
         # combat_memory[player_id][opponent_id] = CombatRecord
@@ -1696,6 +1697,16 @@ class Game:
                 self._current_combat_opponents[p2] = p1
 
     def end_recruit_phase(self) -> None:
+        # A heuristic/route turn may end immediately after opening a targeted
+        # action or discover. Resolve every recruit decision before combat;
+        # otherwise resolve_queue() pauses forever and combat Hit actions never
+        # execute even though attacks continue.
+        while self._pending_targeted_queue:
+            self.auto_resolve_pending_target()
+        while self._pending_choice is not None:
+            self.resolve_pending_choice(
+                self.rng.randrange(len(self._pending_choice.options))
+            )
         # ── Trigger End of Turn effects BEFORE combat ──
         self._trigger_end_of_turn()
         self.resolve_queue()
@@ -1881,10 +1892,16 @@ class Game:
                 attacker_side, defender_side = ghost_board, board_player
 
         # Combat loop
+        consecutive_passes = 0
         for _ in range(self.combat_attack_budget + 1):
             attacker = self._get_next_attacker(attacker_side)
             if attacker is None:
-                break
+                consecutive_passes += 1
+                if consecutive_passes >= 2:
+                    break
+                attacker_side, defender_side = defender_side, attacker_side
+                continue
+            consecutive_passes = 0
             target = self._choose_attack_target(defender_side)
             if target is None:
                 break
@@ -2008,11 +2025,18 @@ class Game:
         })
 
         # Combat loop
+        consecutive_passes = 0
         for _ in range(self.combat_attack_budget + 1):
             # Get next attacker from attacker_side
             attacker = self._get_next_attacker(attacker_side)
             if attacker is None:
-                break
+                consecutive_passes += 1
+                if consecutive_passes >= 2:
+                    break
+                attacker_side, defender_side = defender_side, attacker_side
+                attacker_player, defender_player = defender_player, attacker_player
+                continue
+            consecutive_passes = 0
 
             # Choose target from defender_side
             target = self._choose_attack_target(defender_side)
@@ -2210,10 +2234,21 @@ class Game:
         return self._tavern_upgrade_turns.get(player.entity_id, {})
 
     def _get_next_attacker(self, board: List[Minion]) -> Optional[Minion]:
-        """Get the leftmost living minion that can attack."""
+        """Get the next attacker, restarting the board cycle when exhausted.
+
+        Battlegrounds minions attack again after every living minion on their
+        side has taken its turn. Treating WINDFURY_ATTACKS as a once-per-combat
+        counter made stable boards draw forever and prevented matches ending.
+        """
         for m in board:
             if not m.dead and m.can_attack:
                 return m
+        living_attackers = [m for m in board if not m.dead and m.atk > 0]
+        if living_attackers:
+            for m in living_attackers:
+                m.set_tag(GameTag.WINDFURY_ATTACKS, 0)
+                m.set_tag(GameTag.EXHAUSTED, False)
+            return living_attackers[0]
         return None
 
     def _choose_attack_target(self, board: List[Minion]) -> Optional[Minion]:
@@ -2443,21 +2478,34 @@ class Game:
                         self.queue_action(soc, source=m)
 
     def _resolve_combat_damage(self, p1: Player, p2: Player, board1: List[Minion], board2: List[Minion]) -> None:
-        """Deal damage to the losing player based on surviving minions.
-        If both boards are empty (draw), the defender takes 1 damage (tiebreaker).
-        """
+        """Deal damage to the loser, with a bounded repeated-draw tiebreak."""
         living1 = [m for m in board1 if not m.dead]
         living2 = [m for m in board2 if not m.dead]
-
+        draw_key = tuple(sorted((p1.entity_id, p2.entity_id)))
         if living1 and not living2:
             winner, loser = p1, p2
             survivors = living1
+            self._combat_draw_streaks.pop(draw_key, None)
         elif living2 and not living1:
             winner, loser = p2, p1
             survivors = living2
+            self._combat_draw_streaks.pop(draw_key, None)
         else:
-            # Draw — both boards empty (simultaneous wipe)
-            # Neither hero takes damage
+            # Identical endgame boards can produce a true draw forever because
+            # recruit boards are restored after combat. Preserve two normal
+            # draws, then apply a deterministic one-damage tiebreak so an
+            # offline match always has a terminal placement.
+            streak = self._combat_draw_streaks.get(draw_key, 0) + 1
+            self._combat_draw_streaks[draw_key] = streak
+            if streak >= 3:
+                score1 = sum(m.atk + m.health for m in living1)
+                score2 = sum(m.atk + m.health for m in living2)
+                if score1 != score2:
+                    loser = p1 if score1 < score2 else p2
+                else:
+                    loser = p1 if (self.turn + p1.entity_id + p2.entity_id) % 2 else p2
+                self._deal_player_damage(loser, 1)
+                self.broadcast(PLAYER_DAMAGE_TAKEN, loser, 1, None)
             return
 
         if loser is None:

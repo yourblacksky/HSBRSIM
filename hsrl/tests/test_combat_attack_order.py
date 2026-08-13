@@ -92,6 +92,32 @@ class TestCombatAttackOrder(unittest.TestCase):
         self.assertEqual(defender.health, 1)
         self.assertFalse(defender.divine_shield)
 
+    def test_attack_cycle_restarts_after_each_living_minion_attacked(self):
+        left = self._minion(2, 5)
+        right = self._minion(3, 5)
+        self.game.summon(self.p1, left)
+        self.game.summon(self.p1, right)
+
+        self.assertIs(self.game._get_next_attacker([left, right]), left)
+        left.set_tag(GameTag.WINDFURY_ATTACKS, 1)
+        self.assertIs(self.game._get_next_attacker([left, right]), right)
+        right.set_tag(GameTag.WINDFURY_ATTACKS, 1)
+
+        self.assertIs(self.game._get_next_attacker([left, right]), left)
+        self.assertEqual(left.get_tag(GameTag.WINDFURY_ATTACKS, 0), 0)
+        self.assertEqual(right.get_tag(GameTag.WINDFURY_ATTACKS, 0), 0)
+
+    def test_repeated_draw_tiebreak_only_starts_on_third_draw(self):
+        self.p1.health = 10
+        self.p2.health = 10
+
+        self.game._resolve_combat_damage(self.p1, self.p2, [], [])
+        self.game._resolve_combat_damage(self.p1, self.p2, [], [])
+        self.assertEqual((self.p1.health, self.p2.health), (10, 10))
+
+        self.game._resolve_combat_damage(self.p1, self.p2, [], [])
+        self.assertEqual(self.p1.health + self.p2.health, 19)
+
 
 if __name__ == "__main__":
     unittest.main()

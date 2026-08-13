@@ -3473,8 +3473,9 @@ class BalindaStonehearthScript:
                 if source.dead or source.zone != Zone.PLAY:
                     return
                 spell = _captured.get('spell')
-                if spell is None:
+                if spell is None or getattr(spell, '_balinda_recast_done', False):
                     return
+                spell._balinda_recast_done = True
                 on_play = spell.on_play
                 if on_play is not None:
                     if callable(on_play):
@@ -3495,6 +3496,7 @@ class BalindaStonehearthScript:
             _captured['spell'] = spell
             return (hasattr(spell, 'controller')
                     and spell.controller == source.controller
+                    and not getattr(spell, '_balinda_recast_done', False)
                     and source.zone == Zone.PLAY
                     and not source.dead)
 

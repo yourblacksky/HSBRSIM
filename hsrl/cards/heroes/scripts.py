@@ -3878,7 +3878,7 @@ class ZerekCloneScript:
             copy_minion.set_tag(GameTag.BASE_ATK, target.atk)
             copy_minion.set_tag(GameTag.BASE_HEALTH, target.max_health)
             copy_minion.set_tag(GameTag.HEALTH, target.health)
-            if target.golden:
+            if target.is_golden:
                 copy_minion.set_tag(GameTag.GOLDEN, True)
             # Once per game: set cost to 999
             player.set_tag(GameTag.HERO_POWER_COST, 999)
