@@ -34,6 +34,7 @@ CombatRecord = namedtuple("CombatRecord", [
 
 from hsrl.core.enums import CardType, GameTag, PlayState, Race, State, Step, Zone
 from hsrl.core.entity import CardData
+from hsrl.core.exceptions import CombatResolutionTimeout
 from hsrl.core.events import *
 from hsrl.core.minion import Minion
 from hsrl.core.player import Player
@@ -49,7 +50,14 @@ class Game:
     Main game controller for a Battlegrounds match.
     """
 
-    def __init__(self, players: List[Player], card_db=None, seed: int = None):
+    DEFAULT_COMBAT_EVENT_BUDGET = 20_000
+    DEFAULT_COMBAT_ACTION_BUDGET = 20_000
+    DEFAULT_COMBAT_ATTACK_BUDGET = 1_000
+
+    def __init__(self, players: List[Player], card_db=None, seed: int = None,
+                 combat_event_budget: int = DEFAULT_COMBAT_EVENT_BUDGET,
+                 combat_action_budget: int = DEFAULT_COMBAT_ACTION_BUDGET,
+                 combat_attack_budget: int = DEFAULT_COMBAT_ATTACK_BUDGET):
         self.players = players
         self.card_db = card_db
         self.turn: int = 0
@@ -70,6 +78,11 @@ class Game:
         self._combat_death_log: List[Minion] = []
         self._combat_summon_log: List[Minion] = []
         self.in_combat: bool = False
+        self.combat_event_budget = int(combat_event_budget)
+        self.combat_action_budget = int(combat_action_budget)
+        self.combat_attack_budget = int(combat_attack_budget)
+        self._combat_budget_counts: Optional[Dict[str, int]] = None
+        self._combat_budget_players: Tuple[Optional[int], Optional[int]] = (None, None)
         self.active_player: Optional[Player] = None  # Current active player during recruit
         self.minion_pool = None  # Lazy init via init_pool()
         self.spell_pool = None   # Lazy init via init_pool()
@@ -527,6 +540,34 @@ class Game:
             source = self.players[0] if self.players else None
         self._action_queue.append((action, source, target))
 
+    def _start_combat_budget(self, player_a: Player,
+                             player_b: Optional[Player]) -> None:
+        self._combat_budget_counts = {"events": 0, "actions": 0, "attacks": 0}
+        self._combat_budget_players = (
+            getattr(player_a, "entity_id", None),
+            getattr(player_b, "entity_id", None),
+        )
+
+    def _consume_combat_budget(self, budget: str, amount: int = 1) -> None:
+        if not self.in_combat or self._combat_budget_counts is None:
+            return
+        limits = {
+            "events": self.combat_event_budget,
+            "actions": self.combat_action_budget,
+            "attacks": self.combat_attack_budget,
+        }
+        self._combat_budget_counts[budget] += amount
+        observed = self._combat_budget_counts[budget]
+        limit = limits[budget]
+        if limit >= 0 and observed > limit:
+            raise CombatResolutionTimeout(
+                budget=budget,
+                limit=limit,
+                observed=observed,
+                turn=self.turn,
+                player_ids=self._combat_budget_players,
+            )
+
     def schedule_turn_action(self, turn: int, callback) -> None:
         """Schedule a callback to fire at the start of turn N.
         callback receives (game, turn) and can queue actions.
@@ -606,6 +647,7 @@ class Game:
 
         The first positional arg (if any BaseEntity) is passed as target to the action trigger.
         """
+        self._consume_combat_budget("events")
         event_owner = event_player or self._event_owner(args)
         to_remove = []
         for entity, listener in self._event_listeners:
@@ -996,6 +1038,7 @@ class Game:
             if _total_actions >= self._MAX_ACTIONS_PER_RESOLVE:
                 return
             action, source, target = self._action_queue.pop(0)
+            self._consume_combat_budget("actions")
             action.trigger(source, self, target)
             _total_actions += 1
             # TargetedAction may pause the queue (recruit-phase target selection)
@@ -1800,6 +1843,7 @@ class Game:
             return
 
         self.in_combat = True
+        self._start_combat_budget(player, None)
 
         # Save original board
         original_board = list(player.board)
@@ -1829,7 +1873,7 @@ class Game:
                 attacker_side, defender_side = ghost_board, board_player
 
         # Combat loop
-        for _ in range(1000):
+        for _ in range(self.combat_attack_budget + 1):
             attacker = self._get_next_attacker(attacker_side)
             if attacker is None:
                 break
@@ -1838,6 +1882,7 @@ class Game:
                 break
 
             from hsrl.core.actions import Attack
+            self._consume_combat_budget("attacks")
             self.queue_action(Attack(attacker, target))
             self.resolve_queue()
 
@@ -1893,6 +1938,7 @@ class Game:
             player_a: player_b,
             player_b: player_a,
         }
+        self._start_combat_budget(player_a, player_b)
         self._start_of_combat_global_broadcasted = False
 
         # Reset anomaly SoC guard so effects fire once per combat
@@ -1954,8 +2000,7 @@ class Game:
         })
 
         # Combat loop
-        round_limit = 1000  # Prevent infinite loops
-        for _ in range(round_limit):
+        for _ in range(self.combat_attack_budget + 1):
             # Get next attacker from attacker_side
             attacker = self._get_next_attacker(attacker_side)
             if attacker is None:
@@ -1967,6 +2012,7 @@ class Game:
                 break
 
             from hsrl.core.actions import Attack
+            self._consume_combat_budget("attacks")
             att_atk, att_hp = attacker.atk, attacker.health
             def_atk, def_hp = target.atk, target.health
             self.queue_action(Attack(attacker, target))

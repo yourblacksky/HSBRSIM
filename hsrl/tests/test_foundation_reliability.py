@@ -12,6 +12,7 @@ from hsrl.agents.mcts_agent import BeamSearchAgent
 from hsrl.core.actions import Action, Summon
 from hsrl.core.card_db import CARDS
 from hsrl.core.enums import GameTag, Race, Step
+from hsrl.core.exceptions import CombatResolutionTimeout
 from hsrl.core.events import (
     EventListener,
     EventScope,
@@ -33,6 +34,15 @@ class _Increment(Action):
 
     def do(self, source, game, target=None):
         self.sink[self.key] = self.sink.get(self.key, 0) + 1
+
+
+class _Rebroadcast(Action):
+    def __init__(self, event_name):
+        super().__init__()
+        self.event_name = event_name
+
+    def do(self, source, game, target=None):
+        game.broadcast(self.event_name, source)
 
 
 class FoundationGameCase(unittest.TestCase):
@@ -58,6 +68,43 @@ class FoundationGameCase(unittest.TestCase):
         self.game.queue_action(Summon(self.players[0], None))
         self.game.resolve_queue()
         self.assertEqual(self.players[0].board, before)
+
+
+class TestCombatResolutionBudget(FoundationGameCase):
+    def test_recursive_combat_event_raises_typed_timeout(self):
+        self.game.combat_event_budget = 3
+        self.game.in_combat = True
+        self.game._start_combat_budget(self.players[0], self.players[1])
+        self.game.register_listener(
+            self.players[0],
+            EventListener("LOOP", _Rebroadcast("LOOP")),
+        )
+
+        with self.assertRaises(CombatResolutionTimeout) as raised:
+            self.game.broadcast("LOOP", self.players[0])
+
+        error = raised.exception
+        self.assertEqual(error.budget, "events")
+        self.assertEqual(error.limit, 3)
+        self.assertEqual(error.observed, 4)
+        self.assertEqual(error.player_ids, (
+            self.players[0].entity_id,
+            self.players[1].entity_id,
+        ))
+
+    def test_combat_action_budget_counts_across_queue_resolutions(self):
+        self.game.combat_action_budget = 2
+        self.game.in_combat = True
+        self.game._start_combat_budget(self.players[0], self.players[1])
+        counts = {}
+        for _ in range(3):
+            self.game.queue_action(_Increment(counts, "actions"), self.players[0])
+
+        with self.assertRaises(CombatResolutionTimeout) as raised:
+            self.game.resolve_queue()
+
+        self.assertEqual(raised.exception.budget, "actions")
+        self.assertEqual(counts, {"actions": 2})
 
 
 class TestOwnerEventScope(FoundationGameCase):
