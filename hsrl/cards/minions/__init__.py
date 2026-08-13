@@ -615,8 +615,7 @@ class ExampleImproveScript:
         candidates = [m for m in board if not m.dead and m != source]
         if not candidates:
             return None
-        import random
-        target = random.choice(candidates)
+        target = game.rng.choice(candidates)
         mult = 1 + counter
         return Buff(target, atk=1 * mult, health=2 * mult)
 
@@ -1056,7 +1055,6 @@ class EvolvingStrategyScript:
     """on_play: Add a random Naga to hand."""
     @staticmethod
     def on_play(source, game):
-        import random
         from hsrl.core.card_db import CARDS
         naga_ids = [
             cid for cid, card in CARDS._cards.items()
@@ -1065,7 +1063,7 @@ class EvolvingStrategyScript:
         ]
         if not naga_ids:
             return None
-        chosen = random.choice(naga_ids)
+        chosen = game.rng.choice(naga_ids)
         return AddToHand(source.controller, chosen)
 
 register_card(
@@ -1080,7 +1078,6 @@ class RimeOrReasonScript:
     """on_play: Add a random Tavern spell that gives stats to hand."""
     @staticmethod
     def on_play(source, game):
-        import random
         from hsrl.core.card_db import CARDS
         # Find spells that likely give stats (filter by name/text keywords)
         spell_ids = [
@@ -1101,7 +1098,7 @@ class RimeOrReasonScript:
         ]
         if not spell_ids:
             return None
-        chosen = random.choice(spell_ids)
+        chosen = game.rng.choice(spell_ids)
         return AddToHand(source.controller, chosen)
 
 register_card(
@@ -1341,13 +1338,12 @@ class ExampleSilenceScript:
 
     @staticmethod
     def battlecry(source, game):
-        import random as _random
         from hsrl.core.actions import Silence
         candidates = [m for m in source.controller.get_board_minions()
                       if m is not source and not m.dead]
         if not candidates:
             return None
-        target = _random.choice(candidates)
+        target = game.rng.choice(candidates)
         return Silence(target)
 
 

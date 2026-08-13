@@ -60,7 +60,6 @@ class _SparePartScript:
 
     @staticmethod
     def on_play(source, game):
-        import random
         from hsrl.core.actions import Buff, GainKeyword, TargetedAction
 
         def filter_fn():
@@ -69,8 +68,8 @@ class _SparePartScript:
         def action_factory(target):
             actions = [Buff(target, atk=5, health=5)]
             # Random bonus: Taunt, DS, Windfury, or Reborn
-            bonus = random.choice([GameTag.TAUNT, GameTag.DIVINE_SHIELD,
-                                   GameTag.WINDFURY, GameTag.REBORN])
+            bonus = game.rng.choice([GameTag.TAUNT, GameTag.DIVINE_SHIELD,
+                                     GameTag.WINDFURY, GameTag.REBORN])
             actions.append(GainKeyword(target, bonus))
             return actions
 

@@ -5842,12 +5842,11 @@ class DeadSeaRavagerScript:
     @staticmethod
     def rally(source, game):
         from hsrl.core.actions import Buff
-        import random
         board = source.controller.board
         candidates = [m for m in board if m is not source and not m.dead]
         if not candidates:
             return None
-        targets = random.sample(candidates, min(3, len(candidates)))
+        targets = game.rng.sample(candidates, min(3, len(candidates)))
         atk_buff = source.atk
         return [Buff(t, atk=atk_buff, health=0) for t in targets]
 
@@ -6263,8 +6262,7 @@ class CharmwingScript:
         ]
         if not candidates:
             return None
-        import random as _random
-        targets = _random.sample(candidates, min(2, len(candidates)))
+        targets = game.rng.sample(candidates, min(2, len(candidates)))
         return [Buff(t, atk=0, health=source.max_health) for t in targets]
 
 
