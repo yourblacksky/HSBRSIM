@@ -2271,8 +2271,10 @@ class ForTheHordeScript:
     def on_summon(source, game):
         from hsrl.core.events import MINION_BOUGHT, EventListener
 
+        player = _hp_player(source)
+
         # Apply initial tavern buff
-        game.queue_action(BuffTavern(source, atk=1, health=1))
+        game.queue_action(BuffTavern(player, atk=1, health=1))
 
         class _HordeBuyCounter(Action):
             def __init__(self, hero):
@@ -2288,7 +2290,7 @@ class ForTheHordeScript:
 
         game.register_listener(source, EventListener(
             event_name=MINION_BOUGHT,
-            action=_HordeBuyCounter(source),
+            action=_HordeBuyCounter(player),
         ))
 
 
@@ -2350,6 +2352,8 @@ class GlaiveRicochetScript:
     def on_summon(source, game):
         from hsrl.core.events import MINION_BOUGHT, RECRUIT_BEGIN, EventListener
 
+        player = _hp_player(source)
+
         class _GlaiveTracker(Action):
             def __init__(self, hero):
                 super().__init__()
@@ -2390,11 +2394,11 @@ class GlaiveRicochetScript:
                 self.tracker.bought_ids = []
                 self.tracker.triggered = False
 
-        tracker = _GlaiveTracker(source)
+        tracker = _GlaiveTracker(player)
         tracker.buys = 0
         tracker.bought_ids = []
         tracker.triggered = False
-        tracker.hero = source
+        tracker.hero = player
 
         game.register_listener(source, EventListener(
             event_name=MINION_BOUGHT,

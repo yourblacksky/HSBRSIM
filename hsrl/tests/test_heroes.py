@@ -2688,6 +2688,16 @@ class TestPhase12ForTheHorde(unittest.TestCase):
 
         self.assertGreater(len(self.player.tavern_buffs), old_count)
 
+    def test_hero_power_entity_resolves_effect_owner_to_player(self):
+        from hsrl.cards.heroes.scripts import HERO_POWER_SCRIPT_REGISTRY
+        source = self.game.create_minion("BG20_HERO_102p")
+        source.controller = self.player
+        HERO_POWER_SCRIPT_REGISTRY["BG20_HERO_102p"].on_summon(
+            source, self.game,
+        )
+        self.game.resolve_queue()
+        self.assertEqual(len(self.player.tavern_buffs), 1)
+
 
 class TestPhase12NaturalBalance(unittest.TestCase):
     """BG20_HERO_242p — Natural Balance: buy 20 tiers → Triple Reward."""
@@ -2742,6 +2752,20 @@ class TestPhase12GlaiveRicochet(unittest.TestCase):
             self.game.broadcast("MINION_BOUGHT", m, self.player)
             self.game.resolve_queue()
 
+        self.assertEqual(len(self.player.hand), 1)
+        self.assertEqual(self.player.hand[0].data.id, "EXAMPLE_VANILLA")
+
+    def test_hero_power_entity_gives_copy_to_controller_hand(self):
+        from hsrl.cards.heroes.scripts import HERO_POWER_SCRIPT_REGISTRY
+        source = self.game.create_minion("BG20_HERO_280p5")
+        source.controller = self.player
+        HERO_POWER_SCRIPT_REGISTRY["BG20_HERO_280p5"].on_summon(
+            source, self.game,
+        )
+        for _ in range(3):
+            minion = self.game.create_minion("EXAMPLE_VANILLA")
+            self.game.broadcast("MINION_BOUGHT", minion, self.player)
+            self.game.resolve_queue()
         self.assertEqual(len(self.player.hand), 1)
         self.assertEqual(self.player.hand[0].data.id, "EXAMPLE_VANILLA")
 
