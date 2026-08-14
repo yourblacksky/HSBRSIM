@@ -93,7 +93,12 @@ class FullGameSelfPlayEnv:
 
         anomaly = game.active_anomaly
         anomaly_name = anomaly.data.name if anomaly and not isinstance(anomaly, bool) else "none"
-        tribes = sorted(t.name for t in game.active_tribes) if game.active_tribes else ["ALL"]
+        # Anomaly scripts loaded from JSON may store tribe filters as raw
+        # integer enum values, while the normal draft path stores Race members.
+        tribes = (
+            sorted(_enum_name(t) for t in game.active_tribes)
+            if game.active_tribes else ["ALL"]
+        )
 
         for turn in range(1, self.turn_limit + 1):
             alive = [p for p in game.players if p.is_alive]
@@ -197,3 +202,13 @@ class FullGameSelfPlayEnv:
                   if c.get_tag(GameTag.CARDTYPE, 0) == CardType.MINION]:
             if bc >= 7: break
             player.hand.remove(m); player.board.append(m); bc += 1
+
+
+def _enum_name(value) -> str:
+    """Serialize enum members and versioned raw enum values consistently."""
+    from hsrl.core.enums import Race
+
+    try:
+        return Race(value).name
+    except (TypeError, ValueError):
+        return str(value)
