@@ -78,6 +78,7 @@ class TurnRecruitEnv:
     def reset(self) -> RLState:
         """Reset to the start of this player's recruit phase."""
         p = self.player
+        self._game.active_player = p
         self._actions_taken = 0
         self._turn_id = self._game.turn
         self._board_before = compute_board_score_v2(p).total
@@ -127,10 +128,10 @@ class TurnRecruitEnv:
                 return self._build_state(), -0.1, True
 
         if mode == ActionMode.DISCOVER_SELECT:
-            self._game.resolve_pending_choice(legacy_id)
+            self._game.resolve_pending_choice(legacy_id, p)
             result = None
         elif mode == ActionMode.TARGET_SELECT:
-            self._game.resolve_pending_target(legacy_id)
+            self._game.resolve_pending_target(legacy_id, p)
             result = None
         elif legacy_id == REARRANGE and board_order is not None:
             if not self._game.rearrange_board(p, board_order):

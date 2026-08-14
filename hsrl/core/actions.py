@@ -986,9 +986,9 @@ class DiscoverMinion(Action):
             game._check_for_triple(self.player, minion)
             return None
 
-        game._pending_choice = PendingChoice(
+        game.set_pending_choice(self.player, PendingChoice(
             "minion", options, source, self.player, _on_choice,
-        )
+        ))
 
 
 class DiscoverSpell(Action):
@@ -1037,9 +1037,9 @@ class DiscoverSpell(Action):
             game.broadcast("DISCOVER_SPELL", self.player, chosen_id)
             return None
 
-        game._pending_choice = PendingChoice(
+        game.set_pending_choice(self.player, PendingChoice(
             "spell", options, source, self.player, _on_choice,
-        )
+        ))
 
 
 class FreezeTavernMinion(Action):
@@ -1775,7 +1775,13 @@ class TargetedAction(Action):
                 self._target = game.rng.choice(candidates)
             else:
                 # RECRUIT phase — pause for player selection
-                game._pending_targeted_queue.append(self)
+                player = getattr(source, "controller", None)
+                if player is None and source in game.players:
+                    player = source
+                player = player or game.active_player
+                if player is None:
+                    raise ValueError("TargetedAction requires an acting player")
+                game.enqueue_pending_target(player, self)
                 return
         # Broadcast SPELL_CAST_ON_MINION for trinket listeners
         from hsrl.core.enums import CardType
@@ -2237,13 +2243,13 @@ class DiscoverPrize(Action):
             _, factory = choices[index]
             return factory(self.player)
 
-        game._pending_choice = PendingChoice(
+        game.set_pending_choice(self.player, PendingChoice(
             choice_type="discover_prize",
             options=options,
             source=source,
             player=self.player,
             callback=callback,
-        )
+        ))
 
 
 class DiscoverHeroPower(Action):
@@ -2284,13 +2290,13 @@ class DiscoverHeroPower(Action):
                 self.player.data.scripts = new_script
             return None
 
-        game._pending_choice = PendingChoice(
+        game.set_pending_choice(self.player, PendingChoice(
             choice_type="discover_hero_power",
             options=options,
             source=source,
             player=self.player,
             callback=callback,
-        )
+        ))
 
 
 class DiscoverBuddy(Action):
@@ -2336,13 +2342,13 @@ class DiscoverBuddy(Action):
                 game._auto_register_card(chosen_id)
             return AddToHand(self.player, chosen_id)
 
-        game._pending_choice = PendingChoice(
+        game.set_pending_choice(self.player, PendingChoice(
             choice_type="discover_buddy",
             options=options,
             source=source,
             player=self.player,
             callback=callback,
-        )
+        ))
 
 
 class DiscoverReward(Action):
@@ -2387,9 +2393,9 @@ class DiscoverReward(Action):
                         return result
             return None
 
-        game._pending_choice = PendingChoice(
+        game.set_pending_choice(self.player, PendingChoice(
             "reward", options, source, self.player, _on_choice,
-        )
+        ))
 
 
 class DiscoverTrinket(Action):

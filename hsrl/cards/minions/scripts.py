@@ -6026,9 +6026,9 @@ class _ClunkerJunkerDiscoverAction(Action):
             return None
 
         from hsrl.core.actions import PendingChoice
-        game._pending_choice = PendingChoice(
+        game.set_pending_choice(p, PendingChoice(
             "minion", options, source, p, _on_choice,
-        )
+        ))
         return None
 
 

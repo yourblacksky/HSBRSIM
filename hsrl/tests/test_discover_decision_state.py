@@ -155,6 +155,29 @@ class TestRLActionMaskExposesDiscoverOptions(unittest.TestCase):
             g2.resolve_pending_choice(i)
             self.assertEqual(len(p.hand), 1, f"Choice {i} should add card")
 
+    def test_two_players_pending_choices_are_isolated(self):
+        p2 = Player(CARDS.get("EXAMPLE_VANILLA"), game=self.game)
+        self.game.players.append(p2)
+
+        self.game.active_player = self.p1
+        self.game.queue_action(DiscoverSpell(self.p1))
+        self.game.resolve_queue()
+        first_choice = self.game.get_pending_choice(self.p1)
+
+        self.game.active_player = p2
+        self.game.queue_action(DiscoverSpell(p2))
+        self.game.resolve_queue()
+        second_choice = self.game.get_pending_choice(p2)
+
+        self.assertIsNotNone(first_choice)
+        self.assertIsNotNone(second_choice)
+        self.assertIsNot(first_choice, second_choice)
+        self.game.resolve_pending_choice(0, p2)
+        self.assertIs(self.game.get_pending_choice(self.p1), first_choice)
+        self.assertIsNone(self.game.get_pending_choice(p2))
+        self.assertEqual(len(self.p1.hand), 0)
+        self.assertEqual(len(p2.hand), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

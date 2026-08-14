@@ -72,9 +72,9 @@ def detect_action_mode(game, player, awaiting_start_choice=False,
         return ActionMode.START_CHOICE
     if game is None:
         return ActionMode.START_CHOICE  # pre-game
-    if game._pending_choice is not None:
+    if game.has_pending_choice(player):
         return ActionMode.DISCOVER_SELECT
-    if awaiting_target or game.has_pending_target():
+    if awaiting_target or game.has_pending_target(player):
         return ActionMode.TARGET_SELECT
     if awaiting_trinket or bool(getattr(player, '_pending_trinket_offers', None)):
         return ActionMode.TRINKET_SELECT
@@ -104,7 +104,7 @@ def build_action_mask(game: "Game", player: "Player",
 
     # ── Discover selection mode ──
     if mode == ActionMode.DISCOVER_SELECT:
-        choice = getattr(game, '_pending_choice', None)
+        choice = game.get_pending_choice(player)
         if choice is not None:
             for i in range(min(len(choice.options), RESERVED_START)):
                 mask[i] = True
@@ -112,12 +112,12 @@ def build_action_mask(game: "Game", player: "Player",
 
     # ── Deferred target selection mode ──
     if mode == ActionMode.TARGET_SELECT:
-        for i in range(min(len(game.get_pending_target_candidates()), RESERVED_START)):
+        for i in range(min(len(game.get_pending_target_candidates(player)), RESERVED_START)):
             mask[i] = True
         return mask
 
     # ── Pending choice auto-resolve (catch-all before normal mask building) ──
-    pending_choice = getattr(game, '_pending_choice', None)
+    pending_choice = game.get_pending_choice(player) if game is not None else None
     if pending_choice is not None:
         # Only END_TURN is valid until choice is resolved
         mask[END_TURN] = True

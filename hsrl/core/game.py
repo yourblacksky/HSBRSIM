@@ -93,8 +93,11 @@ class Game:
         self._scheduled_combat_pairs: List[Tuple[Player, Optional[Player]]] = []
         self._current_combat_opponents: Dict[Player, Player] = {}
         self._start_of_combat_global_broadcasted: bool = False
-        self._pending_targeted_queue: list = []  # TargetedActions awaiting target selection
-        self._pending_choice = None  # Optional PendingChoice — discover/choose awaiting resolution
+        # Recruit decisions are isolated by player.  The compatibility
+        # properties below still expose the active player's value to older
+        # callers which used the former game-global fields directly.
+        self._pending_targeted_queues: Dict[Player, list] = {}
+        self._pending_choices: Dict[Player, object] = {}
         self._auto_resolve_choices: bool = True  # Auto-resolve pending choices in heuristic/test mode
         self._combat_draw_streaks: Dict[Tuple[int, int], int] = {}
 
@@ -110,6 +113,44 @@ class Game:
 
         for p in self.players:
             p.game = self
+
+    @property
+    def _pending_targeted_queue(self) -> list:
+        """Compatibility view of the active player's pending target queue."""
+        if self.active_player is not None:
+            return self._pending_targeted_queues.setdefault(self.active_player, [])
+        non_empty = [q for q in self._pending_targeted_queues.values() if q]
+        return non_empty[0] if len(non_empty) == 1 else []
+
+    @_pending_targeted_queue.setter
+    def _pending_targeted_queue(self, value: list) -> None:
+        if self.active_player is None:
+            if value:
+                raise ValueError("active_player is required for a pending target")
+            self._pending_targeted_queues.clear()
+            return
+        self._pending_targeted_queues[self.active_player] = value
+
+    @property
+    def _pending_choice(self):
+        """Compatibility view of the active player's pending choice."""
+        if self.active_player is not None:
+            return self._pending_choices.get(self.active_player)
+        values = list(self._pending_choices.values())
+        return values[0] if len(values) == 1 else None
+
+    @_pending_choice.setter
+    def _pending_choice(self, value) -> None:
+        player = getattr(value, "player", None) or self.active_player
+        if player is None:
+            if value is None:
+                self._pending_choices.clear()
+                return
+            raise ValueError("player is required for a pending choice")
+        if value is None:
+            self._pending_choices.pop(player, None)
+        else:
+            self._pending_choices[player] = value
 
     # ── Deep state snapshot / restore for MCTS search ──────────────────────
 
@@ -1051,7 +1092,7 @@ class Game:
             action.trigger(source, self, target)
             _total_actions += 1
             # TargetedAction may pause the queue (recruit-phase target selection)
-            if self._pending_targeted_queue:
+            if self.has_pending_target(self.active_player):
                 return
             self._check_deaths(_wave, _total_actions)
 
@@ -1064,35 +1105,61 @@ class Game:
         an RL policy can choose its target.
         """
         self._resolve_queue(0)
-        if self._auto_resolve_choices and self._pending_choice is not None:
-            import random
-            self.resolve_pending_choice(self.rng.randrange(len(self._pending_choice.options)))
+        choice = self.get_pending_choice(self.active_player)
+        if self._auto_resolve_choices and choice is not None:
+            self.resolve_pending_choice(self.rng.randrange(len(choice.options)), self.active_player)
 
-    def has_pending_target(self) -> bool:
+    def set_pending_choice(self, player: Player, choice) -> None:
+        self._pending_choices[player] = choice
+
+    def get_pending_choice(self, player: Optional[Player] = None):
+        player = player or self.active_player
+        if player is not None:
+            return self._pending_choices.get(player)
+        values = list(self._pending_choices.values())
+        return values[0] if len(values) == 1 else None
+
+    def has_pending_choice(self, player: Optional[Player] = None) -> bool:
+        return self.get_pending_choice(player) is not None
+
+    def enqueue_pending_target(self, player: Player, action) -> None:
+        self._pending_targeted_queues.setdefault(player, []).append(action)
+
+    def _pending_targets(self, player: Optional[Player] = None) -> list:
+        player = player or self.active_player
+        if player is not None:
+            return self._pending_targeted_queues.setdefault(player, [])
+        non_empty = [q for q in self._pending_targeted_queues.values() if q]
+        return non_empty[0] if len(non_empty) == 1 else []
+
+    def has_pending_target(self, player: Optional[Player] = None) -> bool:
         """Check if a TargetedAction is awaiting target selection."""
-        return len(self._pending_targeted_queue) > 0
+        return bool(self._pending_targets(player))
 
-    def get_pending_target_domain(self) -> str:
+    def get_pending_target_domain(self, player: Optional[Player] = None) -> str:
         """Return the target domain ('board' or 'tavern') for the pending action."""
-        if not self._pending_targeted_queue:
+        queue = self._pending_targets(player)
+        if not queue:
             return "board"
-        return getattr(self._pending_targeted_queue[0], 'target_domain', 'board')
+        return getattr(queue[0], 'target_domain', 'board')
 
-    def get_pending_target_candidates(self) -> list:
+    def get_pending_target_candidates(self, player: Optional[Player] = None) -> list:
         """Return the list of valid target entities for the pending targeted action."""
-        if not self._pending_targeted_queue:
+        queue = self._pending_targets(player)
+        if not queue:
             return []
-        return self._pending_targeted_queue[0].candidates
+        return queue[0].candidates
 
-    def resolve_pending_target(self, target_index: int) -> bool:
+    def resolve_pending_target(self, target_index: int, player: Optional[Player] = None) -> bool:
         """Select a target for the front-of-queue TargetedAction.
         Returns True if more targets remain (sequential multi-target support).
 
         target_index: index into the candidates list (0-based).
         """
-        if not self._pending_targeted_queue:
+        queue = self._pending_targets(player)
+        if not queue:
             return False
-        action = self._pending_targeted_queue.pop(0)
+        action = queue.pop(0)
         candidates = action.candidates
         if 0 <= target_index < len(candidates):
             action.target = candidates[target_index]
@@ -1100,30 +1167,30 @@ class Game:
             import random
             action.target = self.rng.choice(candidates)
         else:
-            return len(self._pending_targeted_queue) > 0
+            return bool(queue)
         # Re-queue the TargetedAction — it will now execute with target set
         self.queue_action(action)
         self.resolve_queue()
-        return len(self._pending_targeted_queue) > 0
+        return bool(queue)
 
-    def auto_resolve_pending_target(self) -> None:
+    def auto_resolve_pending_target(self, player: Optional[Player] = None) -> None:
         """Auto-resolve the pending TargetedAction with a random valid target.
 
         Used by heuristic auto-play which has no target preference.
         If there are no valid targets, the pending action is discarded.
         Works for sequential multi-target: drains the entire queue.
         """
-        if not self._pending_targeted_queue:
+        queue = self._pending_targets(player)
+        if not queue:
             return
-        import random
-        action = self._pending_targeted_queue.pop(0)
+        action = queue.pop(0)
         candidates = action.candidates
         if candidates:
             action.target = self.rng.choice(candidates)
             self.queue_action(action)
             self.resolve_queue()
-        while self._pending_targeted_queue:
-            a = self._pending_targeted_queue.pop(0)
+        while queue:
+            a = queue.pop(0)
             c = a.candidates
             if c:
                 a.target = self.rng.choice(c)
@@ -1701,12 +1768,13 @@ class Game:
         # action or discover. Resolve every recruit decision before combat;
         # otherwise resolve_queue() pauses forever and combat Hit actions never
         # execute even though attacks continue.
-        while self._pending_targeted_queue:
-            self.auto_resolve_pending_target()
-        while self._pending_choice is not None:
-            self.resolve_pending_choice(
-                self.rng.randrange(len(self._pending_choice.options))
-            )
+        for player in self.players:
+            while self.has_pending_target(player):
+                self.auto_resolve_pending_target(player)
+            choice = self.get_pending_choice(player)
+            while choice is not None:
+                self.resolve_pending_choice(self.rng.randrange(len(choice.options)), player)
+                choice = self.get_pending_choice(player)
         # ── Trigger End of Turn effects BEFORE combat ──
         self._trigger_end_of_turn()
         self.resolve_queue()
@@ -2763,20 +2831,25 @@ class Game:
             self._auto_player_turn(p)
             self.resolve_queue()
             # Auto-resolve any pending targeted actions randomly
-            while self._pending_targeted_queue:
-                self.auto_resolve_pending_target()
+            while self.has_pending_target(p):
+                self.auto_resolve_pending_target(p)
             # Auto-resolve pending discover/choice randomly for heuristic players
-            while self._pending_choice is not None:
-                self.resolve_pending_choice(self.rng.randrange(len(self._pending_choice.options)))
+            choice = self.get_pending_choice(p)
+            while choice is not None:
+                self.resolve_pending_choice(self.rng.randrange(len(choice.options)), p)
+                choice = self.get_pending_choice(p)
 
-    def resolve_pending_choice(self, index: int) -> None:
+    def resolve_pending_choice(self, index: int, player: Optional[Player] = None) -> None:
         """Resolve the current PendingChoice with the given option index.
         Called by the RL agent (or heuristic bot) to make a discover selection.
         """
-        if self._pending_choice is None:
+        player = player or self.active_player
+        choice = self.get_pending_choice(player)
+        if choice is None:
             return
-        self._pending_choice.resolve(index, self)
-        self._pending_choice = None
+        player = player or choice.player
+        choice.resolve(index, self)
+        self._pending_choices.pop(player, None)
         self.resolve_queue()
 
     @staticmethod
