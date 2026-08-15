@@ -1439,6 +1439,15 @@ class TestPhaseVIDeathwing(unittest.TestCase):
         result = AllWillBurnScript.hero_power(player, self.game)
         self.assertIsNone(result)
 
+    def test_deathwing_aura_resolves_player_from_queued_minion_source(self):
+        """Queued summon replay must not attach an aura to the Minion."""
+        player = self._make_player("TB_BaconShop_HERO_52")
+        minion = self._add_minion(player)
+        from hsrl.cards.heroes.scripts import AllWillBurnScript
+        AllWillBurnScript.on_summon(minion, self.game)
+        self.assertEqual(len(player.auras), 1)
+        self.assertEqual(minion.atk, 2 + 3)
+
 
 class TestPhaseVIBananarama(unittest.TestCase):
     """Phase VI: Mukla's Bananarama — start of turn get 2 Bananas."""

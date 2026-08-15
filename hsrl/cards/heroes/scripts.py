@@ -1275,7 +1275,13 @@ class AllWillBurnScript:
     @staticmethod
     def on_summon(source, game):
         from hsrl.core.actions import ApplyGlobalAura
-        ApplyGlobalAura(source, atk=3, health=0).do(source, game)
+        # Hero scripts are normally initialized with Player as their source.
+        # A queued summon can replay the script with the summoned Minion as the
+        # source, however, so always resolve the owning player before attaching
+        # the persistent aura.
+        player = source if hasattr(source, "auras") else source.controller
+        if player is not None:
+            ApplyGlobalAura(player, atk=3, health=0).do(source, game)
         return None
 
     @staticmethod
