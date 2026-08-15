@@ -14,6 +14,7 @@ from pathlib import Path
 ENGINE_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MANIFEST_PATH = ENGINE_ROOT / "data" / "runtime_manifest.json"
 DEFAULT_CARDDEFS_PATH = ENGINE_ROOT / "hsdata" / "CardDefs.xml"
+DEFAULT_ENGINE_SOURCE_ROOT = ENGINE_ROOT / "hsrl"
 
 
 class RuntimeVersionError(RuntimeError):
@@ -22,6 +23,20 @@ class RuntimeVersionError(RuntimeError):
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def engine_source_sha256(root: Path = DEFAULT_ENGINE_SOURCE_ROOT) -> str:
+    """Hash executable engine sources, excluding tests and generated caches."""
+    digest = hashlib.sha256()
+    for path in sorted(Path(root).rglob("*.py")):
+        relative = path.relative_to(root)
+        if "tests" in relative.parts or "__pycache__" in relative.parts:
+            continue
+        digest.update(relative.as_posix().encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
 
 
 def _canonical_hash(payload) -> str:
@@ -203,6 +218,13 @@ def _validate(expected: dict, carddefs_path: Path) -> dict:
     action_schema = _action_schema()
     if action_schema != expected.get("action_schema"):
         failures.append("action schema does not match manifest")
+    expected_source = expected.get("engine_source", {})
+    actual_source_hash = engine_source_sha256()
+    if actual_source_hash != expected_source.get("sha256"):
+        failures.append(
+            "engine source sha256 "
+            f"{actual_source_hash} != {expected_source.get('sha256')}"
+        )
 
     if failures:
         raise RuntimeVersionError("runtime version mismatch: " + "; ".join(failures))

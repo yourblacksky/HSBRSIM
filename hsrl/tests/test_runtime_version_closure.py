@@ -13,6 +13,7 @@ from hsrl.core.game import Game
 from hsrl.runtime_version import (
     RuntimeVersionError,
     current_runtime_manifest,
+    engine_source_sha256,
     validate_runtime_manifest,
 )
 
@@ -22,6 +23,13 @@ class TestRuntimeVersionClosure(unittest.TestCase):
         runtime = validate_runtime_manifest(use_cache=False)
         self.assertEqual(runtime["patch"], "35.6.0.243002")
         self.assertEqual(runtime["carddefs"]["build"], 243002)
+        self.assertEqual(runtime["engine_source"]["sha256"], engine_source_sha256())
+
+    def test_engine_source_mismatch_fails_closed(self):
+        manifest = current_runtime_manifest()
+        manifest["engine_source"]["sha256"] = "0" * 64
+        with self.assertRaisesRegex(RuntimeVersionError, "engine source sha256"):
+            validate_runtime_manifest(expected=manifest, use_cache=False)
 
     def test_tavish_mapping_matches_35_6_carddefs(self):
         validate_runtime_manifest(use_cache=False)
