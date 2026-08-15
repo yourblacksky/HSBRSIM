@@ -1308,6 +1308,14 @@ class Game:
     # Cached tribe → trinket-id list. Built lazily from card_db when needed.
     _trinket_tribe_index: Optional[Dict[str, List[str]]] = None
 
+    # Stable priority for the rare script-backed trinket that references more
+    # than one race.  Kept overridable solely for replaying journals produced by
+    # the legacy set-based implementation.
+    _trinket_script_race_priority = (
+        "BEAST", "MECH", "MURLOC", "DEMON", "DRAGON",
+        "PIRATE", "ELEMENTAL", "QUILBOAR", "NAGA", "UNDEAD",
+    )
+
     # Cached trinket type pools (lesser/greater). Loaded from pool_trinket_texts.json.
     _trinket_lesser_ids: Optional[set] = None
     _trinket_greater_ids: Optional[set] = None
@@ -1365,7 +1373,10 @@ class Game:
             "NAGA":       r"\b(?:naga|spellcraft|spell|coilfang|azshara|tidal|lurker|scales)\b",
             "UNDEAD":     r"\b(?:undead|deathrattle|skeleton|ghoul|lich|banshee|cadaver|grave|mummy|necromancer)\b",
         }
-        _RACE_NAMES = set(Race.__members__) - {"NONE", "INVALID", "ALL"}
+        # Script source can mention more than one race.  Iterating a set here
+        # made the match depend on PYTHONHASHSEED and changed trinket offers in
+        # a fresh replay process.
+        _RACE_NAMES = cls._trinket_script_race_priority
 
         tribe_map: Dict[str, List[str]] = {t: [] for t in _RACE_KEYWORDS}
         neutral: List[str] = []
