@@ -1954,7 +1954,7 @@ class MurlocKingScript:
                 self.player = player
 
             def do(self, source_ent, game_ref, target=None):
-                board = self.player.get_board_minions()
+                board = _hp_player(self.player).get_board_minions()
                 living = [m for m in board if not m.dead]
                 for m in living:
                     game_ref.queue_action(
@@ -2160,7 +2160,7 @@ class WingmenScript:
                 self.player = player
 
             def do(self, source_ent, game_ref, target=None):
-                board = self.player.get_board_minions()
+                board = _hp_player(self.player).get_board_minions()
                 living = [m for m in board if not m.dead]
                 if not living:
                     return
@@ -2213,7 +2213,7 @@ class FragrantPhylacteryScript:
                 self.player = player
 
             def do(self, source_ent, game_ref, target=None):
-                board = self.player.get_board_minions()
+                board = _hp_player(self.player).get_board_minions()
                 living = [m for m in board if not m.dead]
                 if not living:
                     return

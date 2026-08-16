@@ -2511,6 +2511,20 @@ class TestPhase12Wingmen(unittest.TestCase):
         self.assertEqual(m1.atk, 4)  # 2 + 2 (buffed only once)
         self.assertEqual(m1.max_health, 4)
 
+    def test_soc_resolves_player_from_controlled_hero_power_entity(self):
+        from hsrl.cards.heroes.scripts import HERO_POWER_SCRIPT_REGISTRY
+        script = HERO_POWER_SCRIPT_REGISTRY["TB_BaconShop_HP_069"]
+        source = self.game.create_minion("EXAMPLE_VANILLA")
+        source.controller = self.player
+        script.on_summon(source, self.game)
+        minion = self._add_friendly()
+
+        self.game.broadcast("START_OF_COMBAT", self.player)
+        self.game.resolve_queue()
+
+        self.assertEqual(minion.atk, 4)
+        self.assertEqual(minion.max_health, 4)
+
 
 class TestPhase12FragrantPhylactery(unittest.TestCase):
     """BG20_HERO_282p — Fragrant Phylactery: SoC give lowest-ATK minion DR."""
