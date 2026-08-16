@@ -1737,6 +1737,22 @@ class TestPhaseVIbWaxWarband(unittest.TestCase):
         self.assertEqual(m4.atk, 2)
         self.assertEqual(m4.max_health, 3)
 
+    def test_soc_resolves_player_from_hero_power_entity_controller(self):
+        """Listener sources may be hero-power entities rather than Players."""
+        from hsrl.cards.heroes.scripts import WaxWarbandScript
+
+        player = self._make_player()
+        power = self.game.create_minion("TB_BaconShop_HP_037a")
+        self.assertIsNotNone(power)
+        power.controller = player
+        WaxWarbandScript.on_summon(power, self.game)
+        beast = self._add_minion(player, race=Race.BEAST)
+
+        self.game.broadcast("START_OF_COMBAT", player)
+
+        self.assertEqual(beast.atk, 4)
+        self.assertEqual(beast.max_health, 5)
+
     def test_soc_same_type_only_buffed_once(self):
         """Multiple minions of same type → only one gets buffed."""
         player = self._make_player()

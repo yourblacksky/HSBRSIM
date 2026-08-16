@@ -1489,7 +1489,7 @@ class WaxWarbandScript:
                 self.hero = hero
 
             def do(self, source_ent, game_ref, target=None):
-                board = self.hero.get_board_minions()
+                board = _hp_player(self.hero).get_board_minions()
                 living = [m for m in board if not m.dead]
                 # One buff per unique type (exclude INVALID/NONE)
                 seen_types = set()
