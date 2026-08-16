@@ -1,11 +1,11 @@
 {
-  "manifest_id": "hsbrsim-35.6.0.243002-c9253e248b0d0688",
+  "manifest_id": "hsbrsim-35.6.0.243002-f2bc81deec8d1a9f",
   "schema_version": 1,
   "patch": "35.6.0.243002",
   "hsdata_commit": "f20ef234ef004ee4fa455ccebfd2781515203385",
   "engine_source": {
     "algorithm": "sha256-path-null-content-null-v1",
-    "sha256": "26fc58da7cb56240e42482738456651e15359b0a8bb3d2db01ffbb083d0ea3b5"
+    "sha256": "03b2eaa0ea8a9cd537a154de3e54f1db48dc6ad3d53c72d84d0213064eea8803"
   },
   "files": {
     "data/bg_anomalies.json": "d28606ade543ce6bddab8a14dc334b4d82f793e3501bb6b17798c965ee15e85c",
