@@ -21,6 +21,7 @@ from hsrl.core.game import Game
 from hsrl.core.minion_pool import MinionPool
 from hsrl.core.player import Player
 from hsrl.core.spell_pool import SpellPool
+from hsrl.env.action import build_action_mask
 
 
 class TestHandLimitRules(unittest.TestCase):
@@ -71,6 +72,17 @@ class TestHandLimitRules(unittest.TestCase):
         self.game.buy_spell(self.p1, spells[0])
         self.assertEqual(len(self.p1.hand), before)
         self.assertIn(spells[0], self.p1.tavern)
+
+    def test_action_mask_hides_all_buys_with_full_hand(self):
+        self._fill_hand(10)
+        self.p1.set_tag(GameTag.GOLD, 99)
+        self.p1.set_tag(GameTag.TAVERN_TIER, 2)
+        self.game.refresh_tavern(self.p1)
+        self.assertTrue(self.p1.tavern, "Need at least one tavern card")
+
+        mask = build_action_mask(self.game, self.p1)
+
+        self.assertFalse(mask[:7].any(), "Full-hand buy actions must be masked")
 
     def test_get_blood_gem_respects_hand_limit(self):
         self._fill_hand(10)

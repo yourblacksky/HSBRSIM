@@ -140,9 +140,11 @@ def build_action_mask(game: "Game", player: "Player",
         mask[END_TURN] = True  # Allow declining trinket offer
         return mask
 
-    # Buy tavern slots 0-6
+    # Buy tavern slots 0-6. The engine rejects purchases at the hand cap, so
+    # the authoritative mask must not advertise those actions as executable.
+    hand_has_space = len(player.hand) < 10
     for i in range(7):
-        if i < len(player.tavern):
+        if hand_has_space and i < len(player.tavern):
             entity = player.tavern[i]
             cost = entity.get_tag(GameTag.COST, 3)
             ct = entity.get_tag(GameTag.CARDTYPE, CardType.INVALID)
