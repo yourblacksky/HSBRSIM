@@ -265,6 +265,20 @@ class BaseEntity:
                 return fn(self, self.game)
         return fn
 
+    def has_script_method(self, method_name: str) -> bool:
+        """Return whether a script hook exists without executing the hook.
+
+        Script properties such as ``battlecry`` resolve their effect eagerly.
+        Code that only needs to classify an entity must use this predicate so
+        it cannot trigger effects while inspecting a card.
+        """
+        if self.has_tag(GameTag.SILENCED):
+            return False
+        if method_name in self._script_overrides:
+            return self._script_overrides[method_name] is not None
+        scripts = self.data.scripts
+        return scripts is not None and getattr(scripts, method_name, None) is not None
+
     @property
     def deathrattle(self):
         """Returns the resolved deathrattle Action(s)."""

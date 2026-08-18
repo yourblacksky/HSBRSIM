@@ -2871,6 +2871,22 @@ class TestPhase12BattleBrand(unittest.TestCase):
 
         self.assertEqual(len(self.player.hand), 0)  # Not triggered
 
+    def test_buy_classification_does_not_execute_battlecry(self):
+        """MINION_BOUGHT may arrive before a card has a controller."""
+        from hsrl.cards.heroes.scripts import HERO_POWER_SCRIPT_REGISTRY
+        script = HERO_POWER_SCRIPT_REGISTRY["TB_BaconShop_HP_048"]
+        script.on_summon(self.player, self.game)
+
+        # Roving Sailor's Battlecry dereferences source.controller.  Merely
+        # classifying it for Battle Brand must therefore not invoke the hook.
+        for _ in range(5):
+            bought = self.game.create_minion("BG35_702")
+            self.assertIsNone(bought.controller)
+            self.game.broadcast("MINION_BOUGHT", bought, self.player)
+            self.game.resolve_queue()
+
+        self.assertEqual([m.data.id for m in self.player.hand], ["TB_BaconUps_045"])
+
 
 class TestPhase12BuyInsect(unittest.TestCase):
     """TB_BaconShop_HP_087 — BUY, INSECT!: buy 16 cards → Sulfuras EOT."""

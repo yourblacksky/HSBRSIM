@@ -2503,7 +2503,11 @@ class BattleBrandScript:
                 if self.done:
                     return
                 bought = target
-                if bought.battlecry is not None:
+                # Classification must not resolve the Battlecry.  Newly bought
+                # minions are broadcast before every script can safely assume
+                # a controller, and resolving here would trigger the effect a
+                # second time merely by inspecting the card.
+                if bought.has_script_method("battlecry"):
                     self.count += 1
                 if self.count >= 5:
                     self.done = True
